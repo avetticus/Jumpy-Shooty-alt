@@ -198,6 +198,10 @@ Quick checks:
   tool and the jetpack; a race has the grapple and no jetpack;
 - the game boots into practice mode on every map without script errors.
 
+- the railgun (`tests/railgun_test.gd`), in a real Practice match: through a wall a pistol
+  round stops at, its slug kills a dummy outright, its tracer runs its whole range and it
+  never hurts the one who fired it (`tests/destruction_test.gd` checks that a line through
+  walls finds every breakable piece on it);
 - the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
   only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,

@@ -75,6 +75,7 @@ const SENSE_RATE := 30.0   ## times a second it looks and listens (see update): 
 const SOUND_GAP := 0.4     ## seconds between updating where it heard someone (so its goal does not jitter)
 const WHIZZ := 4.0         ## a shot ending this close is heard, however far away the shooter is
 const LOOK_TIME := 1.2     ## it looks toward a fresh sighting or sound for this long, then where it runs
+const WALLBANG_TIME := 1.0 ## Hard and Expert, with the railgun: it fires through cover at where it saw or heard you this recently
 const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
 const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
 const WIND_FROM := 6.0     ## melee: it starts winding its swing up this far outside its reach
@@ -260,7 +261,7 @@ func update(delta: float) -> void:
 		_last_seen_time = _time
 	while not _seen.is_empty() and _seen[0][0] < _time - 2.0:
 		_seen.pop_front()
-	var perceived := _perceived() if visible else []
+	var perceived := _perceived() if visible else _wallbang()
 
 	_link_wait = maxf(_link_wait - delta, 0.0)
 	_no_link = maxf(_no_link - delta, 0.0)
@@ -519,6 +520,18 @@ func _perceived() -> Array:
 		if _seen[i][0] <= when:
 			return _seen[i]
 	return []
+
+
+## The railgun goes through walls: a Hard or Expert bot holding it, its target out of
+## sight, aims and fires at where it saw or heard them a moment ago (as _perceived, or
+## empty). Nothing it could not know: only the spot it already has, and only briefly.
+func _wallbang() -> Array:
+	if d.level < BotDifficulty.HARD or _target == null or me.weapon == null or not me.weapon.data.pierce:
+		return []
+	var known: Array = _known.get(_target.peer_id, [])
+	if known.is_empty() or _time - float(known[0]) > WALLBANG_TIME:
+		return []
+	return [known[0], (known[1] as Vector3) + Vector3(0, CHEST, 0), Vector3.ZERO]
 
 
 # ---------------------------------------------------------------------------

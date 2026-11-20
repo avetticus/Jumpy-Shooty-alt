@@ -153,6 +153,7 @@ var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the righ
 var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
+var _reload_rate := 1.0   # clip seconds a second: the reload clip plays out over the gun's reload_time
 var _reload_w := 0.0
 var _was_reloading := false
 var _reload_from := 0.0   # a reload cut short: where in the clip it stopped...
@@ -245,7 +246,10 @@ func set_weapon(id: String) -> void:
 		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
 		rig.sample(_aim, clip("aim"), 0.0)
+	_reload_rate = 1.0
 	if rig.has_clip(clip("reload")):
+		if not _loop_reload and data.reload_time > 0.0:
+			_reload_rate = rig.length(clip("reload")) / data.reload_time   # (1 but for the railgun: its 2.6 s clip, a 1.5 s reload)
 		rig.sample(_tmp, clip("reload"), 0.0)
 		_reload_chest = _tmp.rot[_b["chest"]].normalized()
 		_reload_spine = _tmp.rot[_b["spine"]].normalized()
@@ -561,7 +565,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			if want[2] <= 0.0:
 				_reload_w = 0.0   # mid-flip, mid-roll: the hands are busy
 			_lay_reload(rclip, _reload_t, _reload_w)
-			_reload_t += delta
+			_reload_t += delta * _reload_rate
 	if _end_t >= 0.0:
 		var eclip := clip("reload_end")
 		var elen := rig.length(eclip)

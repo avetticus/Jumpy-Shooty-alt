@@ -473,9 +473,11 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var log := []
 	for i in directions.size():
 		var direction := directions[i].normalized()
-		# How far the pellet can travel before hitting the level.
+		# How far the pellet can travel before hitting the level (the railgun's slug
+		# goes through it all, its whole range).
 		var end := origin + direction * weapon.max_range
-		var world_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, end, 1))  # layer 1: level only
+		var world_hit := {} if weapon.pierce \
+			else space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, end, 1))  # layer 1: level only
 		var wall_cell := -1
 		if world_hit:
 			end = world_hit.position
@@ -487,7 +489,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var best_point := end
 		var best_head := false
 		var best_height := 0.0
-		if weapon.pierce:   # the railgun: everyone along the line
+		if weapon.pierce:   # the railgun: everyone and everything along the line
 			for b in bodies:
 				var hit := _ray_body(origin, end, b)
 				if hit.is_empty():
@@ -501,8 +503,9 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 				dirs[b[0]] = direction
 				if DevArgs.sync_log:
 					log.append("hit %d at %.2f m%s" % [b[0], hit.height, " head" if hit.head else ""])
-			if wall_cell >= 0:
-				breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
+			if breaks:   # every breakable piece of wall and floor it goes through
+				for into in breaks.cells_along(origin, end):
+					breaks.damage(into[0], weapon.damage_at(float(into[1])) * weapon.structure_damage)
 			ends.append(end)
 			continue
 		for b in bodies:

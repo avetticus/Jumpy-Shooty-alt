@@ -104,7 +104,7 @@ const RELOAD_STEPS := {
 	"lmg": [[0.30, "cover_open"], [0.88, "box_out"], [1.78, "box_in"], [2.54, "cover_close"]],
 	"lever_action": [[0.25, "shell_in"]],
 	"bolt_action": [[0.28, "shell_in"]],
-	"railgun": [[0.28, "cell_out"], [0.40, "rail_vent"], [1.58, "cell_in"]],
+	"railgun": [[0.16, "cell_out"], [0.23, "rail_vent"], [0.91, "cell_in"]],   # its 2.6 s clip played in its 1.5 s reload
 	"rocket_launcher": [[0.42, "gun_toss"], [0.94, "rocket_in"]],
 	"grenade_launcher": [[0.28, "grenade_in"], [0.40, "drum_turn"]],
 	"derringer": [[0.11, "break_open"], [0.62, "gun_toss"], [0.77, "shells_in"], [1, "break_close"]],

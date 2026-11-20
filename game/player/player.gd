@@ -591,10 +591,12 @@ func _fire_round() -> void:
 	var space := get_world_3d().direct_space_state
 	for dir in dirs:
 		var end := eye + dir * weapon.data.max_range
-		var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
-		var hit := space.intersect_ray(ray)
-		if hit:
-			end = hit.position
+		var hit := {}
+		if not weapon.data.pierce:   # the railgun's slug stops for nothing
+			var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
+			hit = space.intersect_ray(ray)
+			if hit:
+				end = hit.position
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
