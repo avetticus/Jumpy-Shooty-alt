@@ -679,18 +679,30 @@ makes ordinary MapBlocks and is one step of undo.
   than 32 corners are left alone (lower their Sides first), and so are blocks a Stairs,
   Row or Ring made. Then move its corners with the Vertex tool.
 - **Vertex** (`V`): the selected hull blocks show their edges and corners (the face
-  handles are put away meanwhile). Click a corner to pick it, Shift-click to add or
-  take one away, or drag a box round several; corners of different blocks in the same
-  place are picked and move together. Drag a picked corner to move them all, on the
-  grid: level in the 3D view (hold Shift for straight up and down), in the view's plane
-  in a top, front or side view. The arrow keys move them a grid square across the view,
-  Page Up and Page Down up and down; Delete takes them away. Double-click an edge to
-  add a corner in its middle, or a face for one in the face's middle, then drag it out.
-  A hull stays convex: a move that would sink a corner inside the shape is refused (the
-  edges turn red and the shape stays at the last allowed move), and a corner that
-  another's move leaves inside is dropped. A click away from every corner selects the
-  block under it. Esc or a right click puts a drag back; Esc again leaves the tool.
-  Each drag, nudge, add or delete is one step of undo.
+  handles are put away meanwhile). Click a corner, an edge or a face to pick it (an
+  edge or a face is its corners), Shift-click to add or take one away, or drag a box
+  round several corners; corners of different blocks in the same place are picked and
+  move together.
+  - Drag a picked corner or edge to move what is picked: level in the 3D view (hold
+    Shift for straight up and down), in the view's plane in a top, front or side view.
+    A corner lands on the grid; an edge moves by whole grid squares.
+  - Drag a face to push or pull it straight out from itself, by whole grid squares,
+    while every other face stays in its plane: the faces round it grow or shrink to
+    meet it (a sloping side carries on up when you raise the top).
+  - The arrow keys move the picked corners a grid square across the view, Page Up and
+    Page Down up and down; Delete takes them away.
+  - Double-click an edge to add a corner in its middle, or a face for one in the face's
+    middle, then drag it out.
+
+  A hull stays convex: a move that would sink a corner inside the shape, or push a face
+  out until the faces round it close over it, is refused (the edges turn red and the
+  shape stays at the last allowed move); a corner that another's move leaves inside is
+  dropped. A click on no selected hull selects the block under it. Esc or a right
+  click puts a drag back; Esc again leaves the tool. Each drag, nudge, add or delete is
+  one step of undo.
+- **A hull's face handles**: outside the Vertex tool, a selected hull block has a
+  handle in the middle of every face, slanted faces too. Drag one to push or pull that
+  face the same way (on the grid; Ctrl for whole metres).
 - **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes

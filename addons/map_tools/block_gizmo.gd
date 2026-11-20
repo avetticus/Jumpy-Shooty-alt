@@ -2,7 +2,9 @@
 extends EditorNode3DGizmoPlugin
 ## Map blocks in the 3D editor: click one to select it, then drag the orange
 ## handle on a face to move that face (the opposite face stays put). A cylinder
-## has a handle for its diameter and one at each end.
+## has a handle for its diameter and one at each end. A hull has a handle in the
+## middle of every face, slanted ones too: drag it to push or pull that face straight
+## out from itself, every other face staying in its plane (MapOps.extruded).
 ##
 ## Sizes snap to the map tools' grid ([ and ] change it); hold Ctrl to snap to whole
 ## metres. A dragged face also snaps flush to a nearby face of another block that
@@ -18,6 +20,8 @@ var ctx: RefCounted
 var _frame := Transform3D.IDENTITY   # the dragged block's own axes, at the map's origin
 var _others: Array[AABB] = []        # the other blocks' boxes in that frame
 var _snapping := false
+var _hull_points := PackedVector3Array()   # a hull being reshaped: its points as the drag began
+var _hull_at := Vector3.ZERO               # and where it stood
 
 
 func _init() -> void:
@@ -40,6 +44,14 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 		gizmo.add_collision_triangles(triangles)
 	if ctx and ctx.editing_corners:
 		return   # the Vertex tool is on: it draws the corners instead
+	if block.shape == MapBlock.Shape.HULL:
+		var middles := MapOps.face_middles(block.points)
+		var face_ids := PackedInt32Array()
+		for i in middles.size():
+			face_ids.append(i)
+		if not middles.is_empty():
+			gizmo.add_handles(middles, get_material("handles", gizmo), face_ids)
+		return
 	var h := block.size * 0.5
 	var handles := PackedVector3Array()
 	var ids := PackedInt32Array()
@@ -56,11 +68,15 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, id: int, _secondary: bool) -> String:
 	var block := gizmo.get_node_3d() as MapBlock
+	if block.shape == MapBlock.Shape.HULL:
+		return "Face %d" % (id + 1)
 	return "Diameter" if block.is_round() and id == 0 else NAMES[id]
 
 
 func _get_handle_value(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> Variant:
 	var block := gizmo.get_node_3d() as MapBlock
+	if block.shape == MapBlock.Shape.HULL:
+		return [block.points.duplicate(), block.position]
 	return [block.size, block.position]
 
 
@@ -68,6 +84,10 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> 
 func _begin_handle_action(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> void:
 	_snapping = false
 	var block := gizmo.get_node_3d() as MapBlock
+	if block.shape == MapBlock.Shape.HULL:
+		_hull_points = block.points.duplicate()
+		_hull_at = block.position
+		return
 	if ctx == null or ctx.map == null or not ctx.map.is_ancestor_of(block):
 		return
 	_frame = Transform3D((MapOps.box_of(block)[0] as Transform3D).basis, Vector3.ZERO)
@@ -81,6 +101,14 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) 
 
 func _set_handle(gizmo: EditorNode3DGizmo, id: int, _secondary: bool, camera: Camera3D, screen_pos: Vector2) -> void:
 	var block := gizmo.get_node_3d() as MapBlock
+	if block.shape == MapBlock.Shape.HULL:
+		var step: float = 1.0 if Input.is_key_pressed(KEY_CTRL) else (ctx.grid if ctx else 0.1)
+		var placed := MapOps.pushed_face(block, _hull_points, _hull_at, id,
+			camera.project_ray_origin(screen_pos), camera.project_ray_normal(screen_pos), step)
+		if not placed.is_empty():
+			block.points = placed[0]
+			block.position = placed[1]
+		return
 	var to_local := block.global_transform.affine_inverse()
 	var from := camera.project_ray_origin(screen_pos)
 	var ray := camera.project_ray_normal(screen_pos)
@@ -117,6 +145,19 @@ func _set_handle(gizmo: EditorNode3DGizmo, id: int, _secondary: bool, camera: Ca
 func _commit_handle(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool, restore: Variant, cancel: bool) -> void:
 	_snapping = false
 	var block := gizmo.get_node_3d() as MapBlock
+	if block.shape == MapBlock.Shape.HULL:
+		if cancel:
+			block.points = restore[0]
+			block.position = restore[1]
+			return
+		var hull_undo := EditorInterface.get_editor_undo_redo()
+		hull_undo.create_action("Push hull face")
+		hull_undo.add_do_property(block, "points", block.points)
+		hull_undo.add_do_property(block, "position", block.position)
+		hull_undo.add_undo_property(block, "points", restore[0])
+		hull_undo.add_undo_property(block, "position", restore[1])
+		hull_undo.commit_action()
+		return
 	if cancel:
 		block.size = restore[0]
 		block.position = restore[1]

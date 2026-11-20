@@ -333,6 +333,70 @@ static func reshaped(points: PackedVector3Array, moved: Dictionary) -> PackedVec
 	return out
 
 
+## A hull's points with one face (`face`: its index in MapMesher.hull_planes) pushed
+## out `by` (in the block's own units; less than 0 pulls it in), every other face
+## staying in its plane: the face's neighbours grow or shrink to meet it. Empty if
+## that is refused: the face would vanish (its neighbours meet before it), or the
+## shape would be flat or have too many corners.
+static func extruded(points: PackedVector3Array, face: int, by: float) -> PackedVector3Array:
+	var planes := MapMesher.hull_planes(points)
+	if face < 0 or face >= planes.size():
+		return PackedVector3Array()
+	var moved: Array[Plane] = planes.duplicate()
+	var plane: Plane = planes[face]
+	moved[face] = Plane(plane.normal, plane.d + by)
+	var raw := Geometry3D.compute_convex_mesh_points(moved)
+	for i in raw.size():   # (rounded, so corners worked out from planes stay where they belong)
+		raw[i] = raw[i].snappedf(0.0001)
+	var pts := MapMesher.hull_corners(raw)
+	if pts.size() > MapMesher.MAX_HULL_CORNERS:
+		return PackedVector3Array()
+	var after := MapMesher.hull_planes(pts)
+	if after.size() < 4:
+		return PackedVector3Array()
+	var kept := false
+	for p in after:
+		kept = kept or (p.normal.dot(plane.normal) > 0.9999 and absf(p.d - plane.d - by) < 0.001)
+	return pts if kept else PackedVector3Array()
+
+
+## A hull block's face handle dragged: face `face` of the shape it had (`from`, with
+## the block at `at`) pushed out to where the line straight out from the face's middle
+## comes nearest the ray (`origin`, `dir`, in the map), by whole steps of `step`
+## metres. [centred points, position] for the block, or [] if refused (see extruded).
+static func pushed_face(block: MapBlock, from: PackedVector3Array, at: Vector3, face: int,
+		origin: Vector3, dir: Vector3, step: float) -> Array:
+	var planes := MapMesher.hull_planes(from)
+	if face < 0 or face >= planes.size():
+		return []
+	var frame := parent_global(block) * Transform3D(block.transform.basis, at)
+	var inv := frame.affine_inverse()
+	var n: Vector3 = planes[face].normal
+	var middle: Vector3 = face_middles(from)[face]
+	var a := inv * origin
+	var b := inv * (origin + dir * 4096.0)
+	var closest := Geometry3D.get_closest_points_between_segments(middle - n * 4096.0, middle + n * 4096.0, a, b)
+	var reach := (closest[0] - middle).dot(n)   # in the block's own units
+	var per_metre := (frame.basis.inverse().transposed() * n).length()   # its own units per metre, along the face's normal
+	var by := snap(reach / per_metre, step) * per_metre
+	var pts := extruded(from, face, by)
+	if pts.is_empty():
+		return []
+	return hull_placement(block, pts, at)
+
+
+## The middle of each face of a hull (in its own frame), in the order of
+## MapMesher.hull_planes.
+static func face_middles(points: PackedVector3Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for face in MapMesher.hull_faces(points):
+		var middle := Vector3.ZERO
+		for p: Vector3 in face[1]:
+			middle += p
+		out.append(middle / (face[1] as Array).size())
+	return out
+
+
 ## A hull's points without some of them (`gone`: their indices). Empty if what is
 ## left is not a solid shape.
 static func without_points(points: PackedVector3Array, gone: Array) -> PackedVector3Array:
@@ -381,12 +445,14 @@ static func hull_edges(points: PackedVector3Array) -> Array:
 
 
 ## Where a ray (in the block's own frame) first meets a hull's surface: [distance,
-## the face's corners (ring), its outward normal], or [] if it misses.
+## the face's corners (ring), its outward normal, its index in MapMesher.hull_planes],
+## or [] if it misses.
 static func ray_hull(origin: Vector3, dir: Vector3, points: PackedVector3Array) -> Array:
 	var faces := MapMesher.hull_faces(points)
 	var planes := MapMesher.hull_planes(points)
 	var best := []
-	for face in faces:
+	for index in faces.size():
+		var face: Array = faces[index]
 		var n: Vector3 = face[0]
 		var facing := n.dot(dir)
 		if facing >= -1e-6:
@@ -396,7 +462,7 @@ static func ray_hull(origin: Vector3, dir: Vector3, points: PackedVector3Array) 
 		if t < 0.0 or (not best.is_empty() and t >= best[0]):
 			continue
 		if MapMesher.hull_has(planes, origin + dir * t, 0.001):
-			best = [t, face[1], n]
+			best = [t, face[1], n, index]
 	return best
 
 

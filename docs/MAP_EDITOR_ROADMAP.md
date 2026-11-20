@@ -4,7 +4,8 @@ What it would take for the Godot map tools (`addons/map_tools/`, `MapBlock`) to 
 everything a level designer reaches for in TrenchBroom, without leaving Godot and
 without changing how maps are stored or played.
 
-Status: **P1 (the hull shape) and P2 (the vertex tool) are built.** P3 onward are plans.
+Status: **P1 (the hull shape), P2 (the vertex tool) and P3 (edges, faces, push/pull)
+are built.** P4 onward are plans.
 
 ## Ground rules
 
@@ -232,7 +233,21 @@ The original plan:
 - Red preview and refusal when the result would be concave or flat.
 - One undo step per drag.
 
-### P3. Edge and face tools; slanted resize (M)
+### P3. Edge and face tools; slanted resize (M) — done
+Built into the Vertex tool rather than as separate E and F tools: Godot's 3D editor
+already uses E and R (rotate, scale), and one tool that picks whatever is clicked (a
+corner first, then an edge, then a face) needs no mode switching.
+- Edges: click to pick (its two corners), drag to move by whole grid squares.
+- Faces: click to pick (its corners); dragging a face pushes or pulls it along its own
+  normal with every other face keeping its plane (`MapOps.extruded()`, which rebuilds
+  the corners from the planes with `Geometry3D.compute_convex_mesh_points`). Refused
+  when the face would vanish or the shape go flat.
+- Hull blocks' gizmo handles are now one per face, at its middle, doing the same push
+  and pull (`MapOps.pushed_face()`, which also handles a scaled block).
+- Moving a face freely (rather than along its normal) is done by picking its corners
+  and nudging them with the arrow keys; dragging a face always pushes or pulls.
+
+The original plan:
 - `E` and `F` modes of the same tool: select edges or faces, move them as above.
 - **Extrude** (TrenchBroom's Shift-drag a face): move one face along its normal while
   every other face keeps its plane. Done with planes: offset the face's plane, work out

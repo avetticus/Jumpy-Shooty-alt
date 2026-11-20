@@ -331,6 +331,68 @@ func _check_hulls() -> void:
 	_expect(MapMesher.hull_has(planes, Vector3(0, -0.5, 0)) and not MapMesher.hull_has(planes, Vector3(0, 0, 0.5)),
 		"a point under the slope is inside it, one over it is not")
 	map.free()
+	_check_extrude()
+
+
+## The index of the face of `points` that looks most nearly along `dir`.
+func _face_toward(points: PackedVector3Array, dir: Vector3) -> int:
+	var planes := MapMesher.hull_planes(points)
+	var best := -1
+	for i in planes.size():
+		if best < 0 or planes[i].normal.dot(dir) > planes[best].normal.dot(dir):
+			best = i
+	return best
+
+
+func _check_extrude() -> void:
+	print("  pushing faces")
+	var cube := PackedVector3Array()
+	for i in 8:
+		cube.append(Vector3(1 if i & 1 else -1, 1 if i & 2 else -1, 1 if i & 4 else -1))
+	var taller := MapOps.extruded(cube, _face_toward(cube, Vector3.UP), 1.0)
+	_expect(taller.size() == 8 and MapBlock.points_bounds(taller).is_equal_approx(AABB(Vector3(-1, -1, -1), Vector3(2, 3, 2))),
+		"a cube's top pushed up 1 m: 3 m tall, the rest where it was")
+	_expect(MapOps.extruded(cube, _face_toward(cube, Vector3.UP), -2.5).is_empty(), "pulled in through the bottom, it is refused")
+
+	var wedge := MapMesher.wedge_points({"size": Vector3(4, 2, 4)})
+	var slope := _face_toward(wedge, Vector3(0, 1, 1))
+	var slope_plane: Plane = MapMesher.hull_planes(wedge)[slope]
+	var fuller := MapOps.extruded(wedge, slope, 0.5)
+	var after := MapMesher.hull_planes(fuller)
+	var has_plane := func(n: Vector3, d: float) -> bool:
+		return after.any(func(p: Plane) -> bool: return p.normal.dot(n) > 0.9999 and absf(p.d - d) < 0.001)
+	_expect(has_plane.call(slope_plane.normal, slope_plane.d + 0.5), "a wedge's slope pushed out 0.5 m lies 0.5 m further out")
+	_expect(has_plane.call(Vector3.DOWN, 1.0) and has_plane.call(Vector3.BACK * -1.0, 2.0) and has_plane.call(Vector3.RIGHT, 2.0),
+		"and the bottom, back and sides keep their planes")
+
+	# A cube with one corner cut off: the small slanted face pulled out past the corner
+	# it cut would vanish.
+	var chamfered := PackedVector3Array()
+	for p in cube:
+		if p != Vector3.ONE:
+			chamfered.append(p)
+	chamfered.append_array([Vector3(0.5, 1, 1), Vector3(1, 0.5, 1), Vector3(1, 1, 0.5)])
+	var cut := _face_toward(chamfered, Vector3.ONE)
+	_expect(not MapOps.extruded(chamfered, cut, 0.1).is_empty(), "a corner cut, pulled out a little, is a smaller cut")
+	_expect(MapOps.extruded(chamfered, cut, 1.0).is_empty(), "pulled out past the corner it cut, it would vanish: refused")
+
+	# A face handle: a cube block, turned and stretched to 4 m tall, its top dragged up
+	# by a ray passing 1.1 m over it.
+	var map := MapRoot.new()
+	root.add_child(map)
+	var block := _hull_box(map, Vector3(3, 2, 0), Vector3(2, 2, 2))
+	block.rotation.y = 0.5
+	block.scale = Vector3(1, 2, 1)   # 2 m of its own is 4 m in the map: it stands from y = 0 to y = 4
+	var top := _face_toward(block.points, Vector3.UP)
+	var placed := MapOps.pushed_face(block, block.points, block.position, top, Vector3(20, 5.1, 0), Vector3(-1, 0, 0), 0.5)
+	_expect(not placed.is_empty(), "a hull's face handle, dragged, gives a new shape")
+	if not placed.is_empty():
+		block.points = placed[0]
+		block.position = placed[1]
+		var box := MapOps.bounds_of([block])
+		_expect(is_equal_approx(box.end.y, 5.0) and is_equal_approx(box.position.y, 0.0),
+			"its top goes up 1 m in the map (on the grid), its foot stays on the ground (%s to %s)" % [box.position.y, box.end.y])
+	map.free()
 
 
 func _check_array() -> void:
@@ -720,6 +782,29 @@ func _check_vertex_tool() -> void:
 	tool.picked = [[tetra, 3]]
 	tool.input(view, _key_event(KEY_DELETE))
 	_expect(tetra.points.size() == 4, "Delete is refused when what is left would be flat")
+
+	# Edges and faces: a cube standing at z = 5..7.
+	var edgy := _hull_box(map, Vector3(0, 1, 6), Vector3(2, 2, 2))
+	_picked = [edgy]
+	tool.picked = []
+	var edge_mid := Vector3(0, 2, 7)   # the middle of its top front edge
+	tool.input(view, _press(view, edge_mid, true))
+	tool.input(view, _press(view, edge_mid, false))
+	_expect(tool.picked.size() == 2, "a click on an edge picks its two corners")
+	_drag_with(tool, view, edge_mid, Vector3(0.2, 2, 8.1))
+	_expect(_has_point(_corners(edgy), Vector3(-1, 2, 8)) and _has_point(_corners(edgy), Vector3(1, 2, 8)) and _has_point(_corners(edgy), Vector3(-1, 0, 7)),
+		"dragged, the edge moves by whole grid squares (1 m out), the corners under it stay")
+	tool.picked = []
+	var on_top := Vector3(0, 2, 6.4)
+	tool.input(view, _press(view, on_top, true))
+	tool.input(view, _press(view, on_top, false))
+	_expect(tool.picked.size() == 4, "a click on a face picks its corners")
+	_drag_with(tool, view, on_top, Vector3(0, 3.1, 6.4))
+	var pushed := _corners(edgy)
+	# (The front slopes out 1 m over its 2 m of height: carried on up to y = 3 it reaches z = 8.5.)
+	_expect(_has_point(pushed, Vector3(-1, 3, 5)) and _has_point(pushed, Vector3(1, 3, 8.5)) and _has_point(pushed, Vector3(-1, 0, 5)) and _has_point(pushed, Vector3(1, 0, 7)),
+		"dragged, the top is pushed straight up 1 m; the sloping front carries on up to meet it, the foot stays")
+	_expect(tool.picked.size() == 4, "and the face is still picked")
 
 	# A click away from every corner selects the block under it.
 	var other := _block(map, Vector3(-6, 0.5, 4), Vector3(2, 1, 2))
