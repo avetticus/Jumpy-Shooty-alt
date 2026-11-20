@@ -209,6 +209,17 @@ Quick checks:
   round stops at, its slug kills a dummy outright, its tracer runs its whole range and it
   never hurts the one who fired it (`tests/destruction_test.gd` checks that a line through
   walls finds every breakable piece on it);
+- the sticky grenade (`tests/sticky_grenade_test.gd`, with `--fixed-fps 60`), in real Vs
+  Bots matches with the bots frozen: alt fire with the grenade launcher fires one by the
+  trigger's rules (a round from the drum, the time between shots, nothing when empty, it
+  stops the shell-by-shell reload; nothing with other guns); it sticks to the floor and
+  to a player (riding them, on the host and as drawn) without going off; it is armed after
+  0.5 s and not before; its owner never sets it off, an enemy behind a wall does not, an
+  enemy within 3 m in sight does, and one on an enemy goes off once armed, the kill the
+  owner's with the grenade launcher even after a change of gun; a fourth takes the
+  oldest away; it goes without a blast when its owner dies, when the player it is on
+  dies, when the wall piece it is on breaks and when the match ends; the killcam keeps
+  one stuck before a clip; in Search and Destroy a teammate never sets it off;
 - the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
   only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
@@ -249,6 +260,11 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- sticky grenades online (`tests/run_sticky_test.sh`): a client fires four with alt fire
+  at the floor 6 m from the host; each sticks where the host has it and the client draws
+  it there, the fourth takes the first away on both copies, both see them armed, and the
+  host walking within reach sets them off (the client's blasts, with the grenade
+  launcher) while the client sees them go;
 - respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
   shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
   player's first snapshot from the new life, and both must show every respawned player;
@@ -1682,6 +1698,30 @@ fire: for your own player and bots from the input, for everyone else from bit 22
 animation flags in their snapshots (`RobotAnimInput.make_flags`, `alt_of`), which the
 killcam's frames carry too, so a pose built on it shows on every screen. A press calls
 `Player._alt_pressed()` from `_update_weapon` (alive, not racing, a weapon in hand).
+
+**Rockets, grenades and sticky grenades.** A projectile is host-authoritative: the
+shooter asks (`Match.request_projectile`), the host flies its own copy in
+`Match._physics_process` (`_projectiles`) and every copy draws the same flight from the
+same start (`projectile_fired`, `Projectile`), until the host says where it blew up
+(`exploded`, `_host_explode`: the splash, knockback, self-damage and wall damage). The
+grenade launcher's alt fire (`_alt_pressed`) goes through the same `_fire_round` and
+request with `sticky` set. The host flies it the same way, but where a grenade would go
+off it calls `_host_stick` instead: on the map (and on a moving part of it, which it
+then follows, named to the other copies by its path in the map), on a player (kept as
+an offset from their feet in the frame of their yaw, so it rides them), and remembering
+the breakable cell it is on. Everyone is told `projectile_stuck` with that `how`
+dictionary, then `projectile_armed` after `Projectile.STICKY_ARM`, and either `exploded`
+(the normal blast; an enemy within `STICKY_REACH` and in sight, see
+`Match.sticky_sees_enemy`, or the player it is on) or `projectile_gone` (no blast:
+`_host_vanish`, for its owner dying or leaving, the player it is on dying, its cell
+breaking, a fourth sticky over `STICKY_MAX`, never landing, and
+`_host_clear_projectiles` at a match end, a new match or a new round). Each copy's
+`Arena` makes the `Projectile` stick, ride the player's body or the map part, blink
+faster once armed, and go. A copy that joins mid-match asks for the ones already stuck
+(`Match.request_stickies`). The killcam records `stick`, `armed` and `gone` events and
+records each stuck sticky again every `Killcam.STICK_AGAIN` seconds; `KillClip.cut`
+keeps the latest one from before a clip, so a sticky stuck long before the kill is
+there when the replay starts.
 
 **Your own body in first person.** The arms and gun you see are the separate arms
 model on the camera (`view_model.gd`). The legs and torso are your real body: the same

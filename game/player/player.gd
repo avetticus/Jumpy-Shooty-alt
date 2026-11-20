@@ -561,11 +561,21 @@ func _update_weapon(delta: float) -> void:
 
 
 ## Alt fire was pressed with a weapon in hand (you are alive and not racing: the same
-## times the trigger counts, see _update_weapon). It is for a press-style alt fire
-## (WeaponData.alt "sticky": the grenade launcher's sticky proximity grenade, which fills
-## this in); the pistols' tilt is a hold instead (see alt_held). For now nothing happens.
+## times the trigger counts, see _update_weapon). It is for a press-style alt fire: with
+## WeaponData.alt "sticky" (the grenade launcher) it fires a sticky proximity grenade
+## instead of a normal one, by the trigger's rules (a round from the same drum, the same
+## time between shots, a click when empty, and it stops a shell-by-shell reload) and
+## through the same shot (sound, recoil, animation), the host told it is sticky (see
+## Match._host_stick). The pistols' tilt is a hold instead (see alt_held).
 func _alt_pressed() -> void:
-	pass
+	if weapon.data.alt != "sticky" or not Match.running or _burst_left > 0:
+		return
+	if not weapon.fire():
+		if weapon.ammo <= 0 and sounds.own:
+			Sound.play("dry_click", 0.0, 0.03)   # empty: the gun clicks while it reloads
+		return
+	_fire_buffer = 0.0
+	_fire_round(true)
 
 
 ## Holding alt fire with a weapon whose alt fire is a hold (WeaponData.alt_is_hold: the
@@ -579,8 +589,8 @@ func alt_held() -> bool:
 
 
 ## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
-## host is asked what it hit.
-func _fire_round() -> void:
+## host is asked what it hit. `sticky`: a sticky grenade (see _alt_pressed).
+func _fire_round(sticky: bool = false) -> void:
 	_next_gun()
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
@@ -591,7 +601,7 @@ func _fire_round() -> void:
 		view.fire(_akimbo_left)
 	var eye := eye_position()
 	if weapon.data.is_projectile():
-		Match.request_projectile(eye, _aim_direction(eye), peer_id)
+		Match.request_projectile(eye, _aim_direction(eye), peer_id, sticky)
 		return
 	if weapon.data.is_blast():
 		_send_blast(eye)

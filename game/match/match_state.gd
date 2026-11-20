@@ -28,9 +28,17 @@ signal ground_slammed(attacker: int, weapon_id: String, at: Vector3, power: floa
 ## Someone hit a wall hard enough to hurt (for the crash sound everyone hears).
 signal slammed(id: int, where: Vector3, speed: float)
 ## A rocket or grenade left `shooter`'s gun (everyone draws it: see Projectile).
-signal projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3)
+## `sticky`: a sticky grenade (the grenade launcher's alt fire).
+signal projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3, sticky: bool)
 ## ...and blew up here.
 signal exploded(id: int, at: Vector3, weapon_id: String)
+## A sticky grenade stuck: `how` says where (see _host_stick and Projectile.stick).
+signal projectile_stuck(id: int, how: Dictionary)
+## ...is armed (Projectile.STICKY_ARM after it stuck).
+signal projectile_armed(id: int)
+## ...is gone without going off (its owner died or left, a fourth was fired, what it was
+## on broke or died, or the match or round ended).
+signal projectile_gone(id: int)
 ## Gun Game: a player moved up (or down) the ladder to the weapon at `level`.
 signal gun_game_level(id: int, level: int)
 ## A player got a kill, scored for the killcams (see KillScore); `info` is also kept in
@@ -85,7 +93,7 @@ var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()
 var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
 var _last_ground_slam: Dictionary = {}   # host: id -> Net.now() of last accepted ground slam
 var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
-var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon, t}
+var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon, t} (a sticky grenade: more, see _host_stick)
 var _next_projectile := 1
 ## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
 var death_cause: Dictionary = {}
@@ -206,7 +214,7 @@ func _on_match_started() -> void:
 		_last_kick_time.clear()
 		_last_ground_slam.clear()
 		_tethers.clear()
-		_projectiles.clear()
+		_host_clear_projectiles()
 		death_cause.clear()
 		death_fx.clear()
 		_kill_seq = 0
@@ -240,6 +248,7 @@ func _on_players_changed() -> void:
 				_items_sync.rpc_id(id, items_taken.keys(), damage_boost)
 	for id in scores.keys():
 		if not Net.players.has(id):
+			_host_drop_stickies(id)   # theirs, and any on them
 			scores.erase(id)
 			health.erase(id)
 			respawn_timers.erase(id)
@@ -577,25 +586,27 @@ func _ray_body(origin: Vector3, end: Vector3, b: Array) -> Dictionary:
 # same path everyone draws), and decides where it blows up and who it hurts.
 
 ## Called by the local player (or a bot) when it fires a rocket or grenade: from the
-## eyes, toward where it aims.
-func request_projectile(origin: Vector3, direction: Vector3, shooter: int = 0) -> void:
+## eyes, toward where it aims. `sticky`: a sticky grenade (the grenade launcher's alt
+## fire), which sticks where it lands and goes off when an enemy comes near (see
+## _host_stick).
+func request_projectile(origin: Vector3, direction: Vector3, shooter: int = 0, sticky: bool = false) -> void:
 	if Net.is_host():
-		_host_projectile(shooter if shooter != 0 else Net.my_id(), origin, direction)
+		_host_projectile(shooter if shooter != 0 else Net.my_id(), origin, direction, sticky)
 	else:
-		_projectile_request.rpc_id(1, origin, direction)
+		_projectile_request.rpc_id(1, origin, direction, sticky)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _projectile_request(origin: Vector3, direction: Vector3) -> void:
+func _projectile_request(origin: Vector3, direction: Vector3, sticky: bool = false) -> void:
 	if Net.is_host():
-		_host_projectile(multiplayer.get_remote_sender_id(), origin, direction)
+		_host_projectile(multiplayer.get_remote_sender_id(), origin, direction, sticky)
 
 
-func _host_projectile(shooter: int, origin: Vector3, direction: Vector3) -> void:
+func _host_projectile(shooter: int, origin: Vector3, direction: Vector3, sticky: bool = false) -> void:
 	if not running or not is_alive(shooter) or not Net.arena or Race.active or direction.length_squared() < 0.0001:
 		return
 	var weapon := WeaponData.by_id(Net.player_weapon(shooter))
-	if not weapon.is_projectile():
+	if not weapon.is_projectile() or (sticky and weapon.alt != "sticky"):
 		return
 	var now := Net.now()
 	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
@@ -605,29 +616,38 @@ func _host_projectile(shooter: int, origin: Vector3, direction: Vector3) -> void
 		return
 	_last_shot_time[shooter] = now
 	direction = direction.normalized()
+	if sticky:
+		_host_sticky_room(shooter)
 	var id := _next_projectile
 	_next_projectile += 1
 	_projectiles[id] = {"pos": origin, "vel": direction * weapon.projectile_speed, "shooter": shooter,
 		"weapon": weapon.id, "t": 0.0}
+	if sticky:
+		_projectiles[id]["sticky"] = true
 	if DevArgs.sync_log:
-		print("PROJECTILE %d %s %d" % [shooter, weapon.id, id])
-	_projectile_spawn.rpc(id, shooter, weapon.id, origin, direction)
+		print("PROJECTILE %d %s %d%s" % [shooter, weapon.id, id, " sticky" if sticky else ""])
+	_projectile_spawn.rpc(id, shooter, weapon.id, origin, direction, sticky)
 
 
 @rpc("authority", "call_local", "reliable")
-func _projectile_spawn(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3) -> void:
-	projectile_fired.emit(id, shooter, weapon_id, origin, direction)
+func _projectile_spawn(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3, sticky: bool = false) -> void:
+	projectile_fired.emit(id, shooter, weapon_id, origin, direction, sticky)
 
 
 func _physics_process(delta: float) -> void:
 	if _projectiles.is_empty() or not Net.is_host():
 		return
 	if not running or Net.arena == null:
-		_projectiles.clear()
+		_host_clear_projectiles()
 		return
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
 	for id in _projectiles.keys():
+		if not _projectiles.has(id):
+			continue   # (gone while another went off: its owner, or what it was on, died)
 		var p: Dictionary = _projectiles[id]
+		if p.get("stuck", false):
+			_host_sticky_wait(id, p, delta, space)
+			continue
 		var w := WeaponData.by_id(p.weapon)
 		var from: Vector3 = p.pos
 		var vel: Vector3 = p.vel
@@ -639,6 +659,7 @@ func _physics_process(delta: float) -> void:
 		var direct := 0
 		var head := false
 		var at := to
+		var axis := to   # (the nearest point on the middle line of whoever it hit)
 		var best := INF
 		for b in _live_bodies(p.shooter, true):
 			var pts := Geometry3D.get_closest_points_between_segments(from, to,
@@ -649,14 +670,27 @@ func _physics_process(delta: float) -> void:
 					best = d
 					direct = b[0]
 					at = pts[0]
+					axis = pts[1]
 					head = pts[0].y - b[1].y >= b[2] - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
+		var sticky: bool = p.get("sticky", false)
 		if wall and from.distance_to(wall.position) < best:
-			_host_explode(id, wall.position + wall.normal * 0.05, 0, wall.collider, wall.normal)
+			if sticky:
+				_host_stick(id, wall.position + wall.normal * 0.05, wall.normal, 0, wall.collider)
+			else:
+				_host_explode(id, wall.position + wall.normal * 0.05, 0, wall.collider, wall.normal)
 		elif direct != 0:
-			_host_explode(id, at, direct, null, Vector3.UP, head)
+			if sticky:   # on the outside of their body, where it struck
+				var out := at - axis
+				out = out.normalized() if out.length_squared() > 0.0001 else -vel.normalized()
+				_host_stick(id, axis + out * Player.CAPSULE_RADIUS, out, direct if not is_dummy(direct) else 0)
+			else:
+				_host_explode(id, at, direct, null, Vector3.UP, head)
 		elif p.t >= w.fuse:
-			_host_explode(id, to, 0)
+			if sticky:
+				_host_vanish(id)   # it never landed (off the edge of the map)
+			else:
+				_host_explode(id, to, 0)
 		else:
 			p.pos = to
 
@@ -730,6 +764,178 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 @rpc("authority", "call_local", "reliable")
 func _projectile_boom(id: int, at: Vector3, weapon_id: String) -> void:
 	exploded.emit(id, at, weapon_id)
+
+
+# ---------------------------------------------------------------------------
+# Sticky grenades (the grenade launcher's alt fire; the numbers are Projectile's
+# STICKY_*). Flown like any grenade, but where one would go off this sticks instead:
+# to the map, a moving part of it, or a player (an enemy: shots pass teammates), whom it
+# rides. STICKY_ARM later it is armed, and then it goes off (the grenade's own blast,
+# _host_explode, credited to its owner with the grenade launcher) as soon as an enemy
+# is within STICKY_REACH and in sight, or at once if it is on one. It goes without
+# going off (projectile_gone) when its owner dies or leaves, when the one it is on dies
+# or leaves, when the piece of wall it is on breaks, when its owner fires one more than
+# STICKY_MAX, and when the match or round ends. It has no fuse once it is stuck.
+
+## Host: where sticky `id` stuck, and everyone is told. On player `on` (0: none) it is
+## kept as where it sits on them (their feet and the way they face); on `collider`, a
+## part of the map, as where it sits on that (a part that moves takes it along), and
+## which breakable piece it is on, if any. `how` (projectile_stuck) carries the same:
+## {at, normal} in the world, {on, frame (the part's path in the map), local, up}, and
+## whose it is and from what gun ({who, weapon}: enough to draw one never seen flying).
+func _host_stick(id: int, at: Vector3, normal: Vector3, on: int = 0, collider: Object = null) -> void:
+	var p: Dictionary = _projectiles[id]
+	var how := {"at": at, "normal": normal, "on": 0, "frame": "", "who": p.shooter, "weapon": p.weapon}
+	p.merge({"stuck": true, "pos": at, "normal": normal, "on": 0, "frame": null, "cell": -1,
+		"local": at, "up": normal, "arm_in": Projectile.STICKY_ARM, "armed": false}, true)
+	var rider: Player = Net.arena.get_player(on) if on > 0 else null
+	if rider:
+		var turn := Basis(Vector3.UP, rider.yaw_at(rider.latest_time())).inverse()
+		p.merge({"on": on, "local": turn * (at - rider.latest_position()), "up": turn * normal}, true)
+		how.merge({"on": on, "local": p.local, "up": p.up}, true)
+	elif collider is Node3D and (collider as Node3D).is_inside_tree():
+		var breaks := _breakables()
+		if breaks:
+			p.cell = breaks.cell_at(collider, at - normal * 0.05, normal)
+		var layout: Node = Net.arena.get("layout")
+		if layout and layout.is_ancestor_of(collider):
+			var inv := (collider as Node3D).global_transform.affine_inverse()
+			p.merge({"frame": collider, "local": inv * at, "up": (inv.basis * normal).normalized()}, true)
+			how.merge({"frame": str(layout.get_path_to(collider)), "local": p.local, "up": p.up}, true)
+	p.how = how
+	if DevArgs.sync_log:
+		print("STICKY_STUCK %d %d on %d cell %d at %.2f,%.2f,%.2f" % [p.shooter, id, p.on, p.cell, at.x, at.y, at.z])
+	_projectile_stuck.rpc(id, how)
+
+
+## Host: a stuck sticky, each physics step: it follows what it is on, goes if that
+## went, arms, and goes off when an enemy comes near (see the notes above).
+func _host_sticky_wait(id: int, p: Dictionary, delta: float, space: PhysicsDirectSpaceState3D) -> void:
+	var on: int = p.on
+	if on > 0:
+		var rider: Player = Net.arena.get_player(on)
+		if rider == null or not is_alive(on):
+			_host_vanish(id)
+			return
+		p.pos = rider.latest_position() + Basis(Vector3.UP, rider.yaw_at(rider.latest_time())) * (p.local as Vector3)
+	elif is_instance_valid(p.frame) and (p.frame as Node3D).is_inside_tree():
+		p.pos = (p.frame as Node3D).global_transform * (p.local as Vector3)
+	var breaks := _breakables()
+	if int(p.cell) >= 0 and breaks and breaks.is_broken(int(p.cell)):
+		_host_vanish(id)   # the piece of wall it was on broke
+		return
+	p.arm_in = float(p.arm_in) - delta
+	if p.arm_in > 0.0:
+		return
+	if not p.armed:
+		p.armed = true
+		if DevArgs.sync_log:
+			print("STICKY_ARMED %d %d" % [p.shooter, id])
+		_projectile_armed.rpc(id)
+	if on > 0 or sticky_sees_enemy(p.pos, int(p.shooter), space):
+		var normal: Vector3 = p.normal if on == 0 else Vector3.UP
+		_host_explode(id, p.pos, on, p.frame if is_instance_valid(p.frame) else null, normal)
+
+
+## Is an enemy of `who` (not them, not a teammate) within Projectile.STICKY_REACH of a
+## sticky grenade at `at` (to the outside of their body), in sight of it? Target
+## dummies count as enemies.
+func sticky_sees_enemy(at: Vector3, who: int, space: PhysicsDirectSpaceState3D) -> bool:
+	for b in _live_bodies(who, true):
+		var feet: Vector3 = b[1]
+		var near := Geometry3D.get_closest_point_to_segment(at, feet + Vector3(0, Player.CAPSULE_RADIUS, 0),
+			feet + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
+		if at.distance_to(near) - Player.CAPSULE_RADIUS > Projectile.STICKY_REACH:
+			continue
+		if space.intersect_ray(PhysicsRayQueryParameters3D.create(at, near, 1)).is_empty():   # (layer 1: the level)
+			return true
+	return false
+
+
+## Host: `shooter` is firing a sticky; if they have STICKY_MAX out already, their
+## oldest go (the ids count up, so the lowest is the oldest).
+func _host_sticky_room(shooter: int) -> void:
+	var theirs := sticky_ids(shooter)
+	while theirs.size() >= Projectile.STICKY_MAX:
+		_host_vanish(theirs.pop_front())
+
+
+## Host: the ids of `who`'s sticky grenades (flying or stuck), oldest first.
+func sticky_ids(who: int) -> Array:
+	var out := []
+	for id in _projectiles:
+		var p: Dictionary = _projectiles[id]
+		if p.get("sticky", false) and int(p.shooter) == who:
+			out.append(id)
+	out.sort()
+	return out
+
+
+## Host: sticky `id` goes without going off.
+func _host_vanish(id: int) -> void:
+	var p: Dictionary = _projectiles.get(id, {})
+	_projectiles.erase(id)
+	if p.is_empty():
+		return
+	if DevArgs.sync_log:
+		print("STICKY_GONE %d %d" % [p.shooter, id])
+	_projectile_gone.rpc(id)
+
+
+## Host: `who` died or left: their sticky grenades go, and so do any stuck on them.
+func _host_drop_stickies(who: int) -> void:
+	for id in _projectiles.keys():
+		var p: Dictionary = _projectiles.get(id, {})
+		if p.get("sticky", false) and (int(p.shooter) == who or int(p.get("on", 0)) == who):
+			_host_vanish(id)
+
+
+## Host: every rocket and grenade in the air or stuck is forgotten (the match ended or
+## a new one or a new round began); stuck sticky grenades are taken away on every copy.
+## (The rest are drawn for a moment more, until the fuse they are drawn with runs out.)
+func _host_clear_projectiles() -> void:
+	for id in _projectiles.keys():
+		if _projectiles[id].get("sticky", false):
+			_host_vanish(id)
+	_projectiles.clear()
+
+
+@rpc("authority", "call_local", "reliable")
+func _projectile_stuck(id: int, how: Dictionary) -> void:
+	projectile_stuck.emit(id, how)
+
+
+@rpc("authority", "call_local", "reliable")
+func _projectile_armed(id: int) -> void:
+	projectile_armed.emit(id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _projectile_gone(id: int) -> void:
+	projectile_gone.emit(id)
+
+
+## A copy that has just built the arena (joining a match in progress) asks the host for
+## the sticky grenades stuck already.
+func request_stickies() -> void:
+	if not Net.is_host():
+		_stickies_request.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _stickies_request() -> void:
+	if not Net.is_host():
+		return
+	var to := multiplayer.get_remote_sender_id()
+	for id in _projectiles:
+		var p: Dictionary = _projectiles[id]
+		if not p.get("stuck", false):
+			continue
+		var how: Dictionary = (p.how as Dictionary).duplicate()
+		how.at = p.pos
+		_projectile_stuck.rpc_id(to, id, how)   # (it makes the grenade where there is none)
+		if p.armed:
+			_projectile_armed.rpc_id(to, id)
 
 
 # ---------------------------------------------------------------------------
@@ -1374,6 +1580,7 @@ func _host_fell(id: int) -> void:
 func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = false, fx: Dictionary = {}) -> void:
 	if cause == "bomb":
 		fx = {"with": "", "head": false, "gib": true, "push": Vector3.ZERO, "dir": Vector3.ZERO}
+	_host_drop_stickies(victim)   # their sticky grenades go with them, and any stuck on them
 	var scored := _host_score_kill(victim, killer, cause, headshot, str(fx.get("with", "")))
 	if scores.has(victim):
 		scores[victim].deaths += 1
@@ -1497,6 +1704,8 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool, w
 	var now := Net.now()
 	var recent: Array = _recent_kills.get(killer, []).filter(func(t): return (now - float(t)) * Engine.time_scale <= KillScore.MULTI_WINDOW)
 	var weapon := Net.player_weapon(killer)
+	if with != weapon and WeaponData.has(with) and WeaponData.by_id(with).is_projectile():
+		weapon = with   # a grenade, a sticky above all, can go off after its owner has changed guns
 	var facts := {
 		"distance": a.latest_position().distance_to(b.latest_position()) if a and b else 0.0,
 		"headshot": headshot,
@@ -1565,6 +1774,7 @@ func host_new_round() -> void:
 	respawn_asked.clear()
 	_last_shove.clear()
 	_tethers.clear()
+	_host_clear_projectiles()   # (sticky grenades left from the last round go)
 	var ids := Net.players.keys()
 	ids.sort()
 	for id in ids:

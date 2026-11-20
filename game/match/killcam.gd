@@ -52,6 +52,7 @@ const MIN_LEAD := 1.0           ## the death killcam needs this much of the kill
 const SKIP_AFTER := 0.75        ## the death killcam can be skipped once it has played this long
                                 ## (so a jump or shot already on its way as you die does not skip it)
 const WRECK_FOR := 5.0           ## seconds of each body's fall recorded (then it holds still)
+const STICK_AGAIN := 1.0         ## a sticky grenade still stuck is recorded again this often (see _restick)
 
 ## The best kills' clips, by kill number (see Match.kill_log).
 var clips: Dictionary = {}
@@ -68,6 +69,7 @@ var _clock := 0.0
 var _pending: Array = []        # kills waiting for their follow-through to be recorded
 var _kill_times: Dictionary = {}   # seq -> when it happened (for multikills)
 var _rocket_owner: Dictionary = {} # projectile id -> who fired it
+var _stuck: Dictionary = {}        # sticky grenade id -> [its latest "stick" event, when it was last recorded]
 var _wrecks: Array = []         # KillClip.Wreck, oldest first
 var _wreck_of: Dictionary = {}  # remains (instance id) -> [its Wreck, how late its player is drawn]
 var _props: Dictionary = {}     # the map's moving parts: key -> KillClip.PropTrack (see MapReplay)
@@ -81,12 +83,26 @@ func _ready() -> void:
 		_event({"kind": "aim", "who": shooter, "eye": eye, "aim": aim}))
 	Match.shot_fired.connect(func(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array):
 		_event({"kind": "shot", "who": shooter, "muzzle": muzzle, "ends": ends, "hits": hits, "weapon": Net.player_weapon(shooter)}))
-	Match.projectile_fired.connect(func(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3):
+	Match.projectile_fired.connect(func(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3, sticky: bool):
 		_rocket_owner[id] = shooter
-		_event({"kind": "projectile", "who": shooter, "id": id, "weapon": weapon_id, "origin": origin, "direction": direction}))
+		_event({"kind": "projectile", "who": shooter, "id": id, "weapon": weapon_id, "origin": origin, "direction": direction, "sticky": sticky}))
 	Match.exploded.connect(func(id: int, at: Vector3, weapon_id: String):
 		_event({"kind": "boom", "who": int(_rocket_owner.get(id, 0)), "id": id, "at": at, "weapon": weapon_id})
-		_rocket_owner.erase(id))
+		_rocket_owner.erase(id)
+		_stuck.erase(id))
+	Match.projectile_stuck.connect(func(id: int, how: Dictionary):
+		var e := {"kind": "stick", "who": int(how.get("who", 0)), "id": id, "how": how, "armed": false}
+		_event(e)
+		_stuck[id] = [e, _clock])
+	Match.projectile_armed.connect(func(id: int):
+		if _stuck.has(id):
+			var e: Dictionary = _stuck[id][0]
+			_event({"kind": "armed", "who": int(e.who), "id": id})
+			_stuck[id][0] = e.merged({"armed": true}, true))
+	Match.projectile_gone.connect(func(id: int):
+		_event({"kind": "gone", "who": int(_rocket_owner.get(id, 0)), "id": id})
+		_rocket_owner.erase(id)
+		_stuck.erase(id))
 	Match.melee_landed.connect(func(attacker: int, weapon_id: String, points: PackedVector3Array):
 		_event({"kind": "melee", "who": attacker, "weapon": weapon_id, "points": points}))
 	Match.match_over.connect(_on_match_over)
@@ -100,6 +116,7 @@ func _on_match_started() -> void:
 	_pending.clear()
 	_kill_times.clear()
 	_rocket_owner.clear()
+	_stuck.clear()
 	clips.clear()
 	_wrecks.clear()
 	_wreck_of.clear()
@@ -155,8 +172,22 @@ func _record() -> void:
 		track.trim(now - HISTORY)
 	while not _events.is_empty() and float(_events[0].t) < now - HISTORY:
 		_events.pop_front()   # (in place: a death killcam playing holds this same array)
+	_restick(now)
 	_record_wrecks(now)
 	_record_props(now)
+
+
+## A sticky grenade can sit stuck far longer than the HISTORY kept, and a clip that
+## starts after it stuck still has to show it: every STICK_AGAIN seconds each one still
+## stuck is recorded stuck again (the same "stick" event, armed or not by now), so every
+## clip has one from just before it starts (see KillClip.cut).
+func _restick(now: float) -> void:
+	for id in _stuck.keys():
+		var entry: Array = _stuck[id]
+		if now - float(entry[1]) >= STICK_AGAIN:
+			var e: Dictionary = (entry[0] as Dictionary).duplicate()
+			_event(e)
+			_stuck[id] = [e, now]
 
 
 ## The map's moving parts, as they are drawn now (see MapReplay).

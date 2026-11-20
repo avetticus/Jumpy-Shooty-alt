@@ -79,6 +79,9 @@ func _ready() -> void:
 	Match.shot_fired.connect(_on_shot_fired)
 	Match.projectile_fired.connect(_on_projectile_fired)
 	Match.exploded.connect(_on_exploded)
+	Match.projectile_stuck.connect(_on_projectile_stuck)
+	Match.projectile_armed.connect(_on_projectile_armed)
+	Match.projectile_gone.connect(_on_projectile_gone)
 	Match.pickup_changed.connect(_on_pickup_changed)
 	Match.item_changed.connect(_on_item_changed)
 	_sync_players()
@@ -86,6 +89,7 @@ func _ready() -> void:
 	if layout.destruction:
 		Match.request_breaks()   # joining a match in progress: what is broken already
 	Net.request_map_state()      # ...and where the map's terminals and events are
+	Match.request_stickies()     # ...and the sticky grenades stuck about
 
 
 func _exit_tree() -> void:
@@ -216,7 +220,7 @@ func _on_player_respawned(id: int, spawn_index: int) -> void:
 
 
 ## A rocket or grenade is on its way: draw it (and, for someone else's, their gun firing).
-func _on_projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3) -> void:
+func _on_projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3, sticky: bool) -> void:
 	var p := get_player(shooter)
 	var muzzle := Vector3.INF
 	var color := Color(1.0, 0.6, 0.3)
@@ -225,12 +229,58 @@ func _on_projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vect
 		color = RobotModel.trim_color(Net.player_color(shooter))
 		if shooter != Net.my_id() and not p.is_local:
 			p.show_shot()
-	add_child(Projectile.make(id, WeaponData.by_id(weapon_id), origin, direction, muzzle, color))
+	add_child(Projectile.make(id, WeaponData.by_id(weapon_id), origin, direction, muzzle, color, sticky))
+
+
+## A sticky grenade stuck (see Match._host_stick): on a player it rides their body, on
+## a moving part of the map that part. A thunk where it landed. One we never saw fly
+## (we joined after it stuck) is made here.
+func _on_projectile_stuck(id: int, how: Dictionary) -> void:
+	var node := get_node_or_null("Projectile_%d" % id) as Projectile
+	if node == null:
+		var color := RobotModel.trim_color(Net.player_color(int(how.get("who", 0))))
+		node = Projectile.make(id, WeaponData.by_id(str(how.get("weapon", ""))), how.at, Vector3.DOWN, Vector3.INF, color, true)
+		add_child(node)
+	var ride: Node3D = null
+	var on := int(how.get("on", 0))
+	if on > 0:
+		var p := get_player(on)
+		ride = p.visual if p else null
+	else:
+		ride = Projectile.frame_in(layout, how)
+		if ride and (ride.global_transform * (how.get("local", Vector3.ZERO) as Vector3)).distance_to(how.at) > 2.0:
+			ride = null   # (not the part the host meant: it stays where the host said)
+	node.stick(how, ride)
+	Sound.play_at("grenade_in", node.global_position, "move", 2.0, 0.05)
+	if DevArgs.sync_log:
+		var at := node.global_position
+		print("STICKY_SEEN %d stuck %d on %d %s at %.2f,%.2f,%.2f" % [Net.my_id(), id, on, "riding" if ride else "still", at.x, at.y, at.z])
+
+
+## ...armed: a tick, and its light blinks faster.
+func _on_projectile_armed(id: int) -> void:
+	var node := get_node_or_null("Projectile_%d" % id) as Projectile
+	if node:
+		node.arm()
+		Sound.play_at("ui_tick", node.global_position, "move", 10.0)
+	if DevArgs.sync_log:
+		print("STICKY_SEEN %d armed %d" % [Net.my_id(), id])
+
+
+## ...gone without going off.
+func _on_projectile_gone(id: int) -> void:
+	var node := get_node_or_null("Projectile_%d" % id)
+	if node:
+		node.queue_free()
+	if DevArgs.sync_log:
+		print("STICKY_SEEN %d gone %d" % [Net.my_id(), id])
 
 
 func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 	var node := get_node_or_null("Projectile_%d" % id)
 	if node:
+		if DevArgs.sync_log and node is Projectile and (node as Projectile).sticky:
+			print("STICKY_SEEN %d boom %d" % [Net.my_id(), id])
 		node.queue_free()
 	var w := WeaponData.by_id(weapon_id)
 	ShotFx.landed(self, at, w)

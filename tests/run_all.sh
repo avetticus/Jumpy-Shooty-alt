@@ -28,6 +28,7 @@ CHECKS=(
   "weapons|--script tests/weapon_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "railgun|--fixed-fps 60 --script tests/railgun_test.gd"
+  "sticky_grenade|--fixed-fps 60 --script tests/sticky_grenade_test.gd"
   "air_cannon|--script tests/air_cannon_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
@@ -116,6 +117,8 @@ echo "== Bots in an online lobby: run by the host, seen moving by a client, kill
 tests/run_online_bots_test.sh
 echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
 tests/run_slam_test.sh
+echo "== Sticky grenades online: a client's stick to the floor where the host has them, the fourth takes the first away, the host walking in sets them off"
+tests/run_sticky_test.sh
 echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
 tests/run_respawn_visible_test.sh
 echo "== Kick kills in the kill feed: a client kicked into a wall and kicked down, the boot and the wall on both copies"
