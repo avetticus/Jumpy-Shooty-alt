@@ -28,18 +28,25 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 	_shade = shade
 	_shade_basis = shade_basis
 	var by_kind := {}
+	_by_kind = by_kind
 	for piece in pieces:
 		if piece.get("hidden", false):
 			continue
-		if not by_kind.has(piece.kind):
-			by_kind[piece.kind] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
-		var buf: Array = by_kind[piece.kind]
+		_face_kinds = piece.get("face_kinds", {})
+		_face_patterns = piece.get("face_patterns", {})
+		_key_scale = piece.get("scale", Vector3.ONE)
+		_custom = Vector4.ZERO
+		var buf := _buffer(piece.kind)
 		match piece.shape:
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
 			"cone": _cone(buf, piece)
 			"wedge", "bevel", "dome", "arch", "hull": _hulls(buf, piece)
 			_: _box(buf, piece)
+	_by_kind = {}
+	_face_kinds = {}
+	_face_patterns = {}
+	_custom = Vector4.ZERO
 	var result := {}
 	for kind in by_kind:
 		var buf: Array = by_kind[kind]
@@ -48,10 +55,73 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 		arrays[Mesh.ARRAY_VERTEX] = buf[0]
 		arrays[Mesh.ARRAY_NORMAL] = buf[1]
 		arrays[Mesh.ARRAY_COLOR] = buf[2]
+		if buf[3] != null:
+			arrays[Mesh.ARRAY_CUSTOM0] = buf[3]
 		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
 		result[kind] = mesh
 	return result
+
+
+## The flags a surface made from `arrays` needs: a face pattern's settings (CUSTOM0)
+## are four 32-bit numbers a corner.
+static func surface_flags(arrays: Array) -> int:
+	if arrays.size() > Mesh.ARRAY_CUSTOM0 and arrays[Mesh.ARRAY_CUSTOM0] != null:
+		return Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	return 0
+
+
+# ---------------------------------------------------------------------------
+# Faces of their own (MapBlock.face_kinds, face_patterns)
+
+static var _by_kind := {}          # kind -> buffer, for the build going on
+static var _face_kinds := {}       # the piece being built: face -> kind
+static var _face_patterns := {}    # face -> Vector4(across, up, turn (degrees), scale)
+static var _custom := Vector4.ZERO # what the face being drawn tells the surface shader
+static var _key_scale := Vector3.ONE # the block's stretch (piece "scale"): faces are named unstretched
+
+
+## The buffer for a kind: [corners, normals, colours, pattern settings (or null while
+## no face in it has any)].
+static func _buffer(kind: String) -> Array:
+	if not _by_kind.has(kind):
+		_by_kind[kind] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray(), null]
+	return _by_kind[kind]
+
+
+## Where the face of the piece being built that looks along `normal` (in its own
+## frame) goes: its own kind's buffer if it has one, else `buf`. Also sets what its
+## corners tell the surface shader about its pattern: (across, up, turn in radians,
+## scale - 1), all nothing for a face left as it is.
+static func _route(buf: Array, normal: Vector3) -> Array:
+	if _face_kinds.is_empty() and _face_patterns.is_empty():
+		_custom = Vector4.ZERO
+		return buf
+	# (A face's way out in the stretched piece leans back toward the block's own: the
+	# block names its faces unstretched, as the Paint tool sees them.)
+	var key := MapBlock.face_key(normal * _key_scale)
+	var p: Vector4 = _face_patterns.get(key, Vector4(0, 0, 0, 1))
+	_custom = Vector4(p.x, p.y, deg_to_rad(p.z), p.w - 1.0)
+	var kind: String = _face_kinds.get(key, "")
+	return buf if kind == "" else _buffer(kind)
+
+
+## Adds the pattern settings for the last `count` corners put in `buf`. A buffer gets
+## them only once a face needs them (the corners before get nothing: as they are).
+static func _put_custom(buf: Array, count: int) -> void:
+	if buf[3] == null:
+		if _custom == Vector4.ZERO:
+			return
+		var none := PackedFloat32Array()
+		none.resize(((buf[0] as PackedVector3Array).size() - count) * 4)
+		buf[3] = none
+	var custom: PackedFloat32Array = buf[3]
+	for i in count:
+		custom.append(_custom.x)
+		custom.append(_custom.y)
+		custom.append(_custom.z)
+		custom.append(_custom.w)
+	buf[3] = custom
 
 
 ## The same mesh, marked as part of something that moves (a MapMover's body): its
@@ -65,7 +135,7 @@ static func riding(mesh: ArrayMesh) -> ArrayMesh:
 	mark.fill(Vector2(1, 0))
 	arrays[Mesh.ARRAY_TEX_UV2] = mark
 	var out := ArrayMesh.new()
-	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
 	return out
 
 
@@ -79,6 +149,7 @@ static func _quad(buf: Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n:
 		verts.append(v)
 		normals.append(n)
 		colors.append(color)
+	_put_custom(buf, 6)
 
 
 static func _box(buf: Array, piece: Dictionary) -> void:
@@ -92,7 +163,7 @@ static func _box(buf: Array, piece: Dictionary) -> void:
 		var c: Vector3 = n * h
 		var du: Vector3 = u * h
 		var dv: Vector3 = v * h
-		_quad(buf, xf * (c - du - dv), xf * (c + du - dv), xf * (c + du + dv), xf * (c - du + dv), xf.basis * n, color)
+		_quad(_route(buf, n), xf * (c - du - dv), xf * (c + du - dv), xf * (c + du + dv), xf * (c - du + dv), xf.basis * n, color)
 
 
 ## A cylinder with flat sides (inner = 0), or a pipe you can see through (inner > 0).
@@ -112,14 +183,14 @@ static func _prism(buf: Array, piece: Dictionary, inner: float) -> void:
 		var n := Vector3(cos(am), 0, sin(am))
 		var up := Vector3(0, hy, 0)
 		# outside wall
-		_quad(buf, xf * (d1 * r - up), xf * (d0 * r - up), xf * (d0 * r + up), xf * (d1 * r + up), xf.basis * n, color)
+		_quad(_route(buf, n), xf * (d1 * r - up), xf * (d0 * r - up), xf * (d0 * r + up), xf * (d1 * r + up), xf.basis * n, color)
 		if ri > 0.0:
-			_quad(buf, xf * (d0 * ri - up), xf * (d1 * ri - up), xf * (d1 * ri + up), xf * (d0 * ri + up), xf.basis * -n, color)
-			_quad(buf, xf * (d0 * ri + up), xf * (d1 * ri + up), xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
-			_quad(buf, xf * (d1 * ri - up), xf * (d0 * ri - up), xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
+			_quad(_route(buf, -n), xf * (d0 * ri - up), xf * (d1 * ri - up), xf * (d1 * ri + up), xf * (d0 * ri + up), xf.basis * -n, color)
+			_quad(_route(buf, Vector3.UP), xf * (d0 * ri + up), xf * (d1 * ri + up), xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
+			_quad(_route(buf, Vector3.DOWN), xf * (d1 * ri - up), xf * (d0 * ri - up), xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
 		else:
-			_tri(buf, xf * up, xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
-			_tri(buf, xf * -up, xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
+			_tri(_route(buf, Vector3.UP), xf * up, xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
+			_tri(_route(buf, Vector3.DOWN), xf * -up, xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
 
 
 ## A cone with flat sides, coming to a point (top = 0) or cut off flat at the top.
@@ -138,11 +209,11 @@ static func _cone(buf: Array, piece: Dictionary) -> void:
 		var b1 := d1 * r - up
 		var n := cone_side_normal(d0, d1, r, rt, piece.size.y)
 		if rt > 0.0:
-			_quad(buf, xf * b1, xf * b0, xf * (d0 * rt + up), xf * (d1 * rt + up), xf.basis * n, color)
-			_tri(buf, xf * up, xf * (d1 * rt + up), xf * (d0 * rt + up), xf.basis * Vector3.UP, color)
+			_quad(_route(buf, n), xf * b1, xf * b0, xf * (d0 * rt + up), xf * (d1 * rt + up), xf.basis * n, color)
+			_tri(_route(buf, Vector3.UP), xf * up, xf * (d1 * rt + up), xf * (d0 * rt + up), xf.basis * Vector3.UP, color)
 		else:
-			_tri(buf, xf * b1, xf * b0, xf * up, xf.basis * n, color)
-		_tri(buf, xf * -up, xf * b0, xf * b1, xf.basis * Vector3.DOWN, color)
+			_tri(_route(buf, n), xf * b1, xf * b0, xf * up, xf.basis * n, color)
+		_tri(_route(buf, Vector3.DOWN), xf * -up, xf * b0, xf * b1, xf.basis * Vector3.DOWN, color)
 
 
 ## The outward normal of the cone's side between the corners `d0` and `d1` (unit
@@ -425,8 +496,8 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 				n = n.normalized()
 				if n.dot(a + c) < 0.0:
 					n = -n
-				_flat(buf, xf, [a, b, c] if j + 1 == rings else [a, b, c, d], n, color)
-		_flat(buf, xf, Array(foot), Vector3.DOWN, color)
+				_flat(_route(buf, n), xf, [a, b, c] if j + 1 == rings else [a, b, c, d], n, color)
+		_flat(_route(buf, Vector3.DOWN), xf, Array(foot), Vector3.DOWN, color)
 		return
 	# Every face of every lump; a face two lumps share (the same place, looking opposite
 	# ways) is inside the piece and is left out.
@@ -444,7 +515,7 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 			faces.append(face)
 	for face in faces:
 		if count[face[2]] == 1:
-			_flat(buf, xf, face[1], face[0], color)
+			_flat(_route(buf, face[0]), xf, face[1], face[0], color)
 
 
 ## One flat face with these corners (in the piece's own frame, in order round it,
@@ -671,6 +742,7 @@ static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, col
 		verts.append(v)
 		normals.append(n)
 		colors.append(color)
+	_put_custom(buf, 3)
 
 
 static func _shaded(color: Color, n: Vector3) -> Color:

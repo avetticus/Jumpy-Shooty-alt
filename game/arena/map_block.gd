@@ -147,6 +147,26 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 		arc = v
 		_changed()
 
+@export_group("Faces")
+## Some faces of another kind than the block (a trim, a painted floor): face -> kind.
+## A face is named by the way it looks in the block's own frame (face_key); paint them
+## with the map tools' Paint tool. What the block is made of (footsteps, breaking) stays
+## its own kind's.
+@export var face_kinds := {}:
+	set(v):
+		face_kinds = v
+		notify_property_list_changed()
+		_changed()
+
+## The pattern on some faces moved, turned or scaled: face -> Vector4(across, up (metres,
+## along the face), turn (degrees), scale (1 = as it is)). Set with the Paint tool.
+@export var face_patterns := {}:
+	set(v):
+		face_patterns = v
+		notify_property_list_changed()
+		_changed()
+@export_group("")
+
 ## Hulls: the corners, in the block's own frame (metres, before any scale). The block
 ## is the smallest convex shape round them; a point inside it does nothing. They are
 ## kept centred on the block's origin, so typing one in moves the shape to stay
@@ -207,6 +227,13 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["bevel"] = bevel * minf(scale.x, minf(scale.y, scale.z))
 	if shape == Shape.DOME and arc < 360.0:
 		piece["arc"] = arc
+	if not face_kinds.is_empty():
+		piece["face_kinds"] = face_kinds
+	if not face_patterns.is_empty():
+		piece["face_patterns"] = face_patterns
+	if piece.has("face_kinds") or piece.has("face_patterns"):
+		if not scale.is_equal_approx(Vector3.ONE):
+			piece["scale"] = scale   # (to name the faces of a stretched block: MapMesher._route)
 	if shape == Shape.HULL:
 		var pts := PackedVector3Array()
 		for p in points:
@@ -244,6 +271,14 @@ func shape_lumps() -> Array:
 		Shape.HULL:
 			return [points]
 	return MapMesher.hull_points(piece)
+
+
+## The name of a face: the way it looks (`normal`, in the block's own frame), to a
+## thousandth. A face keeps its name however the block is moved, turned, stretched or
+## its corners dragged, as long as it looks the same way.
+static func face_key(normal: Vector3) -> String:
+	var n := (normal.normalized() * 1000.0).round()
+	return "%d,%d,%d" % [n.x, n.y, n.z]
 
 
 ## The box round some corners.
@@ -317,7 +352,17 @@ func refresh_preview() -> void:
 	piece.erase("hidden")
 	var shade := root.face_shade if root else Vector3.ONE
 	var meshes := MapMesher.build([piece], shade, _shaded_for)
-	_preview.mesh = meshes.get(kind)
+	var one_kind := meshes.size() == 1 and meshes.has(kind)
+	if one_kind:
+		_preview.mesh = meshes.get(kind)
+	else:
+		# Faces of other kinds (face_kinds): one surface for each kind, with its material.
+		var combined := ArrayMesh.new()
+		for k: String in meshes:
+			var arrays := (meshes[k] as ArrayMesh).surface_get_arrays(0)
+			combined.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
+			combined.surface_set_material(combined.get_surface_count() - 1, root.material_for(k) if root else MapRoot.fallback_material(k))
+		_preview.mesh = combined
 	var shown := drawn or root == null or root.show_invisible_blocks
 	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
 		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
@@ -325,10 +370,12 @@ func refresh_preview() -> void:
 		shown = false   # the map tools' Isolate Selection, or a layer put out of view
 	_preview.visible = shown
 	_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if drawn:
+	if not drawn:
+		_preview.material_override = MapRoot.ghost_material()
+	elif one_kind:
 		_preview.material_override = root.material_for(kind) if root else MapRoot.fallback_material(kind)
 	else:
-		_preview.material_override = MapRoot.ghost_material()
+		_preview.material_override = null   # (each surface has its kind's)
 	_triangles = _preview.mesh.generate_triangle_mesh() if shown and _preview.mesh else null
 	update_gizmos()
 
@@ -389,6 +436,9 @@ func _validate_property(property: Dictionary) -> void:
 		"sides":
 			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL or shape == Shape.HULL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"face_kinds", "face_patterns":
+			if (get(property.name) as Dictionary).is_empty():
+				property.usage &= ~PROPERTY_USAGE_STORAGE   # (no empty list saved in every block of a map)
 		"points":
 			if shape != Shape.HULL:
 				# Not shown, and not saved either: the editor would otherwise write an
@@ -415,6 +465,10 @@ func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
 	if root.palette and not root.palette.colors.has(kind):
 		warnings.append("The map's palette has no colour for \"%s\"." % kind)
+	if root.palette:
+		for face_kind in face_kinds.values():
+			if not root.palette.colors.has(face_kind):
+				warnings.append("A face is painted \"%s\", which the map's palette has no colour for." % face_kind)
 	if material_type != "" and not BlockMaterials.TABLE.has(material_type):
 		warnings.append("\"%s\" is not a material (see BlockMaterials); it will sound like %s." % [material_type, BlockMaterials.DEFAULT])
 	if breakable and not BlockBreakable.PRESETS.has(break_settings):

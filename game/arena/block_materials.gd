@@ -54,10 +54,29 @@ static func guess(kind: String) -> String:
 	for w in ["steel", "metal", "iron", "girder", "rail", "grate", "pipe", "beam", "hull", "copper", "rust"]:
 		if w in kind:
 			return "metal"
-	for w in ["dirt", "sand", "grass", "earth", "soil", "gravel", "mud"]:
+	for w in ["dirt", "sand", "grass", "earth", "soil", "gravel", "mud", "puddle", "water"]:
 		if w in kind:
 			return "dirt"
 	for w in ["rubber", "mat", "carpet", "rug", "foam"]:
 		if w in kind:
 			return "rubber"
 	return DEFAULT
+
+
+## Words in a kind's name that say it is stone, brick or concrete (the default
+## material, so guess() cannot tell them from a name it does not know).
+const STONY := ["stone", "concrete", "brick", "tile", "paving", "path", "slab", "rock", "marble", "cobble", "flag"]
+
+
+## Is it known what a kind is made of: its palette says, or its name does? (Footsteps
+## let walk-through decoration on a floor change what is heard only when it is: a rug,
+## a grate, a patch of dirt; not a glowing strip or a painted sign.)
+static func known(kind: String, palette: MapPalette) -> bool:
+	if palette and palette.material.has(kind) and TABLE.has(palette.material[kind]):
+		return true
+	if guess(kind) != DEFAULT:
+		return true
+	for w in STONY:
+		if w in kind:
+			return true
+	return false

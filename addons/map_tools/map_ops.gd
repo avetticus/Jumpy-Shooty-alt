@@ -383,6 +383,31 @@ static func mirrored_points(block: MapBlock) -> PackedVector3Array:
 	return out
 
 
+## A block's painted faces as a mirror leaves them: [face_kinds, face_patterns]. As the
+## mirror turns the block's own x about (see mirrored_global), the face that looked
+## along +x now looks where -x did, so each face's name has its x turned about, and a
+## pattern's turn goes the other way.
+static func mirrored_faces(block: MapBlock) -> Array:
+	var kinds := {}
+	for key: String in block.face_kinds:
+		kinds[_flip_key(key)] = block.face_kinds[key]
+	var patterns := {}
+	for key: String in block.face_patterns:
+		var p: Vector4 = block.face_patterns[key]
+		patterns[_flip_key(key)] = Vector4(p.x, p.y, -p.z, p.w)
+	return [kinds, patterns]
+
+
+static func _flip_key(key: String) -> String:
+	var parts := key.split(",")
+	return "%d,%s,%s" % [-int(parts[0]), parts[1], parts[2]] if parts.size() == 3 else key
+
+
+## Every block that is `node` or under it with painted faces.
+static func painted_in(node: Node) -> Array[MapBlock]:
+	return blocks_in(node).filter(func(b: MapBlock) -> bool: return not b.face_kinds.is_empty() or not b.face_patterns.is_empty())
+
+
 ## Every hull block that is `node` or under it.
 static func hulls_in(node: Node) -> Array[MapBlock]:
 	return blocks_in(node).filter(func(b: MapBlock) -> bool: return b.shape == MapBlock.Shape.HULL)
@@ -872,6 +897,10 @@ static func mirrored_copy(node: Node3D, axis: int, pivot: Vector3) -> Node3D:
 		(step[0] as Node3D).transform = step[1]
 	for hull in hulls_in(dup):
 		hull.points = mirrored_points(hull)
+	for painted in painted_in(dup):
+		var faces := mirrored_faces(painted)
+		painted.face_kinds = faces[0]
+		painted.face_patterns = faces[1]
 	return dup
 
 

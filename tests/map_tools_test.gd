@@ -28,6 +28,11 @@ extends SceneTree
 ##    layers from view, locked layers, linked prefabs;
 ##  - the aids drawn over the view (the grid under the mouse, selected edges, terminal
 ##    links) and the Problems list;
+##  - faces of their own: a face's kind goes into that kind's mesh, its pattern settings
+##    into the corners (and survive a moving part's mesh), named the same however the
+##    block is stretched; only painted blocks save the lists; mirrored to the other side;
+##    the flicker check sees a painted face's kind; the Paint tool picks, paints, slides,
+##    turns, scales, resets, copies and pastes;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -43,6 +48,8 @@ const ToolVertex := preload("res://addons/map_tools/tool_vertex.gd")
 const MapEdit := preload("res://addons/map_tools/map_edit.gd")
 const MapAids := preload("res://addons/map_tools/map_aids.gd")
 const MapProblems := preload("res://addons/map_tools/map_problems.gd")
+const ToolPaint := preload("res://addons/map_tools/tool_paint.gd")
+const MapFlicker := preload("res://addons/map_tools/map_flicker.gd")
 
 var failures := 0
 
@@ -69,6 +76,7 @@ func _run() -> void:
 	_check_csg()
 	_check_arranging()
 	_check_aids_and_problems()
+	_check_faces()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -1297,6 +1305,135 @@ func _check_aids_and_problems() -> void:
 	_expect(problems.any(func(p: Dictionary) -> bool: return p.text.begins_with("Flickers") and box in p.nodes and other in p.nodes),
 		"flickering: two colours sharing a plane, both blocks to select")
 	_expect(MapProblems.find(map, false).all(func(p: Dictionary) -> bool: return not p.text.begins_with("Flickers")), "and only when asked (it is slow)")
+	map.free()
+
+
+## The pattern settings of a mesh's corners (CUSTOM0), four to a corner, or null.
+func _customs(mesh: ArrayMesh) -> Variant:
+	return mesh.surface_get_arrays(0)[Mesh.ARRAY_CUSTOM0]
+
+
+func _check_faces() -> void:
+	print("  faces of their own")
+	var top := MapBlock.face_key(Vector3.UP)
+	var east := MapBlock.face_key(Vector3.RIGHT)
+	_expect(top == "0,1000,0" and MapBlock.face_key(Vector3(0, 2, 0)) == top, "a face is named by the way it looks")
+
+	# The mesher: a top painted "b" goes into b's mesh; a pattern into its corners.
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"a": Color.RED, "b": Color.BLUE}
+	map.palette = palette
+	root.add_child(map)
+	var box := _block(map, Vector3(0, 0.5, 0), Vector3(2, 1, 2), "a")
+	var plain := MapMesher.build([box.to_piece(MapOps.global_of(box))])
+	_expect(plain.size() == 1 and _customs(plain["a"]) == null, "a block with nothing painted: one mesh, nothing extra in its corners")
+	box.face_kinds = {top: "b"}
+	box.face_patterns = {east: Vector4(0.5, 0, 90, 2)}
+	var meshes := MapMesher.build([box.to_piece(MapOps.global_of(box))])
+	_expect(meshes.has("a") and meshes.has("b") and (meshes["b"] as ArrayMesh).surface_get_array_len(0) == 6 and (meshes["a"] as ArrayMesh).surface_get_array_len(0) == 30,
+		"its top painted b: two triangles in b's mesh, the other ten in a's")
+	var custom: Variant = _customs(meshes["a"])
+	var verts: PackedVector3Array = (meshes["a"] as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var right_ok := custom != null and (custom as PackedFloat32Array).size() == verts.size() * 4
+	if right_ok:
+		for i in verts.size():
+			var c := Vector4(custom[i * 4], custom[i * 4 + 1], custom[i * 4 + 2], custom[i * 4 + 3])
+			var tri := i - i % 3
+			var on_east := is_equal_approx(verts[tri].x, 1.0) and is_equal_approx(verts[tri + 1].x, 1.0) and is_equal_approx(verts[tri + 2].x, 1.0)
+			var want := Vector4(0.5, 0, PI / 2.0, 1.0) if on_east else Vector4.ZERO
+			right_ok = right_ok and c.is_equal_approx(want)
+	_expect(right_ok, "its east face's pattern (moved 0.5 m, turned 90°, twice the size) is in that face's corners, nothing in the others'")
+	var moving := MapMesher.riding(meshes["a"])
+	_expect(_customs(moving) != null, "and stays when the mesh rides a moving part")
+
+	# Named the same however the block is stretched: a wedge's slope.
+	var ramp := _block(map, Vector3(6, 0.5, 0), Vector3(2, 1, 2), "a")
+	ramp.shape = MapBlock.Shape.WEDGE
+	var hull := MapOps.make_editable(ramp) as MapBlock
+	map.add_child(hull)
+	var slope := ""
+	for f in MapMesher.hull_faces(hull.points):
+		if (f[0] as Vector3).y > 0.1 and (f[0] as Vector3).z > 0.1:
+			slope = MapBlock.face_key(f[0])
+	hull.face_kinds = {slope: "b"}
+	hull.scale = Vector3(3, 1, 1)
+	var stretched := MapMesher.build([hull.to_piece(MapOps.global_of(hull))])
+	_expect(slope != "" and stretched.has("b") and (stretched["b"] as ArrayMesh).surface_get_array_len(0) == 6, "a stretched hull's painted slope is still painted")
+
+	# Saved only when painted.
+	var stored := func(b: MapBlock, prop: String) -> bool:
+		for p in b.get_property_list():
+			if p.name == prop:
+				return p.usage & PROPERTY_USAGE_STORAGE != 0
+		return false
+	_expect(stored.call(box, "face_kinds") and not stored.call(ramp, "face_kinds") and not stored.call(ramp, "face_patterns"),
+		"only a painted block saves its faces (no empty lists in every block of a map)")
+
+	# Mirrored: the east face painted becomes the west face of the copy.
+	var copy := MapOps.mirrored_copy(box, 0, Vector3(20, 0, 0)) as MapBlock
+	var west := MapBlock.face_key(Vector3.LEFT)
+	_expect(copy.face_patterns.has(west) and not copy.face_patterns.has(east) and copy.face_kinds.has(top)
+		and is_equal_approx((copy.face_patterns[west] as Vector4).z, -90.0),
+		"a mirrored copy has its painting on the mirrored side (and the turn the other way)")
+	copy.free()
+
+	# The flicker check sees the painted kind: two blocks of a with their tops in one plane
+	# do not flicker; paint one top b and they do.
+	ramp.free()
+	hull.free()
+	box.face_kinds = {}
+	box.face_patterns = {}
+	var beside := _block(map, Vector3(1, 0.5, 0), Vector3(2, 1, 2), "a")
+	var flickers := func() -> bool: return MapFlicker.check(map).clashes.any(func(c: Dictionary) -> bool: return "b" in c.kinds)
+	_expect(not flickers.call(), "(two blocks of one kind, tops in one plane: no flicker)")
+	beside.face_kinds = {top: "b"}
+	_expect(flickers.call(), "with one top painted another kind, the flicker check finds it")
+	beside.free()
+
+	# The Paint tool.
+	var ctx := _context(map)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.look_at_from_position(Vector3(4, 14, 16), Vector3(0, 0, 0))
+	var view := MapView.new(cam)
+	var paint := ToolPaint.new()
+	paint.ctx = ctx
+	ctx.kind = "b"
+	ctx.touch()
+	paint.input(view, _press(view, Vector3(0.2, 1, 0.3), true))
+	_expect(paint.picked.size() == 1 and paint.picked[0][0] == box and paint.picked[0][1] == top, "Paint: a click on a block's top picks that face")
+	paint.paint(paint.picked, "b")
+	_expect(box.face_kinds == {top: "b"}, "a kind given to the picked face paints it alone")
+	paint.input(view, _key_event(KEY_RIGHT))
+	paint.input(view, _key_event(KEY_PAGEUP))
+	paint.input(view, _key_event(KEY_EQUAL))
+	var pattern: Vector4 = box.face_patterns.get(top, Vector4.ZERO)
+	_expect(pattern.is_equal_approx(Vector4(ctx.grid, 0, 15, 1.25)), "arrows slide its pattern a grid square, Page Up turns it 15°, + makes it bigger (%s)" % pattern)
+	var side := Vector3(0.3, 0.6, 1.0)   # on the front face (+z)
+	var ctrl_c := _key_event(KEY_C)
+	ctrl_c.ctrl_pressed = true
+	paint.input(view, ctrl_c)
+	var shift_click := _press(view, side, true)
+	shift_click.shift_pressed = true
+	paint.input(view, shift_click)
+	_expect(paint.picked.size() == 2, "Shift-click picks another face")
+	var ctrl_v := _key_event(KEY_V)
+	ctrl_v.ctrl_pressed = true
+	paint.input(view, ctrl_v)
+	var front := MapBlock.face_key(Vector3.BACK)
+	_expect(box.face_kinds.get(front, "") == "b" and (box.face_patterns.get(front, Vector4.ZERO) as Vector4).is_equal_approx(pattern),
+		"Ctrl+C, Ctrl+V: the front gets the top's paint and pattern")
+	paint.input(view, _key_event(KEY_DELETE))
+	_expect(box.face_kinds.is_empty() and box.face_patterns.is_empty(), "Delete puts both faces back as the block")
+	var alt_click := _press(view, side, true)
+	alt_click.alt_pressed = true
+	paint.input(view, alt_click)
+	_expect(box.face_kinds == {front: "b"}, "Alt+click paints the face under the mouse with the chosen kind")
+	paint.paint([[box, front, []]], "a")
+	_expect(box.face_kinds.is_empty(), "painting a face its own block's kind takes the paint away")
+	_release(ctx)
+	cam.free()
 	map.free()
 
 

@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://famgx4hdf0mc"]
+
+[ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="1_7xq66"]
+
+[node name="Block" type="Node3D" unique_id=399739370]
+
+[node name="Cover3" type="Node3D" parent="." unique_id=400773936]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6001, 0)
+script = ExtResource("1_7xq66")
+shape = 8
+size = Vector3(4.1826, 5.2002, 6.5625997)
+kind = "cover"
+points = PackedVector3Array(-1.7912999, 2.6001, 3.2812998, -1.7912999, -2.5002, 3.2812998, -1.9688, 2.6001, 1.063, -2.0913, 1.1001999, -0.4685, 1.4722999, 2.6001, 3.2812998, -1.7829, -2.6001, 3.2812998, 2.0913, -2.6001, 3.2812998, 1.3181, 2.6001, 0.65209997, -1.7816, -2.5995998, -3.2812998, -1.9907999, -0.0998, -1.7184999, 1.7063999, -2.5995998, -3.2812998, 1.4142, 0.9483, -1.0634)

@@ -661,7 +661,7 @@ makes ordinary MapBlocks and is one step of undo.
 
 - **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
   2 or 4 m. `[` makes it finer, `]` coarser.
-- **Draw**, **Clip** and **Vertex** are tools you turn on: press the button (or its key) again, or
+- **Draw**, **Clip**, **Vertex** and **Paint** are tools you turn on: press the button (or its key) again, or
   Esc, and you are back to the editor's own select, move, rotate and scale.
 - **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
   the new block's footprint; let go, move the mouse to pull it out of the face, and
@@ -715,6 +715,21 @@ makes ordinary MapBlocks and is one step of undo.
   dropped. A click on no selected hull selects the block under it. Esc or a right
   click puts a drag back; Esc again leaves the tool. Each drag, nudge, add or delete is
   one step of undo.
+- **Paint** (`P`): single faces of any block get their own kind, and their pattern can be
+  moved, turned and scaled (the map tools' answer to texture alignment, for this game's
+  patterns). Click a face to pick it, Shift-click to pick more (or take one back); a
+  click on no block picks nothing. With faces picked: click a kind in the Map dock to
+  paint them (instead of the whole blocks); the arrow keys slide their pattern a grid
+  square across or up the face, Page Up and Page Down turn it 15°, `+` and `-` make it
+  bigger or smaller (1.25 times); Delete puts them back as their block; Ctrl+C takes the
+  first face's paint and pattern, Ctrl+V gives it to all the picked faces. Alt+click
+  paints the face under the mouse with the kind chosen in the dock. A face is known by
+  the way it looks in its block's own frame, so it keeps its paint however the block is
+  moved, turned or stretched, or its corners dragged, as long as it looks the same way;
+  Mirror moves the paint to the mirrored side. A painted face is only how it looks: what
+  the block is made of (footsteps, breaking) stays its own kind's, and a block that
+  breaks cell by cell is drawn in its own kind once it starts breaking. The settings are
+  the block's **Faces** in the inspector (`face_kinds`, `face_patterns`).
 - **A hull's face handles**: outside the Vertex tool, a selected hull block has a
   handle in the middle of every face, slanted faces too. Drag one to push or pull that
   face the same way (on the grid; Ctrl for whole metres).
@@ -871,6 +886,16 @@ comes from the palette's **Material** list (kind -> material), else from the kin
 (`glass`, `plank`/`crate` -> wood, `steel`/`girder` -> metal...). The table is
 `game/arena/block_materials.gd`: for now most materials reuse the step and break sounds
 at another pitch, so real sounds can drop in there later without touching any map.
+
+Footsteps go by what is seen underfoot (`MapRoot.material_at`): the highest surface
+there wins. That is a solid block, or **decoration lying flat on it**: a block that is
+drawn but not solid, no more than 12 cm thick, level, at least 30 cm across both ways
+(a rug, a grate, a patch of dirt or grass, paint), and only when what it is made of is
+known (its Material Type, the palette's Material list, or its kind's name: dirt, rug,
+grate, plank, stone, tile...), so a glowing strip or a painted sign leaves the floor's
+sound alone. On a block whose face underfoot is painted another kind (the Paint tool),
+that face's kind is what you hear, over the block's own Material Type. (Moving parts
+the same.) What a block breaks like is still its own.
 
 **Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
 practice mode on that map. In the game, all blocks of one kind are merged into a single

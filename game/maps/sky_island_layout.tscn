@@ -1,10 +1,10 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bwe8hor4qphiy"]
 
-[ext_resource type="Script" path="res://game/arena/map_root.gd" id="1_m5rj4"]
+[ext_resource type="Script" uid="uid://cvi2cr76l7a75" path="res://game/arena/map_root.gd" id="1_m5rj4"]
 [ext_resource type="Resource" path="res://game/maps/palettes/sky_island_layout.tres" id="2_8ur4b"]
-[ext_resource type="Script" path="res://game/arena/map_mover.gd" id="3_0bx0w"]
-[ext_resource type="Script" path="res://game/arena/map_block.gd" id="4_w86ov"]
-[ext_resource type="Script" path="res://game/arena/map_spawn.gd" id="5_fmo1f"]
+[ext_resource type="Script" uid="uid://dq44gttl5q4q3" path="res://game/arena/map_mover.gd" id="3_0bx0w"]
+[ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="4_w86ov"]
+[ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="5_fmo1f"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4ini8"]
 sky_top_color = Color(0.2, 0.42, 0.74, 1)
@@ -377,17 +377,109 @@ shape = 1
 size = Vector3(1.8, 5, 1.8)
 kind = "pillar"
 
-[node name="Cover" type="Node3D" parent="Islands/Spire" unique_id=592936457]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0.6, 3.5)
+[node name="Cover5" type="Node3D" parent="Islands/Spire" unique_id=592936457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 14.792719)
 script = ExtResource("4_w86ov")
 size = Vector3(3, 1.2, 1)
 kind = "cover"
 
+[node name="Cover6" type="Node3D" parent="Islands/Spire" unique_id=1985365423]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 15.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover7" type="Node3D" parent="Islands/Spire" unique_id=634347960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 15.792719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover8" type="Node3D" parent="Islands/Spire" unique_id=798674994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 16.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover9" type="Node3D" parent="Islands/Spire" unique_id=1823304717]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 16.792719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover10" type="Node3D" parent="Islands/Spire" unique_id=508840623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 16.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover11" type="Node3D" parent="Islands/Spire" unique_id=1388960116]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 15.792719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover12" type="Node3D" parent="Islands/Spire" unique_id=1593197107]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 15.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover13" type="Node3D" parent="Islands/Spire" unique_id=1432806369]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 14.792719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover14" type="Node3D" parent="Islands/Spire" unique_id=1877517174]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 14.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover15" type="Node3D" parent="Islands/Spire" unique_id=157061462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 13.792719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover16" type="Node3D" parent="Islands/Spire" unique_id=1268946387]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 13.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover17" type="Node3D" parent="Islands/Spire" unique_id=1350357006]
+transform = Transform3D(0, 1, 0, 1, 0, 0, 0, 0, -1, 24.3871, 0.60000014, 12.7927)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover18" type="Node3D" parent="Islands/Spire" unique_id=373633309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.387054, 0.5999999, 12.292719)
+script = ExtResource("4_w86ov")
+size = Vector3(3, 1.2, 1)
+kind = "cover"
+
+[node name="Cover19" type="Node3D" parent="Islands/Spire" unique_id=1643940310]
+transform = Transform3D(0.99965584, 0.016142894, 0.020679582, -0.016523946, 0.99969435, 0.018390687, -0.020376392, -0.018726056, 0.999617, 16.63817, 0.6537024, 14.358948)
+script = ExtResource("4_w86ov")
+size = Vector3(9.5, 1.2, 1)
+kind = "cover"
+
 [node name="Cover2" type="Node3D" parent="Islands/Spire" unique_id=348717016]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.6, 0.6, 6.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131905, 0.5999999, 6.25)
 script = ExtResource("4_w86ov")
 size = Vector3(1.1999998, 1.2, 2.5)
 kind = "cover"
+
+[node name="Cover3" type="Node3D" parent="Islands/Spire/Cover2" unique_id=564008489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.033905, 0.099900246, 6.7187996)
+script = ExtResource("4_w86ov")
+shape = 8
+size = Vector3(4.1826, 5.2002, 6.5625997)
+kind = "cover"
+points = PackedVector3Array(-1.7912999, 2.6001, 3.2812998, -1.7912999, -2.5002, 3.2812998, -1.9688, 2.6001, 1.063, -2.0913, 1.1001999, -0.4685, 1.4722999, 2.6001, 3.2812998, -1.7829, -2.6001, 3.2812998, 2.0913, -2.6001, 3.2812998, 1.3181, 2.6001, 0.65209997, -1.7816, -2.5995998, -3.2812998, -1.9907999, -0.0998, -1.7184999, 1.7063999, -2.5995998, -3.2812998, 1.4142, 0.9483, -1.0634)
 
 [node name="Spawns" type="Node3D" parent="Islands/Spire" unique_id=1190368019]
 
@@ -398,6 +490,18 @@ script = ExtResource("5_fmo1f")
 [node name="Spire2" type="Marker3D" parent="Islands/Spire/Spawns" unique_id=1777590154]
 transform = Transform3D(0.24253559, 0, 0.9701425, 0, 1, 0, -0.9701425, 0, 0.24253559, 8, 0, 2)
 script = ExtResource("5_fmo1f")
+
+[node name="Block" type="Node3D" parent="Islands/Spire" unique_id=399739370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -4.7683716e-07, 7)
+metadata/_edit_group_ = true
+
+[node name="Cover3" type="Node3D" parent="Islands/Spire/Block" unique_id=400773936]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6001, 0)
+script = ExtResource("4_w86ov")
+shape = 8
+size = Vector3(4.1826, 5.2002, 6.5625997)
+kind = "cover"
+points = PackedVector3Array(-1.7912999, 2.6001, 3.2812998, -1.7912999, -2.5002, 3.2812998, -1.9688, 2.6001, 1.063, -2.0913, 1.1001999, -0.4685, 1.4722999, 2.6001, 3.2812998, -1.7829, -2.6001, 3.2812998, 2.0913, -2.6001, 3.2812998, 1.3181, 2.6001, 0.65209997, -1.7816, -2.5995998, -3.2812998, -1.9907999, -0.0998, -1.7184999, 1.7063999, -2.5995998, -3.2812998, 1.4142, 0.9483, -1.0634)
 
 [node name="Citadel" type="Node3D" parent="Islands" unique_id=2063616683]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3.5, -62)
@@ -1414,11 +1518,13 @@ kind = "building"
 
 [node name="UpperFloor" type="Node3D" parent="Islands/Hearth/Keep" unique_id=2099898433]
 
-[node name="Slab" type="Node3D" parent="Islands/Hearth/Keep/UpperFloor" unique_id=3762857]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8, 2.85, -4.55)
+[node name="Slab" type="Node3D" parent="Islands/Hearth/Keep/UpperFloor" unique_id=449312783]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.978388, 6.071023, -3.7494717)
 script = ExtResource("4_w86ov")
-size = Vector3(9.6, 0.29999995, 6.1)
+shape = 8
+size = Vector3(9.599999, 6.5, 8)
 kind = "floor"
+points = PackedVector3Array(-4.7999997, -3.25, -4, 4.7999997, -3.25, -4, -4.7999997, 3.25, -4, 4.7999997, 3.25, -4, -4.7999997, -3.25, 4, 4.7999997, -3.25, 4, -4.7999997, 3.25, 4)
 
 [node name="Pier" type="Node3D" parent="Islands/Hearth/Keep/UpperFloor" unique_id=765786995]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1.35, -2.2)
@@ -1441,6 +1547,14 @@ transform = Transform3D(0, 0.41905817, -0.90795934, 0, 0.90795934, 0.41905817, 1
 script = ExtResource("4_w86ov")
 size = Vector3(2.6, 0.35, 7.1589108)
 kind = "ramp"
+
+[node name="Slab2" type="Node3D" parent="Islands/Hearth/Keep/UpperFloor" unique_id=1846158354]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.791996, 6.071023, -15.049953)
+script = ExtResource("4_w86ov")
+shape = 8
+size = Vector3(9.2272, 6.5, 13.047701)
+kind = "floor"
+points = PackedVector3Array(-4.6136, -3.25, -6.1577997, -3.8023999, 3.25, -6.19, -4.1124, -3.25, 6.4775, -3.2981, 3.25, 6.5221996, -3.5906, 0.90919995, 6.5238, 4.6136, -3.25, -6.5239, 4.6136, 3.25, -6.5239, 4.6136, -3.25, 6.4775, 4.6136, 3.25, 6.4775)
 
 [node name="Rubble" type="Node3D" parent="Islands/Hearth/Keep" unique_id=1017044845]
 
@@ -1525,7 +1639,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.348595, 2.8847947, 41.5520
 script = ExtResource("3_0bx0w")
 travel = Vector3(0, 5.173773, 0)
 period = 14.0
-phase = 0.034916334951180614
+phase = 0.03491633495118061
 
 [node name="Slab" type="Node3D" parent="Crossings/TerraceToShelf/Pad" unique_id=772197833]
 transform = Transform3D(0.3497535, 0, 0.9368418, 0, 1, 0, -0.9368418, 0, 0.3497535, 0, -0.5, 0)
@@ -1573,7 +1687,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.076874, 1.5295374, 53.7147
 script = ExtResource("3_0bx0w")
 travel = Vector3(0, 5.35041, 0)
 period = 14.0
-phase = 0.10874659125189029
+phase = 0.10874659125189028
 
 [node name="Slab" type="Node3D" parent="Crossings/TerraceToShelf/Pad3" unique_id=227062311]
 transform = Transform3D(0.6673478, 0, -0.7447462, 0, 1, 0, 0.7447462, 0, 0.6673478, 0, -0.5, 0)
@@ -1793,7 +1907,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.67772, 2.2411604, -14.979
 script = ExtResource("3_0bx0w")
 travel = Vector3(0, 4.842249, 0)
 period = 14.0
-phase = 0.45380539550022037
+phase = 0.4538053955002204
 
 [node name="Slab" type="Node3D" parent="Crossings/BluffToSpire/Pad4" unique_id=1502427387]
 transform = Transform3D(0.98167086, 0, 0.19058403, 0, 1, 0, -0.19058403, 0, 0.98167086, 0, -0.5, 0)
@@ -1884,7 +1998,7 @@ shape = 3
 size = Vector3(5.755991, 3.51755, 5.755991)
 kind = "island_rock"
 sides = 5
-top = 1.2791090790074173
+top = 1.279109079007417
 
 [node name="CitadelToGarden" type="Node3D" parent="Crossings" unique_id=1885760967]
 
@@ -2087,7 +2201,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.26665, 1.863256, 2.5752892
 script = ExtResource("3_0bx0w")
 travel = Vector3(0, 5.355834, 0)
 period = 14.0
-phase = 0.9228931406860799
+phase = 0.92289314068608
 
 [node name="Slab" type="Node3D" parent="Crossings/GardenToTerrace/Pad4" unique_id=1059783882]
 transform = Transform3D(0.81092304, 0, -0.5851528, 0, 1, 0, 0.5851528, 0, 0.81092304, 0, -0.5, 0)

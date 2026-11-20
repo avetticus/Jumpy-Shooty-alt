@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_check_modes()
 	_check_blocks()
 	_check_hulls()
+	_check_footsteps()
 	_check_face_moves()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -108,6 +109,47 @@ func _check_hulls() -> void:
 	_expect(map.hazards.size() == 1 and map.hazards[0].shape == "hull", "a hull hazard is a hull to the map")
 	_expect(map.hazard_at(Vector3(0, 0.5, 0)), "under the slope, you touch it")
 	_expect(not map.hazard_at(Vector3(0, 1.5, 0.5)), "over the slope, inside the box round it, you do not")
+	map.free()
+
+
+## Footsteps go by what is seen underfoot: a rug or a painted patch lying on a floor
+## wins over the floor, and a painted face over its block.
+func _check_footsteps() -> void:
+	print("  footsteps")
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"stone": Color.GRAY, "grass": Color.GREEN, "rug": Color.RED, "planks": Color.BROWN, "rail": Color.BLACK, "glow": Color.WHITE}
+	palette.material = {"stone": "concrete", "grass": "dirt", "rug": "rubber", "planks": "wood", "rail": "metal"}
+	map.palette = palette
+	root.add_child(map)
+	var add := func(kind: String, at: Vector3, size: Vector3, solid := true) -> MapBlock:
+		var b := MapBlock.new()
+		b.kind = kind
+		b.size = size
+		b.position = at
+		b.solid = solid
+		map.add_child(b)
+		return b
+	add.call("stone", Vector3(0, -0.5, 0), Vector3(20, 1, 20))                 # the floor, top at 0
+	add.call("rug", Vector3(3, 0.01, 0), Vector3(2, 0.02, 2), false)            # a rug lying on it
+	add.call("rail", Vector3(-6, 0.03, 0), Vector3(0.08, 0.06, 4), false)        # a thin rail on it: not a floor
+	add.call("glow", Vector3(7, 0.01, 0), Vector3(1, 0.02, 1), false)           # a glowing panel: made of nothing known
+	var painted: MapBlock = add.call("stone", Vector3(-3, 0.5, 3), Vector3(2, 1, 2))   # a stone block, top at 1, painted grass
+	painted.face_kinds = {MapBlock.face_key(Vector3.UP): "grass"}
+	var wedge: MapBlock = add.call("stone", Vector3(4, 0.5, 6), Vector3(4, 1, 4))   # a slope, painted planks on it
+	wedge.shape = MapBlock.Shape.WEDGE
+	var slope := ""
+	for f in MapMesher.hull_faces(MapMesher.wedge_points({"size": wedge.size})):
+		if (f[0] as Vector3).y > 0.1:
+			slope = MapBlock.face_key(f[0])
+	wedge.face_kinds = {slope: "planks"}
+	map.build()
+	_expect(map.material_at(Vector3(0, 0, -5)) == "concrete", "on the bare floor: its own material (concrete)")
+	_expect(map.material_at(Vector3(3, 0, 0)) == "rubber", "on a rug lying on the floor: the rug (%s)" % map.material_at(Vector3(3, 0, 0)))
+	_expect(map.material_at(Vector3(-6, 0, 0)) == "concrete", "on a thin rail on the floor: still the floor (%s)" % map.material_at(Vector3(-6, 0, 0)))
+	_expect(map.material_at(Vector3(7, 0, 0)) == "concrete", "on a glowing panel (made of nothing known) lying on it: still the floor")
+	_expect(map.material_at(Vector3(-3, 1, 3)) == "dirt", "on a block whose top is painted grass: the grass (%s)" % map.material_at(Vector3(-3, 1, 3)))
+	_expect(map.material_at(Vector3(4, 0.5, 6)) == "wood", "on a slope painted planks: wood (%s)" % map.material_at(Vector3(4, 0.5, 6)))
 	map.free()
 
 

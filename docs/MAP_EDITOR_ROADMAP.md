@@ -4,9 +4,10 @@ What it would take for the Godot map tools (`addons/map_tools/`, `MapBlock`) to 
 everything a level designer reaches for in TrenchBroom, without leaving Godot and
 without changing how maps are stored or played.
 
-Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull), P4
-(clipping at any angle), P5 (CSG), P6 (transforms and organising) and P7 (viewport aids,
-Problems) are built.** P8 (per-face kinds and pattern alignment) is the optional last.
+Status: **all eight phases are built**: P1 (the hull shape), P2 (the vertex tool), P3
+(edges, faces, push/pull), P4 (clipping at any angle), P5 (CSG), P6 (transforms and
+organising), P7 (viewport aids, Problems) and P8 (per-face kinds and pattern alignment).
+Left to refine: the angled Clip tool's feel (see P4).
 
 ## Ground rules
 
@@ -387,7 +388,25 @@ The original plan:
   `map_flicker_test.gd`); kinds missing from the palette; too few spawns. Click one to
   select it. The headless tests keep running the same checks.
 
-### P8. Per-face kinds and pattern alignment (L, optional)
+### P8. Per-face kinds and pattern alignment (L, optional) — done
+- `MapBlock.face_kinds` / `face_patterns` (Vector4: across, up, turn in degrees, scale),
+  keyed by `MapBlock.face_key(normal)`: the face's way out in the block's own frame,
+  unstretched, to a thousandth. Saved only when not empty.
+- `MapMesher._route`: each face goes into its kind's buffer; pattern settings go into
+  CUSTOM0 (across, up, turn in radians, scale - 1), which a buffer only gets once a face
+  needs it, so maps with nothing painted cost nothing more. `riding()` keeps it.
+  A stretched block names faces unstretched (the piece carries its "scale").
+- `map_surface.gdshader` vertex(): when CUSTOM0 is not zero, the place the pattern is
+  measured from is turned about the face's normal, divided by the scale and slid along
+  the face (compiled and checked on the real Vulkan renderer).
+- The editor preview builds one surface per kind. Mirror flips face names and turns.
+  The flicker check sees a face's painted kind.
+- Paint tool (`tool_paint.gd`, key P): picks faces of any block by its real shape.
+- Not done: per-face settings on cells of a block that breaks cell by cell (they are
+  drawn in the block's kind once breaking starts); a face's kind does not change what
+  the block is made of (footsteps, breaking) or the dock's per-kind counts.
+
+The original plan:
 The "UV editing" equivalent, for this game's procedural look.
 - A face-select mode (shared with P3), for every shape, not just hulls.
 - Per-face **kind**: a face can be another kind than its block (a trim, a painted

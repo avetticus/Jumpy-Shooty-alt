@@ -38,9 +38,19 @@ static func check(map: MapRoot, gap: float = SAME_PLANE) -> Dictionary:
 		if not see_through:
 			solid_index = solids.size()
 			solids.append(_solid(piece))
+		var painted: Dictionary = piece.get("face_kinds", {})
+		var to_own := (piece.xf as Transform3D).basis.inverse()
+		var stretch: Vector3 = piece.get("scale", Vector3.ONE)
 		for f in _faces(piece):
 			f.look = look
 			f.kind = piece.kind
+			if not painted.is_empty():
+				# A face painted another kind (MapBlock.face_kinds, named in the block's
+				# own frame, unstretched) looks like that kind.
+				var own: String = painted.get(MapBlock.face_key(to_own * (f.n as Vector3) * stretch), "")
+				if own != "":
+					f.kind = own
+					f.look = "%s %s" % [own, piece.get("tint", Color.WHITE)]
 			f.piece = solid_index
 			var n: Vector3 = f.n
 			var key := Vector3i((n * 500.0).round())
