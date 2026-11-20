@@ -1665,17 +1665,18 @@ mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun
 are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
 game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
 shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
-are in `game/combat/weapon_data.gd`. The akimbo pistols are the one weapon in two hands:
-the left gun rides on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
-`pistol_l_mag`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`, `slide_l` and
-`mag_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
+are in `game/combat/weapon_data.gd`. The Dual Pistols (id `akimbo`) are the one weapon in two
+hands: the pistol's own model built twice (`weapons._pistol_one`, once on each hand's bones),
+the left gun riding on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
+`pistol_l_mag`, `pistol_l_vent`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`,
+`slide_l`, `mag_l` and `vent_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
 (`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
 
 **Alt fire.** The `alt_fire` action (right mouse by default) is read with the trigger in
 `Player.read_local_input` into `PlayerInput.alt_fire` (held) and `alt_fire_pressed` (this
 frame), and is cleared wherever the trigger is (mouse not captured, a frozen player).
-What it does is `WeaponData.alt`: "tilt" (Pistol, Akimbo) is a hold, "sticky" (Grenade
+What it does is `WeaponData.alt`: "tilt" (Pistol, Dual Pistols) is a hold, "sticky" (Grenade
 Launcher) a press. `Player.alt_held()` says whether a player is holding a hold-style alt
 fire: for your own player and bots from the input, for everyone else from bit 22 of the
 animation flags in their snapshots (`RobotAnimInput.make_flags`, `alt_of`), which the
@@ -1784,7 +1785,7 @@ gun or relaxed. The left hand under a fore-end is cupped, palm up (`weapon_anims
 so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun with an
 upright handle there says `"upright"` and it is held like a second grip. What the clips
 cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
-clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
+clips): a blade's handle in the fist (`MeleeSwing.hold`), the Dual Pistols' left gun. The
 Character Creator's other bodies have the same hands in their own colours
 (`creatures.hand()`: which material the palm and fingers, the back of the hand, the band
 across the knuckles and the joints each take). To look at the hands on every robot (open,

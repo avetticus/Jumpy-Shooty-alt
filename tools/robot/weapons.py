@@ -78,7 +78,7 @@ KINDS = {
     "lens": {"color": (0.05, 0.10, 0.14), "metallic": 0.2, "roughness": 0.15, "emission": (0.10, 0.45, 0.60)},
 }
 
-# The bone each gun's vents ride on (the akimbo pair's left gun: "pistol_l_vent"): a
+# The bone each gun's vents ride on (a two-gun weapon's left gun: "pistol_l_vent"): a
 # reload snaps them open (the "vent" key of a pose, see rig.solve).
 VENT_BONE = "pistol_vent"
 
@@ -218,7 +218,7 @@ def _slats(f0, n, pitch, y0, y1, x, t=0.006, lean=0.006, thick=0.004):
 
 
 def _add(mesh, gun, kind, bone, part):
-    # The akimbo pair's left gun rides on its own bones ("pistol_l", "pistol_l_slide"...).
+    # A two-gun weapon's left gun rides on its own bones ("pistol_l", "pistol_l_slide"...).
     mesh.add(_place(part, "pistol_l" if bone.startswith("pistol_l") else "pistol"), "%s.%s" % (gun, kind), bone)
 
 
@@ -293,29 +293,39 @@ def _scope(f0, f1, y, r=0.019, bell=0.028):
 # ---------------------------------------------------------------------------
 # Sidearms
 
+def _bones(side):
+    """A gun's four bones: the right hand's ("pistol", "pistol_slide"...) or, with side
+    "_l", the second gun's in the left fist ("pistol_l", "pistol_l_slide"...)."""
+    return "pistol" + side, "pistol%s_slide" % side, "pistol%s_mag" % side, "pistol%s_vent" % side
+
+
+def _pistol_one(mesh, g, side=""):
+    frame_b, slide_b, mag_b, vent_b = _bones(side)
+    _add(mesh, g, "grip", frame_b, _grip(-14, 0.038, 0.112, 0.05, -0.036, 0.018))
+    frame = _core([(-0.068, 0.05), (0.178, 0.05), (0.178, 0.032), (0.172, 0.026), (-0.03, 0.024), (-0.068, 0.036)], 0.038, 0.004)
+    _add(mesh, g, "dark", frame_b, frame + _guard(0.076))
+    _add(mesh, g, "glow", frame_b, box(0.024, 0.012, 0.066).move(0, 0.021, -0.13))   # the core the vent covers
+    # The vent: hinged at its back top corner (PISTOL_VENT_PIVOT in animations.py).
+    _vent(mesh, g, "dark", _core([(0.086, 0.027), (0.172, 0.027), (0.163, 0.004), (0.096, 0.004)], 0.04, 0.004), vent_b)
+    _vent(mesh, g, "detail", _slats(0.1, 4, 0.015, 0.008, 0.023, 0.02, t=0.007, lean=0.004, thick=0.003), vent_b)
+    slide = _core([(-0.068, 0.052), (0.176, 0.052), (0.176, 0.082), (0.16, 0.092), (-0.05, 0.092), (-0.068, 0.08)], 0.04, 0.006)
+    _add(mesh, g, "dark", slide_b, slide)
+    _add(mesh, g, "plate", slide_b, _panels([(-0.03, 0.056), (0.088, 0.056), (0.106, 0.071), (0.168, 0.071), (0.168, 0.084),
+                                            (0.156, 0.088), (-0.03, 0.088)], 0.019, 0.005))
+    _add(mesh, g, "glow", slide_b, _panels([(0.101, 0.057), (0.167, 0.057), (0.167, 0.066), (0.112, 0.066)], 0.0195, 0.002, 0.0))
+    _add(mesh, g, "detail", slide_b, _slats(-0.062, 4, 0.008, 0.058, 0.086, 0.0195, t=0.004, lean=0.003, thick=0.003)
+         + box(0.022, 0.008, 0.012).move(0, 0.096, 0.052) + box(0.006, 0.009, 0.014).move(0, 0.0965, -0.162))
+    _add(mesh, g, "steel", frame_b, _tube(0.013, 0.17, 0.198, 0.068, 8))
+    _add(mesh, g, "detail", frame_b, _tube(0.0155, 0.183, 0.191, 0.068, 8))
+    _add(mesh, g, "detail", mag_b, box(0.026, 0.11, 0.034).rot(pitch=-14).move(0, -0.045, 0.02))
+    _add(mesh, g, "glow", mag_b, box(0.032, 0.01, 0.042, 0.006).move(0, -0.058, 0).rot(pitch=-14).move(0, -0.045, 0.02))
+
+
 def pistol(mesh):
     """A chunky sidearm, about 26 cm: armour plates on the slide with a lit channel under
     their step, and a power cell in the grip whose lit base shows under it. Its vent is
     the chin under the barrel: a reload drops it open on its hinge, off a lit core."""
-    g = "pistol"
-    _add(mesh, g, "grip", "pistol", _grip(-14, 0.038, 0.112, 0.05, -0.036, 0.018))
-    frame = _core([(-0.068, 0.05), (0.178, 0.05), (0.178, 0.032), (0.172, 0.026), (-0.03, 0.024), (-0.068, 0.036)], 0.038, 0.004)
-    _add(mesh, g, "dark", "pistol", frame + _guard(0.076))
-    _add(mesh, g, "glow", "pistol", box(0.024, 0.012, 0.066).move(0, 0.021, -0.13))   # the core the vent covers
-    # The vent: hinged at its back top corner (PISTOL_VENT_PIVOT in animations.py).
-    _vent(mesh, g, "dark", _core([(0.086, 0.027), (0.172, 0.027), (0.163, 0.004), (0.096, 0.004)], 0.04, 0.004))
-    _vent(mesh, g, "detail", _slats(0.1, 4, 0.015, 0.008, 0.023, 0.02, t=0.007, lean=0.004, thick=0.003))
-    slide = _core([(-0.068, 0.052), (0.176, 0.052), (0.176, 0.082), (0.16, 0.092), (-0.05, 0.092), (-0.068, 0.08)], 0.04, 0.006)
-    _add(mesh, g, "dark", "pistol_slide", slide)
-    _add(mesh, g, "plate", "pistol_slide", _panels([(-0.03, 0.056), (0.088, 0.056), (0.106, 0.071), (0.168, 0.071), (0.168, 0.084),
-                                                   (0.156, 0.088), (-0.03, 0.088)], 0.019, 0.005))
-    _add(mesh, g, "glow", "pistol_slide", _panels([(0.101, 0.057), (0.167, 0.057), (0.167, 0.066), (0.112, 0.066)], 0.0195, 0.002, 0.0))
-    _add(mesh, g, "detail", "pistol_slide", _slats(-0.062, 4, 0.008, 0.058, 0.086, 0.0195, t=0.004, lean=0.003, thick=0.003)
-         + box(0.022, 0.008, 0.012).move(0, 0.096, 0.052) + box(0.006, 0.009, 0.014).move(0, 0.0965, -0.162))
-    _add(mesh, g, "steel", "pistol", _tube(0.013, 0.17, 0.198, 0.068, 8))
-    _add(mesh, g, "detail", "pistol", _tube(0.0155, 0.183, 0.191, 0.068, 8))
-    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.11, 0.034).rot(pitch=-14).move(0, -0.045, 0.02))
-    _add(mesh, g, "glow", "pistol_mag", box(0.032, 0.01, 0.042, 0.006).move(0, -0.058, 0).rot(pitch=-14).move(0, -0.045, 0.02))
+    _pistol_one(mesh, "pistol")
 
 
 def revolver(mesh):
@@ -374,35 +384,12 @@ def machine_pistol(mesh):
         _add(mesh, g, kind, "pistol_mag", part.rot(pitch=-12).move(0, -0.08, 0.012))
 
 
-def _akimbo_one(mesh, g, side):
-    frame_b, slide_b, mag_b = "pistol" + side, "pistol" + side + "_slide", "pistol" + side + "_mag"
-    _add(mesh, g, "grip", frame_b, box(0.034, 0.11, 0.046, 0.009).rot(pitch=-12).move(0, -0.034, 0.016))
-    frame = _core([(-0.058, 0.048), (0.16, 0.048), (0.16, 0.03), (0.146, 0.008), (0.088, 0.008), (0.074, 0.024),
-                   (-0.028, 0.024), (-0.058, 0.034)], 0.034, 0.004)
-    _add(mesh, g, "dark", frame_b, frame + _guard(0.072))
-    _vent(mesh, g, "detail", _slats(0.094, 3, 0.015, 0.012, 0.027, 0.017, t=0.007, lean=0.004, thick=0.003), frame_b + "_vent")
-    slide = _core([(-0.058, 0.05), (0.158, 0.05), (0.158, 0.076), (0.146, 0.086), (-0.044, 0.086), (-0.058, 0.076)], 0.036, 0.005)
-    _add(mesh, g, "dark", slide_b, slide)
-    # A low armour band along the slide, lit ports above it.
-    _add(mesh, g, "plate", slide_b, _panels([(-0.03, 0.053), (0.152, 0.053), (0.152, 0.066), (-0.03, 0.066)], 0.017, 0.005))
-    ports = Part([])
-    for i in range(3):
-        f = 0.062 + i * 0.03
-        ports = ports + _panels([(f, 0.07), (f + 0.02, 0.07), (f + 0.024, 0.08), (f + 0.004, 0.08)], 0.0175, 0.002, 0.0)
-    _add(mesh, g, "glow", slide_b, ports)
-    _add(mesh, g, "detail", slide_b, box(0.032, 0.032, 0.03, 0.008).move(0, 0.064, -0.18)
-         + box(0.008, 0.01, 0.012).move(0, 0.09, -0.148) + box(0.02, 0.007, 0.012).move(0, 0.089, 0.044))
-    _add(mesh, g, "steel", frame_b, _tube(0.0095, 0.158, 0.2, 0.064, 6))
-    _add(mesh, g, "detail", mag_b, box(0.025, 0.13, 0.031).rot(pitch=-12).move(0, -0.05, 0.02))
-    _add(mesh, g, "glow", mag_b, box(0.031, 0.012, 0.038, 0.005).rot(pitch=-12).move(0, -0.115, 0.034))
-
-
 def akimbo(mesh):
-    """Akimbo: a matched pair of compact pistols, one in each fist. Slimmer than the
-    pistol, with lit ports along the slide, a muzzle brake and an extended power cell. The
-    same gun is built twice: on the right-hand gun bones and on the left ("pistol_l"...)."""
+    """The Dual Pistols (the id is still "akimbo"): the pistol in each fist, the same gun
+    built twice, on the right-hand gun bones and on the left ("pistol_l"...). Its
+    surfaces are "akimbo.<kind>", so the game shows them only when it is picked."""
     for side in ("", "_l"):
-        _akimbo_one(mesh, "akimbo", side)
+        _pistol_one(mesh, "akimbo", side)
 
 
 DERRINGER_HINGE = (0.034, 0.042)   # (up, forward) of the grip: the barrels tip down about it

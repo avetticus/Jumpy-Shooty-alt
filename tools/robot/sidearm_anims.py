@@ -8,8 +8,9 @@ and fingers, the gun's moving parts, and whatever the left hand brings to the gu
                      in, the cylinder flicked shut and one big slow spin forward
     Derringer        the barrels tip open and throw their empties, two rounds flipped in
                      off the thumb, snapped shut with a flick of the wrist
-    Akimbo           both cells flicked out sideways, the arms cross to push the guns down
-                     on new cells, then uncross with both guns spinning together
+    Dual Pistols     both cells flicked out sideways and the vents dropped open, the arms
+    ("akimbo")       cross (the left gun dipping under the right) to push the guns down on
+                     new cells, then uncross with both guns spinning together
 
 The game's side of each (what flies out, the glow and steam) is timed to these
 keys in game/combat/reload_fx.gd, and the sounds in game/audio/sfx_list.gd.
@@ -262,11 +263,12 @@ DERRINGER_ROUNDS = v(0.0, 0.063, -0.038)   # the middle of the pair of rounds, s
 
 
 # ---------------------------------------------------------------------------
-# Akimbo (2.0 s): a pistol in each fist. Both wrists flick outward and throw the cells out
+# Dual Pistols, id "akimbo" (2.0 s): a pistol in each fist. Both wrists flick outward and throw the cells out
 # to the sides, the arms cross low so each gun is pushed down on a new cell at the far
 # hip, and they uncross with both guns spinning forward together.
 
-AK_OUT = norm(v(0.0, -0.978, 0.208))   # the way out of a grip
+AK_OUT = A.CELL_OUT   # the way out of a pistol's grip
+DUAL_PASS = {False: ((0.0, -0.11, 0.06), 30.0), True: ((0.0, -0.10, 0.06), 30.0)}   # as the arms pass: how much deeper the left gun goes, and how much further its muzzle tips down
 
 
 def akimbo(fp):
@@ -298,6 +300,15 @@ def akimbo(fp):
               (0.80, lifted), (1.0, wide, "out"), (1.2, top), (1.40, wide), (1.49, catch, "in"), (1.58, over, "out"), (1.68, rest), (2.0, rest)]
     behind = (0.0, -0.03, 0.06)   # the left arm crosses under and behind the right
     keys_l = [(k[0], left(k[1], behind if k[1] in (cross, push, lifted) else ZERO)) + tuple(k[2:]) for k in keys_r]
+    # Where the arms pass each other, going in and coming out, the left gun dips under and
+    # behind the right one, its muzzle tipped further down, so the two never run into each other.
+    deep, tip = DUAL_PASS[fp]
+    for t, more, ease_in in ((0.41, 1.4, "in"), (0.49, 1.4, "linear"), (0.845, 1.6, "linear")):
+        i = next(i for i, k in enumerate(keys_l) if k[0] > t)
+        keys_l[i] = (keys_l[i][0], keys_l[i][1], "out")
+        passing = left(keyed(t, keys_r), W._add(behind, tuple(x * more for x in deep)))
+        passing["hand"] = (passing["hand"][0] - tip * more,) + tuple(passing["hand"][1:])
+        keys_l.insert(i, (t, passing, ease_in))
 
     def pose(t):
         spec = {"arm_r": keyed(t, keys_r), "arm_l": keyed(t, keys_l)}
@@ -309,10 +320,10 @@ def akimbo(fp):
             mag = tuple(AK_OUT * at(t, [(0.12, 0.0), (0.2, 0.22, "linear")]))
         else:            # the new one, waiting at the hip: the gun comes down on it
             mag = tuple(AK_OUT * at(t, [(0.2, 0.2), (0.6, 0.2), (0.71, 0.0, "in")]))
-        open_ = at(t, [(0.0, 0.0), (0.10, 0.0), (0.15, 1.2, "out"), (0.22, 1.0), (0.73, 1.0), (0.78, 0.0, "in")])
-        vent = (0.0, -0.006 * open_, 0.008 * open_)
+        # Each pistol's chin drops open on its hinge as the cell flies, and snaps shut on the new one.
+        vent = at(t, [(0.0, 0.0), (0.10, 0.0), (0.15, -38.0, "out"), (0.22, -32.0), (0.73, -32.0), (0.78, 0.0, "in")])
         spec.update({"fingers_r": fingers, "fingers_l": fingers, "slide": slide, "slide_l": slide, "mag": mag, "mag_l": mag,
-                     "vent_pos": vent, "vent_pos_l": vent})
+                     "vent": vent, "vent_l": vent, "vent_pivot": A.PISTOL_VENT_PIVOT, "vent_pivot_l": A.PISTOL_VENT_PIVOT})
         turn = at(t, [(0.0, 0.0), (0.98, 0.0), (1.06, -60.0, "in"), (1.33, -300.0, "linear"), (1.44, -360.0, "out"), (2.0, -360.0)])
         _spin(spec, turn)
         _spin(spec, turn, "pistol_l")

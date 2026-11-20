@@ -342,11 +342,12 @@ static func machine_pistol() -> WeaponData:
 	return w
 
 
-## A pistol in each hand: one trigger, and the shots alternate right, left, right...
+## Dual Pistols (the id is still "akimbo", which maps, saves and sounds go by): the
+## pistol in each hand, one trigger, and the shots alternate right, left, right...
 ## Twice the pistol's rate of fire, a little less damage and a lot less accuracy.
 static func akimbo() -> WeaponData:
-	var w := _gun("akimbo", "Akimbo Pistols", "Akimbo")
-	w.blurb = "A pistol in each hand. Click as fast as you like: the shots alternate left and right. 24 rounds, wild at range."
+	var w := _gun("akimbo", "Dual Pistols", "Dual Pistols")
+	w.blurb = "A pistol in each hand. Click as fast as you like: the shots alternate right and left. 24 rounds, wild at range."
 	w.damage = 20.0
 	w.fire_interval = 0.11
 	w.magazine = 24

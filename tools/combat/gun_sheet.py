@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FAMILIES = [
     ("Sidearms", [("pistol", "Pistol"), ("revolver", "Revolver"), ("golden_gun", "Golden Gun"), ("machine_pistol", "Machine Pistol"),
-                  ("akimbo", "Akimbo Pistols")]),
+                  ("akimbo", "Dual Pistols")]),
     ("Shotguns", [("shotgun", "Shotgun"), ("break_action", "Break-Action Shotgun"), ("air_cannon", "Air Cannon")]),
     ("Automatics", [("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
                     ("lmg", "Light Machine Gun"), ("minigun", "Minigun")]),

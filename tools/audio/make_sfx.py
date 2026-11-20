@@ -259,10 +259,10 @@ GUNS = {
     "lever_action": dict(crack=(1750, 0.6, 0.015), blast=(2100, 0.035, 1.2), boom=(0.15, 0.6),
                          thump=(105, 40, 0.08, 0.65), mech=([700, 1150, 1800], 0.014), slide_at=None,
                          tail=(1.5, 0.6, 1900), drive=3.3),
-    # Akimbo: a lighter, snappier pistol (two of them, firing in turn)
-    "akimbo": dict(crack=(1850, 0.75, 0.01), blast=(2600, 0.019, 0.95), boom=(0.06, 0.55),
-                   thump=(140, 54, 0.045, 0.65), mech=([1040, 1720, 2600], 0.009), slide_at=0.026,
-                   tail=(0.7, 0.42, 2250), drive=2.7),
+    # Dual Pistols ("akimbo"): the pistol, a touch lighter and snappier (two of them, firing in turn)
+    "akimbo": dict(crack=(1760, 0.72, 0.011), blast=(2480, 0.021, 0.97), boom=(0.065, 0.57),
+                   thump=(134, 52, 0.048, 0.67), mech=([980, 1630, 2480], 0.01), slide_at=0.03,
+                   tail=(0.72, 0.44, 2200), drive=2.6),
     # The third batch
     "minigun": dict(crack=(2200, 0.8, 0.007), blast=(2900, 0.014, 0.85), boom=(0.04, 0.5),
                     thump=(150, 62, 0.03, 0.5), mech=([1200, 1900, 2900], 0.006), slide_at=None,
