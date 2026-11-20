@@ -25,6 +25,8 @@ const MapToolbar := preload("res://addons/map_tools/map_toolbar.gd")
 const MapDialogs := preload("res://addons/map_tools/map_dialogs.gd")
 const MapDock := preload("res://addons/map_tools/map_dock.gd")
 const PieceInspector := preload("res://addons/map_tools/piece_inspector.gd")
+const MapAids := preload("res://addons/map_tools/map_aids.gd")
+const MapProblems := preload("res://addons/map_tools/map_problems.gd")
 
 ## The tools. Draw, Clip and Vertex have a button in the strip (in this order: the
 ## strip counts them from 1); SELECT is none of them: the editor's own select, move,
@@ -58,6 +60,10 @@ var _toolbar: HBoxContainer
 var _dialogs: Node
 var _dock: EditorDock
 var _inspector: EditorInspectorPlugin
+var _mouse := {}           # a 3D view's camera (instance id) -> where the mouse is over it
+## The aids drawn over the 3D view (map_aids.gd), each on or off (Map menu).
+var _aids := {"grid": true, "edges": true, "links": true}
+var _problems := []        # what the Problems list last found (MapProblems.find)
 
 
 func _enter_tree() -> void:
@@ -66,6 +72,8 @@ func _enter_tree() -> void:
 	ctx.commit = apply_edit
 	ctx.select = _select
 	ctx.grid = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "grid", 0.5)
+	for aid in _aids:
+		_aids[aid] = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "aid_" + aid, true)
 	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.VERTEX, "tool_vertex.gd"], [Tool.PLACE, "tool_place.gd"]]:
 		var made: RefCounted = load("res://addons/map_tools/" + t[1]).new()
 		made.ctx = ctx
@@ -98,6 +106,8 @@ func _enter_tree() -> void:
 	_dock.prefab_chosen.connect(place_prefab)
 	_dock.prefab_linked.connect(func(path: String) -> void: place_prefab(path, true))
 	_dock.layer_toggled.connect(_on_layer_toggled)
+	_dock.check_requested.connect(_check_problems)
+	_dock.problem_chosen.connect(_on_problem_chosen)
 	_dock.save_prefab_pressed.connect(func() -> void: run("prefab"))
 	add_dock(_dock)
 	_inspector = PieceInspector.new()
@@ -110,6 +120,7 @@ func _enter_tree() -> void:
 	get_undo_redo().version_changed.connect(_on_edited)
 	get_undo_redo().history_changed.connect(_on_edited)   # this one fires when a step is first done
 	ctx.changed.connect(_on_context_changed)
+	EditorInterface.get_selection().selection_changed.connect(update_overlays)   # (the selected edges)
 	EditorInterface.get_resource_filesystem().filesystem_changed.connect(_dock.refresh_prefabs)
 	_dock.refresh_prefabs()
 	_on_scene_changed(EditorInterface.get_edited_scene_root())
@@ -117,6 +128,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	scene_changed.disconnect(_on_scene_changed)
+	EditorInterface.get_selection().selection_changed.disconnect(update_overlays)
 	get_undo_redo().version_changed.disconnect(_on_edited)
 	get_undo_redo().history_changed.disconnect(_on_edited)
 	EditorInterface.get_resource_filesystem().filesystem_changed.disconnect(_dock.refresh_prefabs)
@@ -151,6 +163,10 @@ func _on_scene_changed(root: Node) -> void:
 	Engine.set_meta(&"map_tools_isolated", {})
 	Engine.set_meta(&"map_tools_view_hidden", {})
 	_toolbar.show_view("view:isolate", false)
+	for aid in _aids:
+		_toolbar.show_view("view:" + aid, _aids[aid])
+	_problems = []
+	_dock.show_problems([])
 	ctx.map = root as MapRoot
 	_toolbar.visible = ctx.map != null
 	if ctx.map and ctx.map.palette and not ctx.map.palette.colors.has(ctx.kind) and not ctx.map.palette.colors.is_empty():
@@ -266,6 +282,10 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		return AFTER_GUI_INPUT_PASS
 	var view := _view_of(camera)
 	var used := false
+	if event is InputEventMouseMotion:
+		_mouse[camera.get_instance_id()] = (event as InputEventMouseMotion).position
+		if _aids.grid:
+			update_overlays()   # the grid follows the mouse
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 		ctx.touch()   # a click always works from the scene as it is now
 	if _tools.has(tool):
@@ -353,11 +373,20 @@ func _keep_focus(focus: Control) -> void:
 
 
 func _forward_3d_force_draw_over_viewport(overlay: Control) -> void:
-	if ctx.map == null or not _tools.has(tool):
+	if ctx.map == null or not is_instance_valid(ctx.map):
 		return
 	var camera := _camera_for(overlay)
-	if camera:
-		_tools[tool].draw(_view_of(camera), overlay)
+	if camera == null:
+		return
+	var view := _view_of(camera)
+	if _aids.links:
+		MapAids.draw_links(view, overlay, ctx.map)
+	if _aids.edges and tool != Tool.VERTEX:   # (the Vertex tool draws its own)
+		MapAids.draw_selected_edges(view, overlay, ctx)
+	if _aids.grid:
+		MapAids.draw_grid(view, overlay, ctx, _mouse.get(camera.get_instance_id()))
+	if _tools.has(tool):
+		_tools[tool].draw(view, overlay)
 
 
 func _view_of(camera: Camera3D) -> RefCounted:
@@ -471,6 +500,12 @@ func run(what: String) -> void:
 		"view:solid":
 			_set_solid_only(not ctx.solid_only)
 			_toolbar.show_view(what, ctx.solid_only)
+		"view:grid", "view:edges", "view:links":
+			var aid := what.trim_prefix("view:")
+			_aids[aid] = not _aids[aid]
+			EditorInterface.get_editor_settings().set_project_metadata("map_tools", "aid_" + aid, _aids[aid])
+			_toolbar.show_view(what, _aids[aid])
+			update_overlays()
 		"view:isolate":
 			var isolated: Dictionary = Engine.get_meta(&"map_tools_isolated", {})
 			if isolated.is_empty():
@@ -498,6 +533,21 @@ func _set_view_meta(key: StringName, ids: Dictionary) -> void:
 			b.refresh_preview()
 	_dock.queue_refresh()
 	update_overlays()
+
+
+## The Problems list's Check: look the map over (`flicker`: for flickering surfaces too).
+func _check_problems(flicker: bool) -> void:
+	if ctx.map == null or not is_instance_valid(ctx.map):
+		return
+	_problems = MapProblems.find(ctx.map, flicker)
+	_dock.show_problems(_problems.map(func(p: Dictionary) -> String: return p.text))
+
+
+## A problem picked in the list: select what it is about.
+func _on_problem_chosen(index: int) -> void:
+	if index < 0 or index >= _problems.size():
+		return
+	_select((_problems[index].nodes as Array).filter(func(n: Node) -> bool: return is_instance_valid(n) and n.is_inside_tree()))
 
 
 ## A switch in the Map dock's Layers: `what` is "view" (shown in the editor; the scene

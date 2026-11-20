@@ -770,6 +770,21 @@ makes ordinary MapBlocks and is one step of undo.
   a plain group first.
 - **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
   second hides everything you cannot bump into, to check a map's real shape.
+- **Map > Show Grid Under Mouse / Show Selected Edges / Show Terminal Links** (all on
+  at first; remembered per project): drawn over the 3D view whatever tool is on. The
+  grid, at its current size, on the surface under the mouse (or the ground), fading out
+  round the cursor; on a surface square to the map it is the map's grid. The selected
+  blocks' edges over everything, so a block behind or inside another can be seen. From
+  each terminal and lever a line to the event it sets off, or (an event has no place in
+  the map) the event's name beside it, in red if the event cannot be found.
+- **The Map dock, Problems**: **Check Map** looks the open map over and lists what is
+  wrong; click one to select what it is about. It finds every block's own warnings (a
+  kind missing from the palette, a hull with no volume, a block too thick to break per
+  cell...), blocks thinner than a centimetre (left over from a cut or a drag), too few
+  spawn points and spawn points outside the bounds, and terminals whose event cannot be
+  found. Tick **Flickering too** to also find two colours sharing a plane where both
+  show (the same check as `tests/map_flicker_test.gd`, now in
+  `addons/map_tools/map_flicker.gd`); it takes a while on a big map.
 - **The Map dock, Kinds**: the palette as swatches, with how many blocks use each.
   Click one: new blocks get that kind, and the selected blocks are painted with it.
   Right-click one to select every block of that kind. **Add Kind** adds a colour to the

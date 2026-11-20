@@ -25,6 +25,10 @@ signal prefab_linked(path: String)
 signal save_prefab_pressed
 ## A layer's switch: `what` is "view", "lock" or "game".
 signal layer_toggled(node: Node3D, what: String, on: bool)
+## The Problems list's Check was pressed (`flicker`: look for flickering too).
+signal check_requested(flicker: bool)
+## A problem was picked in the list: its index.
+signal problem_chosen(index: int)
 
 var ctx: RefCounted   # MapContext
 
@@ -35,6 +39,8 @@ var _prefabs: ItemList
 var _place: Button
 var _missing: Label
 var _layers: VBoxContainer
+var _problems: ItemList
+var _problems_note: Label
 var _dirty := true
 var _palette: MapPalette
 
@@ -114,7 +120,41 @@ func _init() -> void:
 	_layers = VBoxContainer.new()
 	_layers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layer_scroll.add_child(_layers)
+
+	var problems_tab := VBoxContainer.new()
+	problems_tab.name = "Problems"
+	tabs.add_child(problems_tab)
+	var check_row := HBoxContainer.new()
+	problems_tab.add_child(check_row)
+	var flicker := CheckBox.new()
+	flicker.text = "Flickering too (slow)"
+	flicker.tooltip_text = "Also look for two colours in one plane where both show (they flicker as the camera moves). Takes a while on a big map."
+	var check := Button.new()
+	check.text = "Check Map"
+	check.tooltip_text = "Look the open map over: block warnings, leftover slivers, spawn points, terminals without their event."
+	check.pressed.connect(func() -> void: check_requested.emit(flicker.button_pressed))
+	check_row.add_child(check)
+	check_row.add_child(flicker)
+	_problems_note = Label.new()
+	_problems_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_problems_note.text = "Press Check Map. Click a problem to select what it is about."
+	problems_tab.add_child(_problems_note)
+	_problems = ItemList.new()
+	_problems.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_problems.item_selected.connect(func(i: int) -> void: problem_chosen.emit(i))
+	problems_tab.add_child(_problems)
 	set_process(true)
+
+
+## Shows what a check found (the texts, worst first).
+func show_problems(texts: Array) -> void:
+	if _problems == null:
+		return
+	_problems.clear()
+	for t: String in texts:
+		var i := _problems.add_item(t)
+		_problems.set_item_tooltip(i, t)
+	_problems_note.text = "Nothing found." if texts.is_empty() else "%d found. Click one to select what it is about." % texts.size()
 
 
 ## Something it shows may have changed: redraw soon (once, however often this is called).

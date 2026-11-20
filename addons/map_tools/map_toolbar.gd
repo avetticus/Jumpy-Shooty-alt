@@ -46,6 +46,9 @@ const MENU := [
 	["Show Invisible Blocks", "view:invisible"],
 	["Show Solid Blocks Only", "view:solid"],
 	["Isolate Selection", "view:isolate"],
+	["Show Grid Under Mouse", "view:grid"],
+	["Show Selected Edges", "view:edges"],
+	["Show Terminal Links", "view:links"],
 ]
 
 var _tool_buttons: Array[Button] = []

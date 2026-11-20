@@ -26,6 +26,8 @@ extends SceneTree
 ##  - arranging: nudging (and copying) along the grid, the arrow keys' directions,
 ##    quarter turns, select touching / inside / tall / invert, isolating and hiding
 ##    layers from view, locked layers, linked prefabs;
+##  - the aids drawn over the view (the grid under the mouse, selected edges, terminal
+##    links) and the Problems list;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -39,6 +41,8 @@ const PieceGizmo := preload("res://addons/map_tools/piece_gizmo.gd")
 const ToolPlace := preload("res://addons/map_tools/tool_place.gd")
 const ToolVertex := preload("res://addons/map_tools/tool_vertex.gd")
 const MapEdit := preload("res://addons/map_tools/map_edit.gd")
+const MapAids := preload("res://addons/map_tools/map_aids.gd")
+const MapProblems := preload("res://addons/map_tools/map_problems.gd")
 
 var failures := 0
 
@@ -64,6 +68,7 @@ func _run() -> void:
 	_check_angled_clip()
 	_check_csg()
 	_check_arranging()
+	_check_aids_and_problems()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -1227,6 +1232,71 @@ func _check_arranging() -> void:
 		"and the game builds the prefab's blocks")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	_release(ctx)
+	map.free()
+
+
+func _check_aids_and_problems() -> void:
+	print("  aids and problems")
+	# The grid under the mouse: on a floor, on the map's grid, round the point.
+	var lines := MapAids.grid_lines(Vector3(1.3, 0, 2.7), Vector3.UP, 0.5, 2)
+	_expect(lines.size() == 10 and lines.all(func(l: Array) -> bool:
+		var a: Vector3 = l[0]
+		return is_zero_approx(a.y) and (is_zero_approx(fposmod(a.x, 0.5)) or is_equal_approx(fposmod(a.x, 0.5), 0.5) or is_zero_approx(fposmod(a.z, 0.5)) or is_equal_approx(fposmod(a.z, 0.5), 0.5))),
+		"the grid on a floor: 5 lines each way, on the map's grid, in the floor")
+	var slope := Vector3(0, 1, 1).normalized()
+	var on_slope := MapAids.grid_lines(Vector3(0, 2, 3), slope, 0.5, 2)
+	_expect(on_slope.all(func(l: Array) -> bool: return absf(((l[0] as Vector3) - Vector3(0, 2, 3)).dot(slope)) < 0.001 and absf(((l[1] as Vector3) - Vector3(0, 2, 3)).dot(slope)) < 0.001),
+		"on a slope, the grid lies in the slope")
+
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"a": Color.RED, "b": Color.BLUE}
+	map.palette = palette
+	root.add_child(map)
+	var box := _block(map, Vector3(0, 0.5, 0), Vector3(2, 1, 2), "a")
+	_expect(MapAids.block_edges(box).size() == 12, "a box is outlined by its 12 edges")
+	var wedge := _block(map, Vector3(9, 0.5, 9), Vector3(2, 1, 2), "a")
+	wedge.shape = MapBlock.Shape.WEDGE
+	var hull := MapOps.make_editable(wedge) as MapBlock
+	map.add_child(hull)
+	_expect(MapAids.block_edges(hull).size() == 9, "a hull by its own edges (a wedge has 9)")
+	hull.free()
+	wedge.free()
+
+	# Terminal links.
+	var event := Node3D.new()
+	event.name = "Crane"
+	event.position = Vector3(5, 0, 0)
+	map.add_child(event)
+	var lever := MapTerminal.new()
+	lever.name = "Lever"
+	map.add_child(lever)
+	lever.event = lever.get_path_to(event)
+	var lost := MapTerminal.new()
+	lost.name = "Lost"
+	map.add_child(lost)
+	lost.event = NodePath("../Nowhere")
+	var found := MapAids.links(map)
+	var to_crane := found.filter(func(l: Dictionary) -> bool: return l.terminal == lever)
+	var to_nowhere := found.filter(func(l: Dictionary) -> bool: return l.terminal == lost)
+	_expect(to_crane.size() == 1 and to_crane[0].to != null and (to_crane[0].to as Vector3).is_equal_approx(Vector3(5, 0, 0)) and not to_crane[0].missing,
+		"a lever's link runs to the event it sets off")
+	_expect(to_nowhere.size() == 1 and to_nowhere[0].missing, "a terminal whose event is missing is shown as missing")
+
+	# Problems.
+	var stray := _block(map, Vector3(4, 0.5, 4), Vector3(1, 1, 1), "nope")   # not in the palette
+	var sliver := _block(map, Vector3(-4, 0.5, 4), Vector3(2, 1, 0.004), "a")   # 4 mm thin
+	var other := _block(map, Vector3(1, 0.5, 0), Vector3(2, 1, 2), "b")   # overlaps `box`: their tops share a plane
+	var problems := MapProblems.find(map, true)
+	var about := func(node: Node) -> Array: return problems.filter(func(p: Dictionary) -> bool: return node in p.nodes)
+	_expect(about.call(stray).any(func(p: Dictionary) -> bool: return "palette" in p.text), "Problems: a kind not in the palette (%d found in all)" % problems.size())
+	_expect(about.call(sliver).any(func(p: Dictionary) -> bool: return "centimetre" in p.text), "a sliver thinner than a centimetre")
+	_expect(problems.any(func(p: Dictionary) -> bool: return "spawn points" in p.text), "too few spawn points")
+	_expect(about.call(lost).any(func(p: Dictionary) -> bool: return "cannot be found" in p.text) and about.call(lever).is_empty(),
+		"a terminal whose event cannot be found (and not the one whose can)")
+	_expect(problems.any(func(p: Dictionary) -> bool: return p.text.begins_with("Flickers") and box in p.nodes and other in p.nodes),
+		"flickering: two colours sharing a plane, both blocks to select")
+	_expect(MapProblems.find(map, false).all(func(p: Dictionary) -> bool: return not p.text.begins_with("Flickers")), "and only when asked (it is slow)")
 	map.free()
 
 

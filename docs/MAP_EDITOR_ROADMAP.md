@@ -5,8 +5,8 @@ everything a level designer reaches for in TrenchBroom, without leaving Godot an
 without changing how maps are stored or played.
 
 Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull), P4
-(clipping at any angle), P5 (CSG) and P6 (transforms and organising) are built.** P7
-onward are plans.
+(clipping at any angle), P5 (CSG), P6 (transforms and organising) and P7 (viewport aids,
+Problems) are built.** P8 (per-face kinds and pattern alignment) is the optional last.
 
 ## Ground rules
 
@@ -365,7 +365,20 @@ The original plan:
   `MapRoot.build()` and `map_ops.blocks_in()` checked for blocks inside instances.
   Editing the prefab updates every map using it.
 
-### P7. Viewport and checking (M)
+### P7. Viewport and checking (M) — done
+- `addons/map_tools/map_aids.gd`: the grid under the mouse (`grid_lines`), the selected
+  blocks' edges (`block_edges`, a hull's cached), terminal links (`links`). Each can be
+  turned off in the Map menu (remembered as project metadata).
+- Terminal links: map events are plain Nodes with no place, so a link is a line only
+  when the event is a Node3D; otherwise the event's name is written by the terminal
+  (red when missing).
+- `addons/map_tools/map_problems.gd` and the dock's Problems tab. The flicker check moved
+  out of `tests/map_flicker_test.gd` into `addons/map_tools/map_flicker.gd` (the test now
+  calls it; same results on every map) so the dock can run it, on request.
+- Not done: spawn count by game mode (the list says "an arena needs 8, a race 5" rather
+  than knowing which the map is for).
+
+The original plan:
 - Grid drawn at the current step on the plane under the cursor.
 - Edges of the selected blocks drawn over everything.
 - Lines from terminals and levers to the events they trigger.
