@@ -79,11 +79,12 @@ func _init() -> void:
 		_step(s, w.reload_time + 0.05)
 		_check(s.ammo == w.magazine and s.can_fire(), "%s: cooled down, full again" % id)
 
-	# The harpoon pulls; the air cannon shoves hard enough to kill by the wall.
+	# The harpoon pulls; the air cannon hurts nobody, but a full charge shoves hard enough
+	# to kill by the wall (more in tests/air_cannon_test.gd).
 	var harpoon := WeaponData.by_id("harpoon_gun")
 	_check(harpoon.pull and harpoon.knockback > 10.0, "harpoon: reels the target in")
 	var air := WeaponData.by_id("air_cannon")
-	_check(air.damage * air.pellets < 25.0 and air.knockback * air.pellets > 30.0, "air cannon: barely hurts, shoves hard")
+	_check(air.is_blast() and air.damage == 0.0 and air.blast_knockback(1.0, 0.0)[0] > 30.0, "air cannon: hurts nobody, a full charge shoves hard")
 	# Darts: no blast; the crossbow kills with a headshot.
 	for id in ["nail_gun", "crossbow"]:
 		var w := WeaponData.by_id(id)

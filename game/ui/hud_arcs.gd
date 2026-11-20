@@ -73,6 +73,22 @@ static func _draw_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 		HudStyle.text(ci, c + Vector2(R + 30.0, -5.0), v.weapon.to_upper(), 17, HudStyle.WHITE)
 		HudStyle.label(ci, name_at, "READY" if ready else "SWINGING", 10, Color(HudStyle.CYAN if ready else HudStyle.ORANGE, 0.85))
 		return
+	# The air cannon: no ammo. The arc fills as it charges (white when full), and refills
+	# in orange in the moment after a blast.
+	if v.blast:
+		HudStyle.edged_arc(ci, c, R, -bottom, bottom, HudStyle.DIM, WIDTH)
+		var state := "HOLD TO CHARGE"
+		if v.charge >= 0.0:
+			var full := v.charge >= 1.0
+			HudStyle.glow_arc(ci, c, R, bottom - SPAN * v.charge, bottom, HudStyle.WHITE if full else HudStyle.CYAN, WIDTH, HudStyle.CYAN)
+			HudStyle.text(ci, c + Vector2(R + 30.0, -5.0), "%d%%" % roundi(v.charge * 100.0), 26, HudStyle.WHITE)
+			state = "FULL: LET GO" if full else "CHARGING"
+		else:
+			if v.swing < 1.0:
+				HudStyle.glow_arc(ci, c, R, bottom - SPAN * clampf(v.swing, 0.0, 1.0), bottom, HudStyle.ORANGE, WIDTH, HudStyle.ORANGE)
+			HudStyle.text(ci, c + Vector2(R + 30.0, -5.0), v.weapon.to_upper(), 17, HudStyle.WHITE)
+		HudStyle.label(ci, name_at, state, 10, Color(HudStyle.CYAN.lerp(Color.WHITE, 0.3), 0.85))
+		return
 
 	# Rounds from 35 deg (lower right) up to -35 deg (upper right). A magazine bigger
 	# than 30 shares the 30 ticks out.

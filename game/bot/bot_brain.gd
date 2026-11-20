@@ -60,7 +60,7 @@ const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rif
 	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],
 	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "axe": [0.0, 1.7, 3.0], "bat": [0.0, 1.7, 3.0],
 	"derringer": [2.5, 8.0, 20.0], "flare_gun": [6.0, 16.0, 45.0], "plasma_pistol": [6.0, 16.0, 999.0],
-	"auto_shotgun": [2.5, 7.0, 18.0], "slug_shotgun": [6.0, 16.0, 45.0], "air_cannon": [1.5, 5.0, 12.0],
+	"auto_shotgun": [2.5, 7.0, 18.0], "slug_shotgun": [6.0, 16.0, 45.0], "air_cannon": [3.0, 8.0, 15.0],
 	"minigun": [6.0, 18.0, 60.0], "battle_rifle": [10.0, 26.0, 999.0], "laser_rifle": [8.0, 22.0, 999.0],
 	"nail_gun": [5.0, 14.0, 45.0], "crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
 	"harpoon_gun": [6.0, 16.0, 38.0], "mortar": [10.0, 22.0, 60.0], "plasma_cannon": [7.0, 15.0, 40.0],
@@ -1879,6 +1879,8 @@ func _fire(delta: float, perceived: Array) -> void:
 		return   # Deathmatch, empty hands: it can only kick (see _kick)
 	if _melee and me.winding_up():
 		input.fire = true   # a wound-up swing is held (through losing sight of you) until there is someone to hit
+	elif w.data.is_blast() and me.blast_charge() >= 0.0:
+		input.fire = true   # so is a charging air cannon
 	if w.ammo == 0 and not w.is_reloading():
 		w.start_reload()
 	# Top up a half-empty gun when nobody is in sight.
@@ -1891,8 +1893,8 @@ func _fire(delta: float, perceived: Array) -> void:
 	var eye := me.eye_position()
 	var want: Vector3 = (perceived[1] as Vector3) - eye
 	var dist := want.length()
-	if dist > _reach + (WIND_FROM if _melee else 0.0):
-		return   # a shotgun does not waste shells at long range
+	if dist > _reach + (WIND_FROM if _melee or w.data.is_blast() else 0.0):
+		return   # a shotgun does not waste shells at long range (a blade or the air cannon winds up on the way in)
 	if w.data.is_projectile() and dist < w.data.splash_radius * 0.9:
 		return   # too close: it would blow itself up
 	if w.data.is_projectile() and _lob != Vector3.INF:
@@ -1918,6 +1920,22 @@ func _fire(delta: float, perceived: Array) -> void:
 			input.fire = true
 			# Easy bots mostly tap; Expert ones wind right up.
 			_wind_goal = clampf(_rng.randf_range(0.15, 0.6) + 0.15 * d.level, 0.0, 1.0)
+		return
+	if w.data.is_blast():
+		# The air cannon: hold the trigger to charge it on the way in, and let go once you
+		# are inside the cone and it is charged as far as it meant to (sooner if you are
+		# right on top of it). Not setting input.fire is letting go.
+		var charge := me.blast_charge()
+		var in_cone := off < deg_to_rad(w.data.cone_degrees * 0.6)
+		if charge >= 0.0:
+			if dist <= _reach and in_cone and (charge >= _wind_goal or (dist < 3.0 and charge >= 0.25)):
+				input.fire = false
+				_fire_wait = d.fire_gap * _rng.randf_range(0.4, 0.8)
+		elif w.can_fire() and _fire_wait <= 0.0:
+			input.fire_pressed = true
+			input.fire = true
+			# Easy bots mostly let go early; Expert ones charge right up.
+			_wind_goal = clampf(_rng.randf_range(0.2, 0.6) + 0.12 * d.level, 0.0, 1.0)
 		return
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
 	if w.data.id in STEADY_GUNS:

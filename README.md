@@ -32,7 +32,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Sprint | Shift |
 | Glide (hold in mid-air: you fly on along a locked track at the speed you had, free to turn and shoot, and guns scatter less; you can hold it as long as you like but it weakens into a fall; let go to stop, with a backflip) | Alt |
 | Jump | Space |
-| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo) | Left mouse |
+| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo; air cannon: hold to charge, let go to blast everyone in front of you away) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |

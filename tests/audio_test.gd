@@ -43,6 +43,9 @@ func _init() -> void:
 	var fire_steps: Dictionary = SfxList.FIRE_STEPS
 	for id in WeaponData.GUNS:
 		var w := WeaponData.by_id(id)
+		if w.is_blast():
+			_check(not steps.has(id), "%s: no reload, so no reload sounds" % id)   # (the air cannon)
+			continue
 		_check(steps.has(id), "%s: has reload sounds" % id)
 		for step in steps.get(id, []):
 			_check(_exists(step[1]), "%s reload: %s exists" % [id, step[1]])

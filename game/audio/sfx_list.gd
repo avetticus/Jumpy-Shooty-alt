@@ -125,7 +125,6 @@ const RELOAD_STEPS := {
 	"plasma_pistol": [[0.06, "vent_hiss"], [0.36, "gun_spin"], [0.74, "gun_spin"], [1.43, "cell_in"]],
 	"auto_shotgun": [[0.13, "box_out"], [1.02, "gun_toss"], [1.18, "box_in"], [1.565, "charge_back"], [1.68, "charge_fwd"]],
 	"slug_shotgun": [[0.275, "shell_in"]],
-	"air_cannon": [[0.33, "cell_out"], [0.78, "gun_toss"], [1.2, "cell_in"], [1.27, "vent_hiss"]],
 	"minigun": [[0.46, "cover_open"], [0.98, "box_out"], [2.18, "box_in"], [2.72, "cover_close"], [2.9, "barrel_spin"]],
 	"battle_rifle": [[0.29, "mag_out_rifle"], [1.09, "mag_in_rifle"], [1.535, "charge_back"], [1.65, "charge_fwd"]],
 	"laser_rifle": [[0.04, "vent_hiss"], [0.56, "gun_spin"], [1.22, "gun_spin"], [1.83, "cell_in"]],

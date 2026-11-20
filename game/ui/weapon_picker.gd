@@ -229,6 +229,13 @@ static func ratings(w: WeaponData) -> Array:
 			["REACH", clampf(w.max_range / 3.2, 0.05, 1.0)],
 			["KNOCKBACK", clampf(w.knockback / 24.0, 0.05, 1.0)],
 		]
+	if w.is_blast():   # the air cannon: no damage, no ammo
+		return [
+			["KNOCKBACK", clampf(w.charge_knockback / 42.0, 0.05, 1.0)],
+			["CHARGE", clampf(0.5 / w.charge_time, 0.05, 1.0)],
+			["RANGE", clampf(w.max_range / 20.0, 0.05, 1.0)],
+			["CONE", clampf(w.cone_degrees / 35.0, 0.05, 1.0)],
+		]
 	if w.is_projectile():
 		return [
 			["DAMAGE", clampf(w.damage / 110.0, 0.05, 1.0)],

@@ -15,8 +15,15 @@ extends Resource
 ## No blow kills a healthy player by itself: the kill is the wall you knock them
 ## into (see Match: a hard enough shove into a wall hurts). They have no ammo.
 ## Every hit, gun or blade, shoves the target.
+##
+## Blasts (Kind.BLAST, the air cannon) charge like a melee wind-up: hold to charge for
+## up to `charge_time`, let go to blast. The blast shoves everyone it can see in a cone
+## (`max_range` metres, `cone_degrees` either side of where you look) and hurts nobody:
+## the shove grows from `knockback` (a tap) to `charge_knockback` (full), and weakens
+## with distance (from falloff_start to falloff_end, down to falloff_min of it). No ammo
+## and no reload: `fire_interval` is the shortest time between blasts.
 
-enum Kind { HITSCAN, MELEE, PROJECTILE }
+enum Kind { HITSCAN, MELEE, PROJECTILE, BLAST }
 
 ## The weapons in groups, as the pickers show them (and the number keys pick them while
 ## you wait to respawn: 1 for sidearms, 2 for shotguns... pressing again goes through the group).
@@ -132,6 +139,11 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 @export var lunge := 0.0             ## forward speed a fully wound-up swing gives you (a tap: 40% of it)
 @export var backstab_multiplier := 1.0  ## damage from behind
 @export var move_bonus := 1.0        ## running speed while carrying it (light blades are quicker)
+@export_group("Blast")
+## Kind.BLAST: the cone's half-angle in degrees (it reaches `max_range`). The charge and
+## the shove use the Melee fields above: charge_time, knockback / charge_knockback and
+## knockback_up / charge_knockback_up.
+@export var cone_degrees := 0.0
 
 
 static func pistol() -> WeaponData:
@@ -694,6 +706,11 @@ func is_melee() -> bool:
 	return kind == Kind.MELEE
 
 
+## A cone of air that shoves and never hurts (the air cannon): charged, no ammo.
+func is_blast() -> bool:
+	return kind == Kind.BLAST
+
+
 ## Melee: how wound up a swing is after holding the button for `held` seconds, 0..1.
 ## The first `windup` seconds are the draw-back every swing has, so a tap is 0.
 func charge_of(held: float) -> float:
@@ -712,6 +729,18 @@ func melee_knockback(charge: float) -> Array:
 	var u := clampf(charge, 0.0, 1.0)
 	u = u * (0.6 + 0.4 * u)
 	return [lerpf(knockback, maxf(charge_knockback, knockback), u), lerpf(knockback_up, maxf(charge_knockback_up, knockback_up), u)]
+
+
+## Blast: the shove of a blast charged up to `charge` (0 = a tap, 1 = full) on someone
+## `distance` metres away: [along the line to them, upward]. The charge grows it the way
+## a wind-up grows a blow (melee_knockback); past falloff_start it weakens, down to
+## falloff_min of it at falloff_end.
+func blast_knockback(charge: float, distance: float) -> Array:
+	var push := melee_knockback(charge)
+	var f := 1.0
+	if distance > falloff_start:
+		f = lerpf(1.0, falloff_min, clampf((distance - falloff_start) / maxf(falloff_end - falloff_start, 0.01), 0.0, 1.0))
+	return [push[0] * f, push[1] * f]
 
 
 ## A gun in each hand, firing in turn.
@@ -956,26 +985,32 @@ static func slug_shotgun() -> WeaponData:
 	return w
 
 
-## Compressed air: barely scratches, but throws people across the room (and into walls).
+## Compressed air: hurts nobody, but throws everyone in front of you across the room
+## (and into walls, which do hurt: see Match). Hold to charge, let go to blast.
 static func air_cannon() -> WeaponData:
 	var w := _gun("air_cannon", "Air Cannon", "Air Cannon")
-	w.blurb = "A blast of compressed air: barely scratches, but throws anyone within 15 m across the room. Into a wall, it kills."
-	w.damage = 2.5
-	w.pellets = 8
-	w.fire_interval = 1.0
-	w.magazine = 4
-	w.reload_time = 1.8
-	w.max_range = 18.0
-	w.spread_degrees = 5.0
-	w.falloff_start = 6.0
+	w.kind = Kind.BLAST
+	w.blurb = "Hold to charge, let go to blast everyone in front of you away. Hurts nobody, but a full charge throws them across the room: into a wall, or off the map."
+	w.damage = 0.0
+	w.structure_damage = 0.0
+	w.pellets = 0
+	w.magazine = 0          # no ammo, no reload
+	w.reload_time = 0.0
+	w.fire_interval = 0.4   # the shortest time between blasts
+	w.charge_time = 1.5     # a full charge
+	w.max_range = 16.0
+	w.cone_degrees = 28.0
+	w.falloff_start = 4.0   # the full shove within 4 m...
 	w.falloff_end = 16.0
-	w.falloff_min = 0.2
+	w.falloff_min = 0.6     # ...and 60% of it at the far edge of the cone
 	w.headshot_multiplier = 1.0
-	w.structure_damage = 0.3
+	w.spread_degrees = 5.0  # (only the crosshair's brackets: the cone itself is cone_degrees)
 	w.crosshair = "spread"
 	w.kick = 2.0
-	w.knockback = 4.5      # per pellet: all eight is a 36 m/s shove
-	w.knockback_up = 1.0
+	w.knockback = 9.0       # a tap: a shove, never into a wall hard enough to hurt
+	w.knockback_up = 4.0
+	w.charge_knockback = 40.0     # a full charge up close: across the room
+	w.charge_knockback_up = 11.0
 	w.tracer_color = Color(0.85, 0.95, 1.0)
 	return w
 

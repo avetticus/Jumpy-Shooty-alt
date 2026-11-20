@@ -40,6 +40,9 @@ func _init() -> void:
 			_check(w.charge_damage * w.backstab_multiplier < 100.0, "%s: no blow kills a healthy player outright" % id)
 			_check(w.charge_of(0.0) == 0.0 and w.charge_of(w.charge_time) == 1.0 and w.charge_of(99.0) == 1.0, "%s: wound up after charge_time" % id)
 			_check(w.two_handed == (id not in ONE_HANDED), "%s: two-handed unless it is a one-handed blade" % id)
+		elif w.is_blast():   # the air cannon (more in tests/air_cannon_test.gd)
+			_check(w.magazine == 0 and w.reload_time == 0.0 and w.fire_interval > 0.0 and w.cone_degrees > 0.0 and w.charge_time > 0.0,
+				"%s: no ammo and no reload, a gap between blasts, a cone and a charge" % id)
 		else:
 			_check(w.magazine > 0 and w.fire_interval > 0.0 and w.reload_time > 0.0 and w.pellets > 0,
 				"%s: magazine, fire interval, reload and pellets are positive" % id)

@@ -59,7 +59,9 @@ class View:
 	var moves: Array = []
 	var race := false           ## a race: no health or ammo to show
 	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
-	var swing := 1.0            ## melee: 0..1, ready to swing again at 1
+	var swing := 1.0            ## melee: 0..1, ready to swing again at 1 (the air cannon: ready to charge)
+	var blast := false          ## the air cannon: no ammo, a charge instead
+	var charge := -1.0          ## the air cannon: how charged, 0..1 (-1: not charging)
 
 enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON, GRAPPLE_FLYING }
 
@@ -235,11 +237,14 @@ func update_local(p: Player) -> void:
 		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
 		v.melee = data.is_melee()
 		v.swing = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval > 0.0 else 1.0
+		v.blast = data.is_blast()
+		v.charge = p.blast_charge()
 	else:   # Deathmatch, empty hands: shown like a blade (no ammo), the kick is the weapon
 		v.weapon = "Unarmed"
 		v.gun = "none"
 		v.crosshair = "dot"
 		v.melee = true
+		v.blast = false
 		v.swing = p.kick_readiness()
 		v.reloading = false
 		v.ready = 1.0
@@ -777,6 +782,9 @@ func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 	HudStyle.crosshair(ci, c, view.crosshair, view.spread_px, cfg)
 	ci.draw_set_transform_matrix(hud_scale)
+	if view.blast and view.charge >= 0.0:   # the air cannon charging: a ring closes round the crosshair
+		var full := view.charge >= 1.0
+		HudStyle.arc(ci, c, ring - 6.0, -90.0, -90.0 + 360.0 * view.charge, Color(HudStyle.WHITE if full else HudStyle.CYAN, 0.9), 3.0 if full else 2.0)
 	if view.ready < 1.0:   # working the pump or bolt: a small bar fills under the crosshair
 		var bar := Rect2(c + Vector2(-14.0, 20.0), Vector2(28.0, 3.0))
 		ci.draw_rect(bar, Color(1, 1, 1, 0.2))
@@ -1110,7 +1118,7 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 		var w := _gun_width(id) * 0.8
 		HudStyle.weapon_icon(ci, id, r.position + Vector2((cell.x - w) * 0.5, 12.0), Color(1, 1, 1, a), 0.8)
 		var label := WeaponData.by_id(id).short_name.to_upper()
-		if p and not WeaponData.melee(id):
+		if p and WeaponData.by_id(id).magazine > 0:   # (a blade, or the air cannon: nothing to count)
 			label += "  %d" % p.ammo_for(id)
 		HudStyle.text(ci, r.position + Vector2(cell.x * 0.5, 38.0), label, 11, Color(1, 1, 1, a), HORIZONTAL_ALIGNMENT_CENTER)
 
