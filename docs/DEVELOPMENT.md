@@ -1681,13 +1681,32 @@ mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun
 are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
 game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
 shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
-are in `game/combat/weapon_data.gd`. The Dual Pistols (id `akimbo`) are the one weapon in two
-hands: the pistol's own model built twice (`weapons._pistol_one`, once on each hand's bones),
-the left gun riding on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
-`pistol_l_mag`, `pistol_l_vent`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`,
-`slide_l`, `mag_l` and `vent_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
-(`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
-replace the .glb files as long as it keeps the same bone and clip names.
+are in `game/combat/weapon_data.gd`. A model made in Blender later can replace the .glb
+files as long as it keeps the same bone and clip names.
+
+**Two-gun weapons.** The Dual Pistols (id `akimbo`) hold a gun in each hand. In the game
+any weapon with a left muzzle (`WeaponData.muzzle_bone_left`, so `is_akimbo()`) is two
+guns: the shots alternate between `muzzle_<id>` and `muzzle_<id>_l`, `fire(left)` kicks
+only the arm that fired, the left hand closes on its own grip, both guns break off as
+gibs and both reload (`ReloadFx` "both"), and the killcam replays which gun each shot
+left. Whether a slide snaps back on a shot is `WeaponData.SLIDE_KICK` (not a revolver's
+hammer). In the tools a two-gun weapon is one line in `rig.DUALS` (the weapon and the
+sidearm it is a pair of): `weapons.dual()` builds that sidearm twice, once on each hand's
+bones (its per-hand builder in `weapons.ONE`, e.g. `_pistol_one(mesh, gun, side)`), the left
+gun riding on its own bones in the left fist (`pistol_l`, `pistol_l_slide`, `pistol_l_mag`,
+`pistol_l_vent`; pose specs move them with `pistol_l`, `slide_l`, `mag_l` / `mag_rot_l`
+and `vent_l` / `vent_pos_l`), and `rig` adds its left muzzle bone. **The clip rule:** every
+two-gun weapon gets its own clips, named like any gun's (`aim_<id>`, `reload_<id>` and
+`fp_idle_`, `fp_sprint_`, `fp_one_hand_`, `fp_wall_r_`, `fp_dive_`, `fp_raise_`,
+`fp_reload_<id>`), built by `weapon_anims.dual_body_clips(id)` / `dual_arms_clips(id)` from
+the shared two-gun rest pose (`dual_rest`) and its own reload
+(`sidearm_anims.DUAL_RELOADS`, `weapon_anims.DUAL_RELOAD` for its length). The game's
+fallback to the plain clip is never right for one: those hold one gun in both hands, and
+the left gun would hang in the air. The first-person clips it has no version of (sliding,
+wall-running on the left, tucking, mantling) are ones where the left arm is off doing
+something else, and it takes its gun with it.
+`tests/robot_test.gd` checks every such weapon has all of these clips, both muzzles and a
+gun in each hand, in every model file.
 
 **Alt fire.** The `alt_fire` action (right mouse by default) is read with the trigger in
 `Player.read_local_input` into `PlayerInput.alt_fire` (held) and `alt_fire_pressed` (this

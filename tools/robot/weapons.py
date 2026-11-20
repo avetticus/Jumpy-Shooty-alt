@@ -27,7 +27,7 @@ import math
 import numpy as np
 
 from kit import Part, loft, rect, box, prism, ball
-from rig import BODY, GUN_REST
+from rig import BODY, DUALS, GUN_REST
 
 IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action",
        "burst_rifle", "lmg", "lever_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
@@ -384,12 +384,19 @@ def machine_pistol(mesh):
         _add(mesh, g, kind, "pistol_mag", part.rot(pitch=-12).move(0, -0.08, 0.012))
 
 
-def akimbo(mesh):
-    """The Dual Pistols (the id is still "akimbo"): the pistol in each fist, the same gun
-    built twice, on the right-hand gun bones and on the left ("pistol_l"...). Its
-    surfaces are "akimbo.<kind>", so the game shows them only when it is picked."""
-    for side in ("", "_l"):
-        _pistol_one(mesh, "akimbo", side)
+# The sidearms that can be built on either hand's bones (side "" or "_l").
+ONE = {"pistol": _pistol_one}
+
+
+def dual(weapon):
+    """A two-gun weapon (rig.DUALS: the Dual Pistols, id "akimbo"...): its sidearm in each
+    fist, the same gun built twice, on the right-hand gun bones and on the left
+    ("pistol_l"...). Its surfaces are "<weapon>.<kind>", so the game shows them only
+    when it is picked."""
+    def build(mesh):
+        for side in ("", "_l"):
+            ONE[DUALS[weapon]](mesh, weapon, side)
+    return build
 
 
 DERRINGER_HINGE = (0.034, 0.042)   # (up, forward) of the grip: the barrels tip down about it
@@ -859,9 +866,10 @@ def grenade_launcher(mesh):
 BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "revolver": revolver,
          "machine_pistol": machine_pistol, "break_action": break_action, "burst_rifle": burst_rifle,
          "lmg": lmg, "lever_action": lever_action, "railgun": railgun,
-         "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher, "akimbo": akimbo,
+         "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher,
          "air_cannon": air_cannon, "minigun": minigun, "battle_rifle": battle_rifle,
          "crossbow": crossbow, "anti_materiel": anti_materiel}
+BUILD.update({weapon: dual(weapon) for weapon in DUALS})
 
 
 def add_all(mesh):

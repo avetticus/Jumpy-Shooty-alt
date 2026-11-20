@@ -149,8 +149,8 @@ var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
 var _recoil := 0.0
-var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the right's)
-var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
+var _recoil_l := 0.0      # two guns: the left gun's own kick (_recoil is the right's)
+var _akimbo := false      # a gun in each hand (WeaponData.is_akimbo): each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_rate := 1.0   # clip seconds a second: the reload clip plays out over the gun's reload_time
@@ -289,7 +289,7 @@ func _bones(names: Array) -> PackedInt32Array:
 	return out
 
 
-## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
+## A shot was fired: kick the gun (two guns: the one in the left hand when `left`).
 func fire(left: bool = false) -> void:
 	if _akimbo and left:
 		_recoil_l = _kick
@@ -680,9 +680,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
 	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide") and (weapon == "pistol" or _akimbo):
+	if _b.has("pistol_slide") and WeaponData.slide_kicks(weapon):
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
-	if _akimbo and _b.has("pistol_l_slide"):
+	if _akimbo and _b.has("pistol_l_slide") and WeaponData.slide_kicks(weapon):
 		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.

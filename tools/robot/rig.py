@@ -115,12 +115,12 @@ BODY = Skeleton([
     ("hand_l", "forearm_l", (-0.215, 0.88, 0)),
     *_finger_bones("l"),
     ("grapple", "forearm_l", (-0.285, 0.90, 0)),      # where the grapple rope leaves the left wrist
-    # The second pistol of the akimbo pair, in the left fist (the same three gun bones, mirrored).
+    # A two-gun weapon's second gun, in the left fist (the same gun bones, mirrored); each
+    # such weapon's left muzzle ("muzzle_<weapon>_l") is added below.
     ("pistol_l", "hand_l", (-0.215, 0.835, 0)),
     ("pistol_l_slide", "pistol_l", (-0.215, 0.835, 0)),
     ("pistol_l_mag", "pistol_l", (-0.215, 0.835, 0)),
     ("pistol_l_vent", "pistol_l", (-0.215, 0.835, 0)),
-    ("muzzle_akimbo_l", "pistol_l", (-0.215, 0.835 - 0.20, -0.064)),
     ("upper_arm_r", "chest", (0.215, 1.40, 0)),
     ("forearm_r", "upper_arm_r", (0.215, 1.13, 0)),
     ("hand_r", "forearm_r", (0.215, 0.88, 0)),
@@ -152,6 +152,12 @@ MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565),
            "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12)}
 
 
+# The weapons with a gun in each hand, and the sidearm each is a pair of: the left gun is
+# the same gun on the left fist's own bones ("pistol_l"...), and its shots leave from
+# "muzzle_<weapon>_l". Each has its own clips (weapon_anims.dual_body_clips).
+DUALS = {"akimbo": "pistol"}
+
+
 def _with_muzzles(skel_spec):
     grip = np.array((0.215, 0.835, 0.0))
     out = list(skel_spec)
@@ -159,6 +165,12 @@ def _with_muzzles(skel_spec):
     for weapon, p in MUZZLES.items():
         pos = grip + GUN_REST @ np.array(p)
         out.insert(at, ("muzzle_" + weapon, "pistol", tuple(float(x) for x in pos)))
+        at += 1
+    left = np.array((-0.215, 0.835, 0.0))
+    at = [n for n, _, _ in out].index("pistol_l_vent") + 1
+    for weapon in DUALS:
+        pos = left + GUN_REST @ np.array(MUZZLES[weapon])
+        out.insert(at, ("muzzle_%s_l" % weapon, "pistol_l", tuple(round(float(x), 6) for x in pos)))
         at += 1
     return out
 

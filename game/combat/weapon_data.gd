@@ -57,6 +57,8 @@ const HIDDEN := ["golden_gun"]
 ## Guns held like the pistol (in both hands round the grip, no stock): they use the
 ## pistol's poses, with their own reload and firing clips.
 const SIDEARMS := ["pistol", "revolver", "machine_pistol", "golden_gun"]
+## Guns whose slide snaps back on every shot, in the hands (the revolver's hammer does not).
+const SLIDE_KICK := ["pistol", "akimbo"]
 
 @export var id := "pistol"
 @export var display_name := "Pistol"
@@ -643,9 +645,17 @@ func blast_knockback(charge: float, distance: float) -> Array:
 	return [push[0] * f, push[1] * f]
 
 
-## A gun in each hand, firing in turn.
+## A gun in each hand, firing in turn: any weapon with a left muzzle (muzzle_bone_left)
+## is held, kicked, reloaded, broken up and replayed as two guns. Its model and clips
+## come from tools/robot (rig.DUALS): the left gun on the "pistol_l" bones, and clips of
+## its own ("aim_<id>", "fp_reload_<id>"...), never the one-gun fallbacks.
 func is_akimbo() -> bool:
 	return muzzle_bone_left != ""
+
+
+## The gun's slide snaps back on every shot (see SLIDE_KICK).
+static func slide_kicks(weapon_id: String) -> bool:
+	return look_of(weapon_id) in SLIDE_KICK
 
 
 ## Alt fire is something you hold (the pistols' tilt), not a single press: the hold

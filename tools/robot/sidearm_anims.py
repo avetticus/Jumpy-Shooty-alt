@@ -273,10 +273,10 @@ DUAL_PASS = {False: ((0.0, -0.11, 0.06), 30.0), True: ((0.0, -0.10, 0.06), 30.0)
 
 def akimbo(fp):
     import weapon_anims as W
-    pos0, hand0, cant0 = W.AK_AIM[fp]
+    pos0, hand0, cant0 = W.DUAL_AIM[fp]
 
     def arm(by, hand=hand0, cant=cant0):
-        return W._ak_arm(fp, W._add(pos0, by), hand, cant)
+        return W._dual_arm(fp, W._add(pos0, by), hand, cant)
 
     def left(a, by=ZERO):
         m = W._mirror_arm(a)
@@ -335,3 +335,5 @@ def akimbo(fp):
 
 
 RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver}
+# The two-gun weapons' (rig.DUALS).
+DUAL_RELOADS = {"akimbo": akimbo}

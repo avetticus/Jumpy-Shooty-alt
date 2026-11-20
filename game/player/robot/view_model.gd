@@ -68,8 +68,8 @@ var _tmp: RobotPose
 var _fade := 1.0
 var _time := 0.0
 var _recoil := 0.0
-var _recoil_l := 0.0      # akimbo: the left gun's kick (_recoil is the right's)
-var _kick_side := 0.0     # akimbo: which way the last shot rolls the view (+1 right gun, -1 left)
+var _recoil_l := 0.0      # two guns: the left gun's kick (_recoil is the right's)
+var _kick_side := 0.0     # two guns: which way the last shot rolls the view (+1 right gun, -1 left)
 var _since_fire := 99.0
 var _reload_w := 0.0
 var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
@@ -338,12 +338,14 @@ func update(delta: float) -> void:
 
 	_recoil *= exp(-delta * 18.0)
 	_recoil_l *= exp(-delta * 18.0)
-	if _weapon == "pistol" or _data.is_akimbo():
+	var slides := WeaponData.slide_kicks(_weapon)
+	if slides:
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
 	if _data.is_akimbo():
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 		# Each gun flips up in its own hand, and its slide snaps back.
-		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
+		if slides:
+			_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
 		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:
 			var b: int = rig.bones[side[0]]
 			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.13) * _pose.rot[b]

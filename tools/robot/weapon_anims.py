@@ -22,7 +22,7 @@ The shotgun reloads a shell at a time: its reload clips are one shell, looped.
 """
 import numpy as np
 from m3 import euler
-from rig import BODY, GUN_REST, Clip, FIST, keyed, merged, solve
+from rig import BODY, DUALS, GUN_REST, Clip, FIST, keyed, merged, solve
 import animations as A
 import sidearm_anims
 import long_reloads
@@ -485,7 +485,8 @@ def body_clips():
         if gun in FIRE:
             out.append(Clip("fire_" + gun, FIRE[gun], fire_clip(gun, False)))
     out += [Clip("reload_" + g, RELOAD[g], sidearm_reload(g, False)) for g in SIDEARMS]
-    out += akimbo_body_clips()
+    for gun in DUALS:
+        out += dual_body_clips(gun)
     return out
 
 
@@ -531,7 +532,8 @@ def arms_clips():
     for gun in LONG:
         out += fp_clips_for(gun)
     out += [Clip("fp_reload_" + g, RELOAD[g], sidearm_reload(g, True)) for g in SIDEARMS]
-    out += akimbo_arms_clips()
+    for gun in DUALS:
+        out += dual_arms_clips(gun)
     return out
 
 
@@ -543,12 +545,15 @@ def sidearm_reload(gun, fp):
 
 
 # ---------------------------------------------------------------------------
-# Akimbo: a pistol in each fist. The left gun rides on its own bones ("pistol_l"...),
-# so every pose here sets both arms out front, mirror images of each other. Shots
-# alternate between the guns; the game kicks whichever arm fired (no fire clip).
+# Two-gun weapons (rig.DUALS: the Dual Pistols, id "akimbo"...): a sidearm in each fist.
+# The left gun rides on its own bones ("pistol_l"...), so every pose here sets both arms
+# out front, mirror images of each other. Shots alternate between the guns; the game
+# kicks whichever arm fired (no fire clip). Each two-gun weapon has its own clips, named
+# like every other gun's ("aim_<weapon>", "reload_<weapon>", "fp_idle_<weapon>"...): the
+# plain clips the game falls back to hold one gun in two hands, never two.
 
-AKIMBO = "akimbo"
-AKIMBO_RELOAD = 2.0   # WeaponData.akimbo().reload_time
+# Reload lengths match WeaponData.
+DUAL_RELOAD = {"akimbo": 2.0}
 
 
 def _mirror_arm(arm):
@@ -570,51 +575,44 @@ def _pair(right_arm, **more):
     return spec
 
 
-def _ak_arm(fp, pos, hand=(90.0, 0.0, 0.0), cant=0.0):
+def _dual_arm(fp, pos, hand=(90.0, 0.0, 0.0), cant=0.0):
     return A.fp_arm_r(*pos, hand=hand, cant=cant) if fp else A._arm("r", pos, hand, cant)
 
 
 # Where the right fist holds its gun: third person in chest space, first person from the camera.
-AK_AIM = {False: ((0.125, 0.25, -0.445), (90.0, 5.0, 0.0), -8.0),
-          True: ((0.155, -0.16, -0.42), (90.0, 4.0, 0.0), -6.0)}
+DUAL_AIM = {False: ((0.125, 0.25, -0.445), (90.0, 5.0, 0.0), -8.0),
+            True: ((0.155, -0.16, -0.42), (90.0, 4.0, 0.0), -6.0)}
 
 
-def akimbo_rest(fp, offset=(0.0, 0.0, 0.0), hand=None, cant=None, **more):
-    pos, h, c = AK_AIM[fp]
-    return _pair(_ak_arm(fp, _add(pos, offset), hand if hand is not None else h, c if cant is None else cant), **more)
+def dual_rest(fp, offset=(0.0, 0.0, 0.0), hand=None, cant=None, **more):
+    pos, h, c = DUAL_AIM[fp]
+    return _pair(_dual_arm(fp, _add(pos, offset), hand if hand is not None else h, c if cant is None else cant), **more)
 
 
-def akimbo_reload(fp):
-    return sidearm_anims.akimbo(fp)
+DUAL_REST_ARM_L_FP = dual_rest(True)["arm_l"]
 
 
-AK_REST_ARM = {fp: akimbo_rest(fp)["arm_r"] for fp in (False, True)}
-
-
-def akimbo_body_clips():
+def dual_body_clips(gun):
     return [
-        Clip("aim_akimbo", 1 / 30, lambda t: akimbo_rest(False)),
-        Clip("reload_akimbo", AKIMBO_RELOAD, akimbo_reload(False)),
+        Clip("aim_" + gun, 1 / 30, lambda t: dual_rest(False)),
+        Clip("reload_" + gun, DUAL_RELOAD[gun], sidearm_anims.DUAL_RELOADS[gun](False)),
     ]
 
 
-def akimbo_arms_clips():
-    idle = akimbo_rest(True)
-    down = akimbo_rest(True, offset=(0.02, -0.25, 0.18), hand=(60.0, 10.0, 0.0))
-    sprint = akimbo_rest(True, offset=(0.045, -0.13, 0.12), hand=(125.0, 18.0, 0.0), cant=-18.0)
-    one = dict(akimbo_rest(True, offset=(0.02, 0.0, 0.0)), arm_l=A.FP_L_AWAY)
-    wall_r = dict(akimbo_rest(True, offset=(0.02, 0.0, 0.0), cant=-16.0))
-    wall_r["arm_l"] = AK_REST_ARM_L_FP
-    dive = akimbo_rest(True, offset=(-0.02, 0.045, -0.08))
+def dual_arms_clips(gun):
+    idle = dual_rest(True)
+    down = dual_rest(True, offset=(0.02, -0.25, 0.18), hand=(60.0, 10.0, 0.0))
+    sprint = dual_rest(True, offset=(0.045, -0.13, 0.12), hand=(125.0, 18.0, 0.0), cant=-18.0)
+    one = dict(dual_rest(True, offset=(0.02, 0.0, 0.0)), arm_l=A.FP_L_AWAY)
+    wall_r = dict(dual_rest(True, offset=(0.02, 0.0, 0.0), cant=-16.0))
+    wall_r["arm_l"] = DUAL_REST_ARM_L_FP
+    dive = dual_rest(True, offset=(-0.02, 0.045, -0.08))
     return [
-        Clip("fp_idle_akimbo", 1 / 30, lambda t: idle),
-        Clip("fp_sprint_akimbo", 1 / 30, lambda t: sprint),
-        Clip("fp_one_hand_akimbo", 1 / 30, lambda t: one),
-        Clip("fp_wall_r_akimbo", 1 / 30, lambda t: wall_r),
-        Clip("fp_dive_akimbo", 1 / 30, lambda t: dive),
-        Clip("fp_raise_akimbo", 0.4, lambda t: keyed(t, [(0.0, down), (0.1, down), (0.4, idle, "out")])),
-        Clip("fp_reload_akimbo", AKIMBO_RELOAD, akimbo_reload(True)),
+        Clip("fp_idle_" + gun, 1 / 30, lambda t: idle),
+        Clip("fp_sprint_" + gun, 1 / 30, lambda t: sprint),
+        Clip("fp_one_hand_" + gun, 1 / 30, lambda t: one),
+        Clip("fp_wall_r_" + gun, 1 / 30, lambda t: wall_r),
+        Clip("fp_dive_" + gun, 1 / 30, lambda t: dive),
+        Clip("fp_raise_" + gun, 0.4, lambda t: keyed(t, [(0.0, down), (0.1, down), (0.4, idle, "out")])),
+        Clip("fp_reload_" + gun, DUAL_RELOAD[gun], sidearm_anims.DUAL_RELOADS[gun](True)),
     ]
-
-
-AK_REST_ARM_L_FP = akimbo_rest(True)["arm_l"]
