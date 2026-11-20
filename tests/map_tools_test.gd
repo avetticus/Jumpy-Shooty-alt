@@ -23,6 +23,9 @@ extends SceneTree
 ##  - CSG: a doorway subtracted from a wall leaves three boxes of the right volume and
 ##    takes the cutter away; merge (convex, as TrenchBroom's) and intersect; hollowing a
 ##    wedge and an open-topped cube;
+##  - arranging: nudging (and copying) along the grid, the arrow keys' directions,
+##    quarter turns, select touching / inside / tall / invert, isolating and hiding
+##    layers from view, locked layers, linked prefabs;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -35,6 +38,7 @@ const ToolClip := preload("res://addons/map_tools/tool_clip.gd")
 const PieceGizmo := preload("res://addons/map_tools/piece_gizmo.gd")
 const ToolPlace := preload("res://addons/map_tools/tool_place.gd")
 const ToolVertex := preload("res://addons/map_tools/tool_vertex.gd")
+const MapEdit := preload("res://addons/map_tools/map_edit.gd")
 
 var failures := 0
 
@@ -59,6 +63,7 @@ func _run() -> void:
 	_check_vertex_tool()
 	_check_angled_clip()
 	_check_csg()
+	_check_arranging()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -1106,6 +1111,121 @@ func _check_csg() -> void:
 	var open_walls := MapOps.blocks_in(open) if open else []
 	_expect(open != null and not _inside_any(open_walls, Vector3(0, 3.9, 30)) and _inside_any(open_walls, Vector3(0, 0.1, 30)),
 		"with the top left open: no wall over it, but a floor")
+	_release(ctx)
+	map.free()
+
+
+func _check_arranging() -> void:
+	print("  arranging")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var ctx := _context(map)
+
+	# Nudging, in the map's terms even inside a turned group.
+	var group := Node3D.new()
+	group.rotation.y = PI / 2.0
+	map.add_child(group)
+	var crate := _block(group, Vector3(0, 0.5, 0), Vector3(1, 1, 1), "wood")
+	_picked = [crate]
+	var was := MapOps.global_of(crate).origin
+	ctx.commit.call(MapCommands.nudge(ctx, Vector3(0.5, 0, 0), false))
+	_expect(MapOps.global_of(crate).origin.is_equal_approx(was + Vector3(0.5, 0, 0)), "Nudge: moved half a metre along the map's x, inside a turned group too")
+	ctx.commit.call(MapCommands.nudge(ctx, Vector3(0, 0, -1), true))
+	var copy := _picked[0] as MapBlock if _picked.size() == 1 else null
+	_expect(copy != null and copy != crate and group.get_child_count() == 2 and copy.kind == "wood"
+		and MapOps.global_of(copy).origin.is_equal_approx(was + Vector3(0.5, 0, -1)) and MapOps.global_of(crate).origin.is_equal_approx(was + Vector3(0.5, 0, 0)),
+		"with Shift a copy moves instead, and is selected (press again for the next)")
+	# Which way the arrow keys go.
+	var forward := Basis()   # looking along -z, right is +x
+	_expect(MapOps.arrow_direction(forward, -1, KEY_RIGHT) == Vector3.RIGHT and MapOps.arrow_direction(forward, -1, KEY_UP) == Vector3.FORWARD
+		and MapOps.arrow_direction(forward, -1, KEY_PAGEUP) == Vector3.UP, "arrow keys in 3D: right, forward, and Page Up straight up")
+	var down := Basis.from_euler(Vector3(-PI / 2.0, 0, 0))   # a top view
+	_expect(MapOps.arrow_direction(down, 1, KEY_UP) == Vector3.FORWARD and MapOps.arrow_direction(down, 1, KEY_LEFT) == Vector3.LEFT,
+		"in a top view: up the screen is -z, left is -x")
+	group.free()
+
+	# A quarter turn: a 2 x 1 x 4 block about its own middle.
+	var plank := _block(map, Vector3(5, 0.5, 0), Vector3(2, 1, 4))
+	plank.rotation.y = 0.0
+	_picked = [plank]
+	ctx.commit.call(MapCommands.turn(ctx, 1, 1))
+	var box := MapOps.bounds_of([plank])
+	var exact := true
+	for col in 3:
+		for row in 3:
+			var v := plank.basis[col][row]
+			exact = exact and (v == 0.0 or v == 1.0 or v == -1.0)
+	_expect(box.size.is_equal_approx(Vector3(4, 1, 2)) and box.get_center().is_equal_approx(Vector3(5, 0.5, 0)) and exact,
+		"Turn 90°: lying the other way round its middle, turned exactly (%s)" % plank.basis)
+	plank.free()
+
+	# Select touching, inside, tall, invert.
+	var a := _block(map, Vector3(0, 1, 0), Vector3(2, 2, 2))      # x -1..1
+	var b := _block(map, Vector3(2, 1, 0), Vector3(2, 2, 2))      # x 1..3: touches a
+	var c := _block(map, Vector3(9, 1, 0), Vector3(2, 2, 2))      # far away
+	var d := _block(map, Vector3(0, 1, 0), Vector3(0.5, 0.5, 0.5))   # inside a
+	var e := _block(map, Vector3(0, 12, 0), Vector3(1, 1, 1))     # high over a
+	ctx.touch()
+	_picked = [a]
+	var touching := MapCommands.related(ctx, "touching")
+	_expect(b in touching and d in touching and c not in touching and e not in touching, "Select Touching: the block beside it and the one inside it, not the far ones")
+	_expect(MapCommands.related(ctx, "inside") == [d], "Select Inside: the block inside it")
+	var tall := MapCommands.related(ctx, "tall")
+	_expect(d in tall and e in tall and b not in tall and c not in tall, "Select Tall: what stands within its ground plan, however high")
+	var others := MapCommands.inverted(ctx)
+	_expect(a not in others and [b, c, d, e].all(func(n: Node) -> bool: return n in others), "Invert Selection: everything else")
+
+	# Out of view (editor only): isolate a; then a layer hidden.
+	Engine.set_meta(&"map_tools_isolated", {a.get_instance_id(): true})
+	ctx.touch()
+	var shown: Array = ctx.blocks().map(func(x: Dictionary) -> MapBlock: return x.block)
+	_expect(not MapBlock.view_hides(a) and MapBlock.view_hides(b) and shown == [a] and b.visible, "Isolate: only the selection is shown or picked, and nothing in the scene changes")
+	Engine.set_meta(&"map_tools_isolated", {})
+	var layer := Node3D.new()
+	map.add_child(layer)
+	var in_layer := _block(layer, Vector3(20, 1, 0), Vector3(1, 1, 1))
+	Engine.set_meta(&"map_tools_view_hidden", {layer.get_instance_id(): true})
+	_expect(MapBlock.view_hides(in_layer) and not MapBlock.view_hides(a), "a layer out of view hides what is in it, and only that")
+	Engine.set_meta(&"map_tools_view_hidden", {})
+	layer.set_meta("_edit_lock_", true)
+	_expect(ctx.selectable(in_layer) == null and ctx.selectable(a) == a, "a locked layer: what is in it cannot be picked")
+	layer.remove_meta("_edit_lock_")
+
+	# A linked prefab: the map keeps a link to the file, not copies of its blocks.
+	var prefab := Node3D.new()
+	prefab.name = "Lamp"
+	var post := MapBlock.new()
+	post.name = "Post"
+	post.size = Vector3(0.2, 2, 0.2)
+	prefab.add_child(post)
+	post.owner = prefab
+	var packed := PackedScene.new()
+	packed.pack(prefab)
+	prefab.free()
+	var path := "user://map_tools_test_prefab.tscn"
+	ResourceSaver.save(packed, path)
+	var scene := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	var linked := MapOps.place_prefab_linked(scene)
+	var place := MapEdit.new()
+	place.adds = [[map, linked, -1]]
+	place.apply(map)
+	var inner := linked.get_child(0) if linked.get_child_count() > 0 else null
+	_expect(linked.scene_file_path == path and linked.owner == map and inner != null and inner.owner == linked,
+		"Place Linked: the prefab itself, saved with the map as a link (what is inside stays the prefab's)")
+	var saved := PackedScene.new()
+	saved.pack(map)
+	var state := saved.get_state()
+	var linked_index := -1
+	for i in state.get_node_count():
+		if String(state.get_node_name(i)) == String(linked.name):
+			linked_index = i
+	_expect(linked_index >= 0 and state.get_node_instance(linked_index) != null
+		and not range(state.get_node_count()).any(func(i: int) -> bool: return String(state.get_node_name(i)) == "Post"),
+		"the saved map has the link and none of the prefab's blocks")
+	_expect(map.collect_pieces().size() == map.collect_pieces().filter(func(p: Dictionary) -> bool: return p.kind != "").size()
+		and map.collect_pieces().any(func(p: Dictionary) -> bool: return (p.size as Vector3).is_equal_approx(Vector3(0.2, 2, 0.2))),
+		"and the game builds the prefab's blocks")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	_release(ctx)
 	map.free()
 

@@ -23,7 +23,15 @@ const MENU := [
 	["Mirror...", "mirror"],
 	["Array...", "array"],
 	["Snap to Neighbours", "snap"],
+	["Turn 90° about Up", "turn:1:1"],
+	["Turn 90° about Left-Right", "turn:0:1"],
+	["Turn 90° about Front-Back", "turn:2:1"],
 	["Make Editable (Hull)", "make_editable"],
+	[],
+	["Select Touching", "select:touching"],
+	["Select Inside", "select:inside"],
+	["Select Tall", "select:tall"],
+	["Invert Selection", "select:invert"],
 	[],
 	["CSG: Subtract", "csg_subtract"],
 	["CSG: Merge", "csg_merge"],
@@ -37,6 +45,7 @@ const MENU := [
 	[],
 	["Show Invisible Blocks", "view:invisible"],
 	["Show Solid Blocks Only", "view:solid"],
+	["Isolate Selection", "view:isolate"],
 ]
 
 var _tool_buttons: Array[Button] = []

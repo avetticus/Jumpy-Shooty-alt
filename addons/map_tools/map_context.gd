@@ -92,7 +92,7 @@ func _gather(node: Node) -> void:
 			continue
 		if c is MapBlock:
 			var b := c as MapBlock
-			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only):
+			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only) and not MapBlock.view_hides(b):
 				var box := MapOps.box_of(b)
 				_cache.append({"block": b, "xf": box[0], "half": box[1]})
 		_gather(c)
@@ -133,8 +133,12 @@ func selectable(node: Node) -> Node:
 		if up.get_meta("_edit_group_", false):
 			result = up
 		up = up.get_parent()
-	if result.get_meta("_edit_lock_", false):
-		return null
+	# Locked, or inside something locked (a layer locked in the Map dock): not picked.
+	var held := result
+	while held and held != map:
+		if held.get_meta("_edit_lock_", false):
+			return null
+		held = held.get_parent()
 	return result
 
 

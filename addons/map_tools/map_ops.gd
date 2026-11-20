@@ -227,6 +227,90 @@ static func clip(block: MapBlock, axis: int, at: float) -> Array[MapBlock]:
 
 
 # ---------------------------------------------------------------------------
+# Moving, turning and selecting
+
+## Which way an arrow key moves things in a view: the map axis nearest the view's
+## right (Left and Right), up in a top, front or side view or forward in 3D (Up and
+## Down); Page Up and Page Down are always up and down. `ortho_axis`: the axis a top,
+## front or side view looks along (-1 for 3D). Zero for any other key.
+static func arrow_direction(camera_basis: Basis, ortho_axis: int, keycode: int) -> Vector3:
+	match keycode:
+		KEY_PAGEUP:
+			return Vector3.UP
+		KEY_PAGEDOWN:
+			return Vector3.DOWN
+	var skip := ortho_axis if ortho_axis >= 0 else 1
+	var right := _nearest_axis(camera_basis.x, skip)
+	var up := _nearest_axis(camera_basis.y if ortho_axis >= 0 else -camera_basis.z, skip)
+	match keycode:
+		KEY_RIGHT: return right
+		KEY_LEFT: return -right
+		KEY_UP: return up
+		KEY_DOWN: return -up
+	return Vector3.ZERO
+
+
+static func _nearest_axis(v: Vector3, skip: int) -> Vector3:
+	v[skip] = 0.0
+	if v.is_zero_approx():
+		return Vector3.ZERO
+	var a := v.abs().max_axis_index()
+	var out := Vector3.ZERO
+	out[a] = signf(v[a])
+	return out
+
+
+## Where a node at `global` goes when turned a quarter turn (`dir` 1 or -1) about the
+## map's axis `axis` (0 x, 1 y, 2 z) through `pivot`: the turn is exact (no 0.9999s
+## creeping in) and the place is kept to a tenth of a millimetre.
+static func quarter_turned(global: Transform3D, axis: int, dir: int, pivot: Vector3) -> Transform3D:
+	var along := Vector3.ZERO
+	along[axis] = 1.0
+	var turn := Basis(along, dir * PI * 0.5)
+	for col in 3:
+		turn[col] = turn[col].round()
+	var basis := turn * global.basis
+	for col in 3:
+		basis[col] = basis[col].snappedf(0.000001)
+	var origin := pivot + turn * (global.origin - pivot)
+	return Transform3D(basis, origin.snappedf(0.0001))
+
+
+## The box round a block, square to the map.
+static func box_in_map(block: MapBlock) -> AABB:
+	return bounds_of([block])
+
+
+## Of `others`, the blocks that touch or overlap any of `chosen` (by the boxes round
+## them, square to the map).
+static func touching(chosen: Array, others: Array) -> Array:
+	var boxes := chosen.map(func(b: MapBlock) -> AABB: return box_in_map(b).grow(0.001))
+	return others.filter(func(o: MapBlock) -> bool:
+		var box := box_in_map(o)
+		return boxes.any(func(c: AABB) -> bool: return c.intersects(box)))
+
+
+## Of `others`, the blocks wholly inside one of `chosen` (by the boxes round them).
+static func inside(chosen: Array, others: Array) -> Array:
+	var boxes := chosen.map(func(b: MapBlock) -> AABB: return box_in_map(b).grow(0.001))
+	return others.filter(func(o: MapBlock) -> bool:
+		var box := box_in_map(o)
+		return boxes.any(func(c: AABB) -> bool: return c.encloses(box)))
+
+
+## Of `others`, the blocks standing within the ground plan of `chosen` (seen from
+## above, however high or low: a top view's "select tall").
+static func tall(chosen: Array, others: Array) -> Array:
+	var plans := chosen.map(func(b: MapBlock) -> Rect2:
+		var box := box_in_map(b).grow(0.001)
+		return Rect2(box.position.x, box.position.z, box.size.x, box.size.z))
+	return others.filter(func(o: MapBlock) -> bool:
+		var box := box_in_map(o)
+		var plan := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
+		return plans.any(func(c: Rect2) -> bool: return c.encloses(plan)))
+
+
+# ---------------------------------------------------------------------------
 # Hulls
 
 ## The corners of each convex lump a block is made of (see MapBlock.shape_lumps),
@@ -925,6 +1009,14 @@ static func place_prefab(scene: PackedScene) -> Node3D:
 	node.scene_file_path = ""
 	node.set_meta("_edit_group_", true)
 	return node
+
+
+## A prefab as a linked copy to add to a map: the scene itself, placed in the map, so
+## the map saves a link to its file and every linked copy changes when the prefab does.
+## (Its blocks are the prefab's: change them by opening the prefab, or turn the copy
+## into plain blocks with the Scene dock's Make Local.)
+static func place_prefab_linked(scene: PackedScene) -> Node3D:
+	return scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE) as Node3D
 
 
 ## The block kinds `node` uses that `palette` has no colour for.

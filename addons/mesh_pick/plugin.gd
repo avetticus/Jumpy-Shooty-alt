@@ -605,6 +605,10 @@ func _selectable_for(node: Node, root: Node) -> Node:
 		if up is Node3D and up.get_meta("_edit_group_", false):
 			result = up
 		up = up.get_parent()
-	if result.get_meta("_edit_lock_", false):
-		return null
+	# Locked, or inside something locked (a layer locked in the Map dock): not picked.
+	var held := result
+	while held and held != root.get_parent():
+		if held.get_meta("_edit_lock_", false):
+			return null
+		held = held.get_parent()
 	return result

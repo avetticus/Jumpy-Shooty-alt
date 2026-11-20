@@ -672,6 +672,21 @@ makes ordinary MapBlocks and is one step of undo.
 - **Moving** is the editor's own move tool. After a move, **Map > Snap to Neighbours**
   (Alt+N) nudges the selection, by up to one grid square, so its faces meet those of the
   blocks beside it that lie square to it.
+- **Nudging**: with no map tool on, the arrow keys move the selection one grid square
+  across the view (the map axis nearest the view's right, and its up in a top, front or
+  side view or forward in 3D), Page Up and Page Down up and down. **Shift** with an arrow
+  key puts down a copy one grid square on and selects it: press again for the next, to
+  lay out a row.
+- **Map > Turn 90° about Up / Left-Right / Front-Back**: a quarter turn of the selection
+  round its middle, exact (no 0.9999s creep in).
+- **Map > Select Touching / Inside / Tall, Invert Selection**: from the selected blocks,
+  pick the blocks that touch them, lie inside them, or stand within their ground plan
+  however high (a top view's "tall"), or everything else. By the boxes round blocks,
+  and as a click would pick them (a whole selection group).
+- **Map > Isolate Selection**: only the selection is shown (and can be picked) until you
+  turn it off. It is the editor's view only: nothing in the scene changes.
+- **Shearing** a hull is the Vertex tool's: pick a face and nudge its corners with the
+  arrow keys.
 - **Map > Make Editable (Hull)**: each selected block becomes a Hull block of exactly
   the same shape, corners where they were, keeping its kind and settings (a cylinder of
   12 sides is a hull of 24 corners). A tube, an arch or a hollow or cut-open dome
@@ -763,7 +778,15 @@ makes ordinary MapBlocks and is one step of undo.
   a scene under `game/maps/prefabs/`. Pick one and press **Place**, then click in the
   map: each click puts down a copy as plain blocks in one group. A copy has no tie to
   the prefab's file, so changing the prefab later does not change maps that used it.
-  Kinds go by name; the dock tells you if this map's palette lacks one.
+  Kinds go by name; the dock tells you if this map's palette lacks one. **Place Linked**
+  puts down the prefab itself instead: the map saves a link to its file, so every linked
+  copy changes when you change the prefab (open its scene to edit it). To change one copy
+  alone, right-click it in the Scene dock and choose Make Local.
+- **The Map dock, Layers**: the map's top-level groups that hold blocks, each with three
+  switches. **View**: shown in the editor (off hides it from view only; the scene is not
+  changed). **Lock**: clicks in the 3D view pass it by (Godot's lock, on the group: it
+  covers everything in it). **Game**: in the game (off leaves it out, as the eye icon
+  does).
 
 The keys are editor shortcuts (Editor Settings > Shortcuts, under `map_tools`), and work
 while the mouse is over the 3D view.

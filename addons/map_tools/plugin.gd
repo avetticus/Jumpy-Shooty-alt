@@ -96,6 +96,8 @@ func _enter_tree() -> void:
 	_dock.kind_selected.connect(_on_kind_selected)
 	_dock.add_kind_pressed.connect(func() -> void: _dialogs.ask_kind(_add_kind))
 	_dock.prefab_chosen.connect(place_prefab)
+	_dock.prefab_linked.connect(func(path: String) -> void: place_prefab(path, true))
+	_dock.layer_toggled.connect(_on_layer_toggled)
 	_dock.save_prefab_pressed.connect(func() -> void: run("prefab"))
 	add_dock(_dock)
 	_inspector = PieceInspector.new()
@@ -145,6 +147,10 @@ func _on_scene_changed(root: Node) -> void:
 		t.cancel()
 	tool = Tool.SELECT
 	ctx.editing_corners = false
+	# The view-only lists belong to the scene they were made in.
+	Engine.set_meta(&"map_tools_isolated", {})
+	Engine.set_meta(&"map_tools_view_hidden", {})
+	_toolbar.show_view("view:isolate", false)
 	ctx.map = root as MapRoot
 	_toolbar.visible = ctx.map != null
 	if ctx.map and ctx.map.palette and not ctx.map.palette.colors.has(ctx.kind) and not ctx.map.palette.colors.is_empty():
@@ -267,6 +273,8 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		if event is InputEventMouse or used:
 			update_overlays()
 	var key := event as InputEventKey
+	if not used and key and key.pressed and tool == Tool.SELECT and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		used = _nudge_key(view, key)   # (held down, an arrow key repeats)
 	if not used and key and key.pressed and not key.echo and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		used = _key(key)
 	# A button whose press a tool used: its release is the tool's too, whatever the tool
@@ -306,6 +314,42 @@ func _key(key: InputEventKey) -> bool:
 		set_tool(Tool.SELECT)
 		return true
 	return false
+
+
+## The arrow keys (and Page Up, Page Down) move the selection a grid square, across
+## the view; with Shift, a copy moves instead. False if it is not one of those keys
+## or nothing in the map is selected.
+func _nudge_key(view: RefCounted, key: InputEventKey) -> bool:
+	if key.alt_pressed or key.is_command_or_control_pressed():
+		return false
+	var dir: Vector3 = MapOps.arrow_direction((view.camera as Camera3D).global_basis, view.ortho_axis(), key.keycode)
+	if dir == Vector3.ZERO or ctx.selected_tops().is_empty():
+		return false
+	if key.shift_pressed and key.echo:
+		return true   # (a held Shift+arrow would lay copies down as fast as the key repeats)
+	var focus := _focused()
+	apply_edit(MapCommands.nudge(ctx, dir * ctx.grid, key.shift_pressed))
+	_keep_focus(focus)
+	return true
+
+
+## The control the keyboard is on (the 3D view, when a key reaches the map tools).
+func _focused() -> Control:
+	return EditorInterface.get_base_control().get_viewport().gui_get_focus_owner()
+
+
+## Gives the keyboard back to `focus` after an edit: changing the scene or the
+## selection makes the Scene dock and the Inspector redraw, and they can take the
+## keyboard, so the next arrow key would move about in them instead of nudging. Done at
+## once, and again once the frame is over (when they have finished redrawing).
+func _keep_focus(focus: Control) -> void:
+	if focus == null:
+		return
+	var back := func() -> void:
+		if is_instance_valid(focus) and focus.is_visible_in_tree() and _focused() != focus:
+			focus.grab_focus()
+	back.call_deferred()
+	get_tree().process_frame.connect(back, CONNECT_ONE_SHOT)
 
 
 func _forward_3d_force_draw_over_viewport(overlay: Control) -> void:
@@ -348,6 +392,20 @@ func run(what: String) -> void:
 		var sort := what.trim_prefix("piece:")
 		_tools[Tool.PLACE].start(func() -> Node3D: return MapCommands.new_piece(sort, ctx.kind), sort.to_lower())
 		set_tool(Tool.PLACE)
+		return
+	if what.begins_with("turn:"):
+		var parts := what.split(":")
+		if ctx.selected_tops().is_empty():
+			_dialogs.tell("Select the blocks or groups to turn.")
+		else:
+			apply_edit(MapCommands.turn(ctx, int(parts[1]), int(parts[2])))
+		return
+	if what.begins_with("select:"):
+		var how := what.trim_prefix("select:")
+		if how != "invert" and ctx.selected_blocks().is_empty():
+			_dialogs.tell("Select some blocks first: this picks the blocks that touch them, lie inside them, or stand within their ground plan.")
+			return
+		_select(MapCommands.inverted(ctx) if how == "invert" else MapCommands.related(ctx, how))
 		return
 	match what:
 		"solid", "drawn", "breakable":
@@ -413,9 +471,67 @@ func run(what: String) -> void:
 		"view:solid":
 			_set_solid_only(not ctx.solid_only)
 			_toolbar.show_view(what, ctx.solid_only)
+		"view:isolate":
+			var isolated: Dictionary = Engine.get_meta(&"map_tools_isolated", {})
+			if isolated.is_empty():
+				var tops: Array = ctx.selected_tops()
+				if tops.is_empty():
+					_dialogs.tell("Select what to see on its own.")
+					_toolbar.show_view(what, false)
+					return
+				for n in tops:
+					isolated[n.get_instance_id()] = true
+			else:
+				isolated = {}
+			_set_view_meta(&"map_tools_isolated", isolated)
+			_toolbar.show_view(what, not isolated.is_empty())
 
 
 ## Editor view: show only the blocks you can bump into.
+## Sets one of the editor's view-only lists (map_tools_isolated, map_tools_view_hidden:
+## see MapBlock.view_hides) and redraws the blocks.
+func _set_view_meta(key: StringName, ids: Dictionary) -> void:
+	Engine.set_meta(key, ids)
+	ctx.touch()
+	if ctx.map and is_instance_valid(ctx.map):
+		for b in MapOps.blocks_in(ctx.map):
+			b.refresh_preview()
+	_dock.queue_refresh()
+	update_overlays()
+
+
+## A switch in the Map dock's Layers: `what` is "view" (shown in the editor; the scene
+## is not changed), "lock" (clicks in the 3D view do not pick it) or "game" (left in the
+## game, or out: the eye icon).
+func _on_layer_toggled(node: Node3D, what: String, on: bool) -> void:
+	if not is_instance_valid(node):
+		return
+	match what:
+		"view":
+			var hidden: Dictionary = Engine.get_meta(&"map_tools_view_hidden", {}).duplicate()
+			if on:
+				hidden.erase(node.get_instance_id())
+			else:
+				hidden[node.get_instance_id()] = true
+			_set_view_meta(&"map_tools_view_hidden", hidden)
+		"lock":
+			var edit := MapEdit.new()
+			edit.name = "Lock layer %s" % node.name if on else "Unlock layer %s" % node.name
+			if on:
+				edit.do_calls.append([node, "set_meta", "_edit_lock_", true])
+				edit.undo_calls.append([node, "remove_meta", "_edit_lock_"])
+			else:
+				edit.do_calls.append([node, "remove_meta", "_edit_lock_"])
+				edit.undo_calls.append([node, "set_meta", "_edit_lock_", true])
+			apply_edit(edit)
+		"game":
+			var edit := MapEdit.new()
+			edit.name = "Put layer %s %s the game" % [node.name, "in" if on else "out of"]
+			edit.sets.append([node, "visible", on, node.visible])
+			apply_edit(edit)
+	_dock.queue_refresh()
+
+
 func _set_solid_only(on: bool) -> void:
 	ctx.solid_only = on
 	Engine.set_meta(&"map_tools_solid_only", on)
@@ -492,12 +608,17 @@ func _save_prefab(prefab_name: String) -> void:
 	_dock.refresh_prefabs()
 
 
-## Starts placing copies of a prefab with clicks in the map.
-func place_prefab(path: String) -> void:
+## Starts placing copies of a prefab with clicks in the map: plain blocks, or
+## `linked`, the prefab scene itself (it changes when the prefab does).
+func place_prefab(path: String, linked := false) -> void:
 	var scene := load(path) as PackedScene
 	if scene == null or ctx.map == null:
 		return
-	_tools[Tool.PLACE].start(func() -> Node3D: return MapOps.place_prefab(scene), path.get_file().get_basename())
+	if linked and ctx.map.scene_file_path == path:
+		_dialogs.tell("A prefab cannot be placed inside itself.")
+		return
+	var make := func() -> Node3D: return MapOps.place_prefab_linked(scene) if linked else MapOps.place_prefab(scene)
+	_tools[Tool.PLACE].start(make, path.get_file().get_basename())
 	set_tool(Tool.PLACE)
 
 

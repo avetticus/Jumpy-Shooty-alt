@@ -530,34 +530,9 @@ func _key(view: RefCounted, key: InputEventKey) -> bool:
 	return false
 
 
-## Which way an arrow key moves corners in this view: the map axis nearest to the
-## view's right (or up, or forward), so they always move along the grid.
+## Which way an arrow key moves corners in this view (along the grid).
 func _arrow(view: RefCounted, keycode: int) -> Vector3:
-	match keycode:
-		KEY_PAGEUP:
-			return Vector3.UP
-		KEY_PAGEDOWN:
-			return Vector3.DOWN
-	var basis: Basis = (view.camera as Camera3D).global_basis
-	var axis: int = view.ortho_axis()
-	var skip := axis if axis >= 0 else 1
-	var right := _nearest_axis(basis.x, skip)
-	var up := _nearest_axis(basis.y if axis >= 0 else -basis.z, skip)
-	match keycode:
-		KEY_RIGHT: return right
-		KEY_LEFT: return -right
-		KEY_UP: return up
-	return -up
-
-
-static func _nearest_axis(v: Vector3, skip: int) -> Vector3:
-	v[skip] = 0.0
-	if v.is_zero_approx():
-		return Vector3.ZERO
-	var a := v.abs().max_axis_index()
-	var out := Vector3.ZERO
-	out[a] = signf(v[a])
-	return out
+	return MapOps.arrow_direction((view.camera as Camera3D).global_basis, view.ortho_axis(), keycode)
 
 
 func _nudge(delta: Vector3) -> void:

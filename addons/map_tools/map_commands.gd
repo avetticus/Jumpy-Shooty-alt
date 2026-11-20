@@ -269,6 +269,77 @@ static func snap_to_neighbours(ctx: RefCounted) -> RefCounted:
 	return edit
 
 
+## Nudge: every selected thing moved `delta` (metres, in the map). `copy`: copies of
+## them are moved instead, and selected (press again to lay out a row).
+static func nudge(ctx: RefCounted, delta: Vector3, copy: bool) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Duplicate and move map blocks" if copy else "Move map blocks"
+	for n in ctx.selected_tops():
+		var step := MapOps.parent_global(n).basis.inverse() * delta
+		if copy:
+			var dup := MapPiece.copy(n) as Node3D
+			dup.position = n.position + step
+			edit.adds.append([n.get_parent(), dup, n.get_index() + 1])
+			edit.select.append(dup)
+		else:
+			edit.sets.append([n, "position", n.position + step, n.position])
+	edit.reselect = copy and not edit.select.is_empty()
+	return edit
+
+
+## Turns the selection a quarter turn (`dir` 1 or -1, counter-clockwise seen from the
+## + end of the axis) about the map's axis `axis` (0 x, 1 y, 2 z) through its middle.
+static func turn(ctx: RefCounted, axis: int, dir: int) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Turn map blocks"
+	var tops: Array = ctx.selected_tops()
+	if tops.is_empty():
+		return edit
+	var pivot := MapOps.bounds_of(tops).get_center()
+	for n in tops:
+		var now := MapOps.quarter_turned(MapOps.global_of(n), axis, dir, pivot)
+		edit.sets.append([n, "transform", MapOps.parent_global(n).affine_inverse() * now, n.transform])
+	return edit
+
+
+## What Select Touching, Inside or Tall ("touching", "inside", "tall") picks: the
+## blocks shown that are not selected and touch, lie inside, or stand within the ground
+## plan of the selected ones, as the editor's own click would pick them (a whole group).
+static func related(ctx: RefCounted, how: String) -> Array:
+	var chosen: Array = ctx.selected_blocks()
+	if chosen.is_empty():
+		return []
+	var others := []
+	for e in ctx.blocks():
+		if e.block not in chosen:
+			others.append(e.block)
+	var found: Array
+	match how:
+		"touching": found = MapOps.touching(chosen, others)
+		"inside": found = MapOps.inside(chosen, others)
+		_: found = MapOps.tall(chosen, others)
+	return _pickable(ctx, found)
+
+
+## Invert Selection: everything shown that is not selected (as the editor's click picks).
+static func inverted(ctx: RefCounted) -> Array:
+	var chosen: Array = ctx.selected_blocks()
+	var others := []
+	for e in ctx.blocks():
+		if e.block not in chosen:
+			others.append(e.block)
+	return _pickable(ctx, others)
+
+
+static func _pickable(ctx: RefCounted, blocks: Array) -> Array:
+	var out := []
+	for b in blocks:
+		var node: Node = ctx.selectable(b)
+		if node and node not in out and node not in ctx.selected():
+			out.append(node)
+	return out
+
+
 ## A new piece of the given sort ("Stairs": stairs or a ramp; "Row"; "Ring") with its blocks
 ## made, not yet in the scene.
 static func new_piece(sort: String, kind: String) -> MapPiece:

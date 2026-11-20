@@ -128,8 +128,12 @@ static func _strip(node: Node) -> void:
 
 
 ## Makes `keeper` the owner of `node` and everything under it, so it is saved with
-## the scene. `node` must already be in the scene under `keeper`.
+## the scene. `node` must already be in the scene under `keeper`. What is inside a
+## scene placed in it (a linked prefab) stays that scene's: only its root is adopted,
+## so the map saves a link to the file, not copies of what is in it.
 static func adopt(node: Node, keeper: Node) -> void:
 	node.owner = keeper
+	if node != keeper and not node.scene_file_path.is_empty():
+		return
 	for c in node.get_children():
 		adopt(c, keeper)

@@ -321,6 +321,8 @@ func refresh_preview() -> void:
 	var shown := drawn or root == null or root.show_invisible_blocks
 	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
 		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
+	if shown and view_hides(self):
+		shown = false   # the map tools' Isolate Selection, or a layer put out of view
 	_preview.visible = shown
 	_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if drawn:
@@ -329,6 +331,27 @@ func refresh_preview() -> void:
 		_preview.material_override = MapRoot.ghost_material()
 	_triangles = _preview.mesh.generate_triangle_mesh() if shown and _preview.mesh else null
 	update_gizmos()
+
+
+## Does the editor leave `node` out of view? The map tools' Layers can put a group out
+## of view, and Isolate Selection shows only the selection; the scene itself is not
+## changed (unlike hiding with the eye icon, which leaves a block out of the game).
+## (Lists of instance ids, set by addons/map_tools.)
+static func view_hides(node: Node) -> bool:
+	var hidden: Dictionary = Engine.get_meta(&"map_tools_view_hidden", {})
+	var isolated: Dictionary = Engine.get_meta(&"map_tools_isolated", {})
+	if hidden.is_empty() and isolated.is_empty():
+		return false
+	var kept := isolated.is_empty()
+	var n := node
+	while n:
+		var id := n.get_instance_id()
+		if hidden.has(id):
+			return true
+		if isolated.has(id):
+			kept = true
+		n = n.get_parent()
+	return not kept
 
 
 ## For the editor gizmo: what you click to select this block.

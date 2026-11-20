@@ -5,7 +5,8 @@ everything a level designer reaches for in TrenchBroom, without leaving Godot an
 without changing how maps are stored or played.
 
 Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull), P4
-(clipping at any angle) and P5 (CSG) are built.** P6 onward are plans.
+(clipping at any angle), P5 (CSG) and P6 (transforms and organising) are built.** P7
+onward are plans.
 
 ## Ground rules
 
@@ -332,7 +333,26 @@ The original plan:
 - Split pieces that are nearly flat or tiny are dropped. A grid-snap pass keeps the
   pieces clean.
 
-### P6. Transforms and organising (M)
+### P6. Transforms and organising (M) — done
+- Nudge: arrow keys / Page Up / Page Down with no map tool on (`MapCommands.nudge`,
+  directions from `MapOps.arrow_direction`, shared with the Vertex tool).
+- "Repeat last move" became **Shift+arrow: duplicate and move**, which covers
+  TrenchBroom's duplicate-and-repeat for laying out rows without a second key.
+- Quarter turns about X / Y / Z round the selection's middle (`MapOps.quarter_turned`,
+  exact). No movable pivot yet.
+- Shear: not a separate tool. The Vertex tool already does it (pick a face, nudge it).
+- Select Touching / Inside / Tall and Invert (`MapOps.touching / inside / tall`,
+  `MapCommands.related / inverted`), by the boxes round blocks.
+- Isolate Selection and the Layers tab's View switch are editor-only: two lists of
+  instance ids in Engine metadata, read by `MapBlock.view_hides()` (the block's preview
+  and the map tools' picking skip what it hides); nothing in the scene changes. Lock
+  sets Godot's `_edit_lock_` on the group; the map tools' and mesh_pick's picking now
+  honour a lock on any group above what is clicked. Game is the eye icon (`visible`).
+- Linked prefabs: Place Linked instances the prefab scene; `MapPiece.adopt` now stops
+  at an instanced scene so the map saves a link, not copies. Blocks inside a linked
+  copy are the prefab's: edit the prefab, or Make Local.
+
+The original plan:
 - Nudge with arrow keys / PgUp / PgDn by the grid (blocks and groups).
 - "Repeat last move", for duplicate-and-move chains.
 - Turn 90° about X / Y / Z about the selection's middle or a pivot you place.
