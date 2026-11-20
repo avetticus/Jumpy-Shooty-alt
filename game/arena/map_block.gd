@@ -2,18 +2,31 @@
 class_name MapBlock
 extends Node3D
 ## One piece of a map: a box, a cylinder, a tube, a cone, a wedge (a slope), a bevelled
-## box, a dome or an arch, painted with a "kind" from the map's palette. Move and turn it like any node; resize it with the inspector's
+## box, a dome, an arch, or a hull (any convex shape, given by its corners), painted
+## with a "kind" from the map's palette. Move and turn it like any node; resize it with the inspector's
 ## Size or by dragging the orange handles on its faces (see addons/map_tools).
 ##
 ## In the game, MapRoot.build() merges every block into one mesh per kind and one
 ## collision body, so a map of thousands of blocks still draws in a few calls. A
 ## block (or a group of them) hidden with the eye icon is left out of the game.
 
-enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
+enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 
+## Hull: any convex shape, the smallest one round its Points. Picking Hull here turns
+## the block's present shape into its corners (a tube, an arch or a hollow dome is
+## filled in: Map > Make Editable keeps their holes, as several hull blocks).
 @export var shape := Shape.BOX:
 	set(v):
+		var corners := PackedVector3Array()
+		if v == Shape.HULL and shape != Shape.HULL and Engine.is_editor_hint() and is_inside_tree():
+			# Picked in the inspector: start from the shape it was.
+			var all := PackedVector3Array()
+			for lump in shape_lumps():
+				all.append_array(lump)
+			corners = MapMesher.hull_corners(all)
 		shape = v
+		if not corners.is_empty():
+			points = corners
 		notify_property_list_changed()
 		_changed()
 
@@ -26,9 +39,22 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
 ## with Inner it is a shell you can stand inside, with Arc under 360 a slice is left
 ## open (toward +z). Arch: a box (x wide, y high, z thick) with an arched opening cut
 ## up into it from below, Inner wide (0 = the whole width) and leaving Top at the crown.
+## Hull: the box round its corners; changing it stretches the corners to fit.
 @export var size := Vector3.ONE:
 	set(v):
-		size = v.max(Vector3(0.01, 0.01, 0.01))
+		v = v.max(Vector3(0.01, 0.01, 0.01))
+		if shape == Shape.HULL and not _fitting and not points.is_empty():
+			var was := points_bounds(points).size
+			var stretched := PackedVector3Array()
+			for p in points:
+				for axis in 3:
+					if was[axis] > 0.0001:
+						p[axis] *= v[axis] / was[axis]
+				stretched.append(p)
+			_fitting = true
+			points = stretched
+			_fitting = false
+		size = v
 		_changed()
 
 ## Which colour from the map's palette.
@@ -121,9 +147,58 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
 		arc = v
 		_changed()
 
-const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch"]
+@export_group("Faces")
+## Some faces of another kind than the block (a trim, a painted floor): face -> kind.
+## A face is named by the way it looks in the block's own frame (face_key); paint them
+## with the map tools' Paint tool. What the block is made of (footsteps, breaking) stays
+## its own kind's.
+@export var face_kinds := {}:
+	set(v):
+		face_kinds = v
+		notify_property_list_changed()
+		_changed()
 
-var _preview: MeshInstance3D
+## The pattern on some faces moved, turned or scaled: face -> Vector4(across, up (metres,
+## along the face), turn (degrees), scale (1 = as it is)). Set with the Paint tool.
+@export var face_patterns := {}:
+	set(v):
+		face_patterns = v
+		notify_property_list_changed()
+		_changed()
+@export_group("")
+
+## Hulls: the corners, in the block's own frame (metres, before any scale). The block
+## is the smallest convex shape round them; a point inside it does nothing. They are
+## kept centred on the block's origin, so typing one in moves the shape to stay
+## centred, and Size is the box round them. At most MapMesher.MAX_HULL_CORNERS.
+@export var points := PackedVector3Array():
+	set(v):
+		if shape == Shape.HULL and not v.is_empty():
+			# Centred, and to a tenth of a millimetre: stretching and pushing a hull over
+			# and over must not let its corners drift out of their faces' planes.
+			var middle := points_bounds(v).get_center()
+			v = v.duplicate()   # (a packed array is passed by reference: leave the caller's alone)
+			for i in v.size():
+				v[i] = (v[i] - middle).snappedf(0.0001)
+		points = v
+		if shape == Shape.HULL and not _fitting and not v.is_empty():
+			_fitting = true
+			size = points_bounds(v).size
+			_fitting = false
+		_changed()
+
+const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch", "hull"]
+
+## Editor: how this block looks, in its own frame, for its map to draw merged with the
+## blocks round it (MapRoot.editor_draw): kind -> mesh arrays (MapMesher.build_arrays).
+## Empty while it is out of view.
+var editor_arrays := {}
+## Editor: drawn as a faint ghost (solid but not drawn), not in its kinds' colours.
+var editor_ghost := false
+
+var _fitting := false   # Size and Points are being matched to each other
+var _preview: MeshInstance3D   # a mesh of its own: outside a map, or picked (see refresh_preview)
+var _drawn_by: MapRoot         # the map drawing it merged, or null
 var _triangles: TriangleMesh
 var _shaded_for := Basis()   # the world orientation the preview's face shading was made for
 
@@ -160,7 +235,68 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["bevel"] = bevel * minf(scale.x, minf(scale.y, scale.z))
 	if shape == Shape.DOME and arc < 360.0:
 		piece["arc"] = arc
+	if not face_kinds.is_empty():
+		piece["face_kinds"] = face_kinds
+	if not face_patterns.is_empty():
+		piece["face_patterns"] = face_patterns
+	if piece.has("face_kinds") or piece.has("face_patterns"):
+		if not scale.is_equal_approx(Vector3.ONE):
+			piece["scale"] = scale   # (to name the faces of a stretched block: MapMesher._route)
+	if shape == Shape.HULL:
+		var pts := PackedVector3Array()
+		for p in points:
+			pts.append(p * scale)
+		var planes := MapMesher.hull_planes(pts)
+		if planes.size() >= 4:
+			piece["points"] = pts
+			piece["planes"] = planes
+		else:
+			piece["shape"] = "box"   # not a solid shape (yet): the box round its corners stands in
 	return piece
+
+
+## This block's shape as convex lumps, each the list of its corners in the block's
+## own frame (before any scale): what it becomes as hull blocks (Map > Make
+## Editable). A box, a cylinder, a cone, a wedge, a bevelled box and a whole solid
+## dome are one lump; a tube, an arch and a hollow or cut-open dome are several.
+func shape_lumps() -> Array:
+	var piece := to_piece(Transform3D.IDENTITY)
+	match shape:
+		Shape.BOX:
+			var h := size * 0.5
+			var box := PackedVector3Array()
+			for i in 8:
+				box.append(Vector3(h.x if i & 1 else -h.x, h.y if i & 2 else -h.y, h.z if i & 4 else -h.z))
+			return [box]
+		Shape.CYLINDER, Shape.TUBE:
+			var ring := MapMesher.tube_hulls(piece) if shape == Shape.TUBE else []
+			if not ring.is_empty():
+				return ring
+			piece["top"] = size.x   # a cylinder is a cone as wide at the top as at the foot
+			return [MapMesher.cone_points(piece)]
+		Shape.CONE:
+			return [MapMesher.cone_points(piece)]
+		Shape.HULL:
+			return [points]
+	return MapMesher.hull_points(piece)
+
+
+## The name of a face: the way it looks (`normal`, in the block's own frame), to a
+## thousandth. A face keeps its name however the block is moved, turned, stretched or
+## its corners dragged, as long as it looks the same way.
+static func face_key(normal: Vector3) -> String:
+	var n := (normal.normalized() * 1000.0).round()
+	return "%d,%d,%d" % [n.x, n.y, n.z]
+
+
+## The box round some corners.
+static func points_bounds(pts: PackedVector3Array) -> AABB:
+	if pts.is_empty():
+		return AABB()
+	var box := AABB(pts[0], Vector3.ZERO)
+	for p in pts:
+		box = box.expand(p)
+	return box
 
 
 ## Round the y axis, with one diameter (x): a cylinder, a tube or a cone.
@@ -191,6 +327,13 @@ func move_face(face: int, reach: float, step: float) -> void:
 
 # ---------------------------------------------------------------------------
 # Editor preview (in the game the merged meshes take over)
+#
+# In the editor too a map draws its blocks merged, a few meshes for each stretch of it
+# (MapRoot.editor_draw): a mesh for each block of a map of thousands runs some graphics
+# drivers out of buffers, and Godot then crashes. A block gets a mesh of its own only
+# outside a map, or while the map tools have it picked (selected, or inside what is:
+# "map_tools_live", a list of instance ids). That one is quick to redraw while it is
+# dragged, and the editor draws its selection box round it.
 
 func _enter_tree() -> void:
 	if Engine.is_editor_hint():
@@ -198,11 +341,20 @@ func _enter_tree() -> void:
 		refresh_preview()
 
 
+func _exit_tree() -> void:
+	if _drawn_by:
+		_drawn_by.editor_forget(self)
+		_drawn_by = null
+
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSFORM_CHANGED and _preview != null:
-		# Moving needs nothing; turning changes which faces are shaded darker.
+	if what == NOTIFICATION_TRANSFORM_CHANGED and (_preview != null or _drawn_by != null):
+		# Turning changes which faces are shaded darker. Moving needs nothing of a block
+		# with a mesh of its own; one drawn merged is drawn again where it now is.
 		if not global_basis.orthonormalized().is_equal_approx(_shaded_for):
 			refresh_preview()
+		elif _drawn_by:
+			_drawn_by.editor_draw(self)
 
 
 func _changed() -> void:
@@ -216,26 +368,84 @@ func refresh_preview() -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree():
 		return
 	var root := MapRoot.of(self)
-	if _preview == null:
-		_preview = MeshInstance3D.new()
-		add_child(_preview, false, Node.INTERNAL_MODE_FRONT)
 	_shaded_for = global_basis.orthonormalized()
 	var piece := to_piece(Transform3D.IDENTITY)
 	piece.erase("hidden")
 	var shade := root.face_shade if root else Vector3.ONE
-	var meshes := MapMesher.build([piece], shade, _shaded_for)
-	_preview.mesh = meshes.get(kind)
+	var arrays := MapMesher.build_arrays([piece], shade, _shaded_for)
 	var shown := drawn or root == null or root.show_invisible_blocks
 	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
 		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
+	if shown and view_hides(self):
+		shown = false   # the map tools' Isolate Selection, or a layer put out of view
+	editor_ghost = not drawn
+	editor_arrays = arrays if shown else {}
+	_triangles = _triangles_of(editor_arrays)
+	var own := root == null or (Engine.get_meta(&"map_tools_live", {}) as Dictionary).has(get_instance_id())
+	if own:
+		_draw_own(root, arrays, shown)
+	elif _preview:
+		remove_child(_preview)
+		_preview.free()
+		_preview = null
+	var by: MapRoot = null if own else root
+	if _drawn_by and _drawn_by != by:
+		_drawn_by.editor_forget(self)
+	_drawn_by = by
+	if by:
+		by.editor_draw(self)
+	update_gizmos()
+
+
+## The block in a mesh of its own (a child of it): a surface for each kind, with its
+## material, or the ghost's for a block that is not drawn.
+func _draw_own(root: MapRoot, arrays: Dictionary, shown: bool) -> void:
+	if _preview == null:
+		_preview = MeshInstance3D.new()
+		add_child(_preview, false, Node.INTERNAL_MODE_FRONT)
+	var mesh := ArrayMesh.new()
+	for k: String in arrays:
+		var surface: Array = arrays[k]
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface, [], {}, MapMesher.surface_flags(surface))
+		var material: Material = MapRoot.ghost_material() if not drawn else (root.material_for(k) if root else MapRoot.fallback_material(k))
+		mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+	_preview.mesh = mesh
 	_preview.visible = shown
 	_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if drawn:
-		_preview.material_override = root.material_for(kind) if root else MapRoot.fallback_material(kind)
-	else:
-		_preview.material_override = MapRoot.ghost_material()
-	_triangles = _preview.mesh.generate_triangle_mesh() if shown and _preview.mesh else null
-	update_gizmos()
+
+
+## What you click to select a block drawn with these arrays (in its own frame), or
+## null for none. (Made from the arrays themselves: reading a mesh back from the
+## graphics card is slow, and crashes on one the card had no room for.)
+static func _triangles_of(arrays: Dictionary) -> TriangleMesh:
+	var faces := PackedVector3Array()
+	for k in arrays:
+		faces.append_array((arrays[k] as Array)[Mesh.ARRAY_VERTEX])
+	if faces.is_empty():
+		return null
+	var triangles := TriangleMesh.new()
+	return triangles if triangles.create_from_faces(faces) else null
+
+
+## Does the editor leave `node` out of view? The map tools' Layers can put a group out
+## of view, and Isolate Selection shows only the selection; the scene itself is not
+## changed (unlike hiding with the eye icon, which leaves a block out of the game).
+## (Lists of instance ids, set by addons/map_tools.)
+static func view_hides(node: Node) -> bool:
+	var hidden: Dictionary = Engine.get_meta(&"map_tools_view_hidden", {})
+	var isolated: Dictionary = Engine.get_meta(&"map_tools_isolated", {})
+	if hidden.is_empty() and isolated.is_empty():
+		return false
+	var kept := isolated.is_empty()
+	var n := node
+	while n:
+		var id := n.get_instance_id()
+		if hidden.has(id):
+			return true
+		if isolated.has(id):
+			kept = true
+		n = n.get_parent()
+	return not kept
 
 
 ## For the editor gizmo: what you click to select this block.
@@ -271,8 +481,16 @@ func _validate_property(property: Dictionary) -> void:
 				property.hint = PROPERTY_HINT_ENUM_SUGGESTION
 				property.hint_string = ",".join(root.palette.colors.keys())
 		"sides":
-			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL:
+			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL or shape == Shape.HULL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"face_kinds", "face_patterns":
+			if (get(property.name) as Dictionary).is_empty():
+				property.usage &= ~PROPERTY_USAGE_STORAGE   # (no empty list saved in every block of a map)
+		"points":
+			if shape != Shape.HULL:
+				# Not shown, and not saved either: the editor would otherwise write an
+				# empty list into every block of every map it saves.
+				property.usage &= ~(PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE)
 		"inner":
 			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
@@ -294,11 +512,20 @@ func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
 	if root.palette and not root.palette.colors.has(kind):
 		warnings.append("The map's palette has no colour for \"%s\"." % kind)
+	if root.palette:
+		for face_kind in face_kinds.values():
+			if not root.palette.colors.has(face_kind):
+				warnings.append("A face is painted \"%s\", which the map's palette has no colour for." % face_kind)
 	if material_type != "" and not BlockMaterials.TABLE.has(material_type):
 		warnings.append("\"%s\" is not a material (see BlockMaterials); it will sound like %s." % [material_type, BlockMaterials.DEFAULT])
 	if breakable and not BlockBreakable.PRESETS.has(break_settings):
 		warnings.append("\"%s\" is not one of the Break Settings (see BlockBreakable); it will break like \"%s\"." % [break_settings, BlockBreakable.DEFAULT])
 	var whole := BlockBreakable.mode_of(break_settings) == "whole"
+	if shape == Shape.HULL:
+		if MapMesher.hull_planes(points).size() < 4:
+			warnings.append("A hull needs at least four corners that are not all in one plane. Until it has them it is the box round its corners.")
+		elif points.size() > MapMesher.MAX_HULL_CORNERS:
+			warnings.append("A hull of more than %d corners is slow to build; split it into two blocks." % MapMesher.MAX_HULL_CORNERS)
 	if breakable and not whole and not MapDestruction.thin_enough(shape, size):
 		warnings.append("Only thin walls and floors (a box at most %.1f m thick and %d m² across) break per cell. Set Break Settings to Whole Block to break this one." % [MapDestruction.MAX_THICKNESS, int(MapDestruction.MIN_AREA)])
 	return warnings

@@ -298,27 +298,27 @@ const SURFACE_BUCKET := 4.0
 ## like footsteps. Null between matches.
 static var current: MapRoot
 
-var _surfaces := {}   # Vector2i bucket -> [{inv: Transform3D, half: Vector3, round: bool, top: float, material}]
+var _surfaces := {}   # Vector2i bucket -> [a surface (see _surface_of)]
+
+## Decoration counts as what is underfoot when it lies flat: no thicker than this...
+const FLAT_THICK := 0.12
+## ...and at least this wide both ways (not a rail, a strip of trim or a rod).
+const FLAT_WIDE := 0.3
 
 
-## Files every solid block by where it is (flat, on the ground plan) with what it
-## is made of, so material_at() only looks at the blocks near a point.
+## Files every block that says what is underfoot by where it is (flat, on the ground
+## plan), so material_at() only looks at the blocks near a point.
 func _index_surfaces(pieces: Array) -> void:
 	_surfaces = {}
 	for p in pieces:
-		if not p.solid:
+		var entry := _surface_of(p)
+		if entry.is_empty():
 			continue
-		var xf: Transform3D = p.xf
-		var half: Vector3 = p.size * 0.5
-		var box: AABB = xf * AABB(-half, p.size)
+		var box: AABB = entry.box
 		var lo := Vector2i(floori(box.position.x / SURFACE_BUCKET), floori(box.position.z / SURFACE_BUCKET))
 		var hi := Vector2i(floori(box.end.x / SURFACE_BUCKET), floori(box.end.z / SURFACE_BUCKET))
 		if (hi - lo).length() > 30:
 			continue   # the ground or a sky box: answered by the fallback below
-		var mat: String = p.get("material", "")
-		if not BlockMaterials.TABLE.has(mat):
-			mat = BlockMaterials.for_kind(p.kind, palette)
-		var entry := {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box", "top": box.end.y, "material": mat}
 		for x in range(lo.x, hi.x + 1):
 			for z in range(lo.y, hi.y + 1):
 				var key := Vector2i(x, z)
@@ -337,26 +337,118 @@ func _index_surfaces(pieces: Array) -> void:
 var _ground_material := ""
 
 
-## What the block at `point` (or just under it, within `below` metres) is made of:
-## a BlockMaterials name. The highest such block wins. Feet on the ground: pass
-## the player's position.
+## A block as footsteps see it, in the frame its piece is in (the map's, or a moving
+## part's), or {} if it says nothing about what is underfoot. Solid blocks count, and
+## so does decoration lying flat (drawn, not solid, thin and level: a rug, paint on the
+## floor, a patch of grass), which is what you see on the floor, so it wins over the
+## block it lies on. {inv, half, round, top, box, material, faces (face name ->
+## material, for faces painted another kind: MapBlock.face_kinds), planes, scale, decor}.
+func _surface_of(p: Dictionary) -> Dictionary:
+	var decor := false
+	if not p.solid:
+		if p.get("hidden", false) or not _lies_flat(p):
+			return {}
+		# Only decoration whose material is known (a rug, a grate, dirt; not a glowing
+		# strip or a painted sign) changes what is heard.
+		if not BlockMaterials.TABLE.has(p.get("material", "")) and not BlockMaterials.known(p.kind, palette):
+			return {}
+		decor = true
+	var xf: Transform3D = p.xf
+	var half: Vector3 = p.size * 0.5
+	var box: AABB = xf * AABB(-half, p.size)
+	var mat: String = p.get("material", "")
+	if not BlockMaterials.TABLE.has(mat):
+		mat = BlockMaterials.for_kind(p.kind, palette)
+	var faces := {}
+	var painted: Dictionary = p.get("face_kinds", {})
+	for key: String in painted:
+		faces[key] = BlockMaterials.for_kind(painted[key], palette)
+	# To find the face underfoot of a painted block that is not a box: its faces' planes
+	# (a hull has them; a wedge, a bevelled box or a cone, from its corners).
+	var planes: Array = p.get("planes", [])
+	if not faces.is_empty() and planes.is_empty() and p.shape != "box":
+		var lumps: Array = [MapMesher.cone_points(p)] if p.shape == "cone" else MapMesher.hull_points(p)
+		if lumps.size() == 1:
+			planes = MapMesher.hull_planes(lumps[0])
+	# (A hull is looked up as the box round it, its top face by its planes.)
+	return {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box" and p.shape != "hull" and p.shape != "wedge" and p.shape != "bevel",
+		"top": box.end.y, "box": box, "material": mat, "faces": faces, "planes": planes, "scale": p.get("scale", Vector3.ONE),
+		"decor": decor}
+
+
+## Does a piece lie flat, like a rug: thin one way, that way upright, and wide the
+## other two?
+static func _lies_flat(p: Dictionary) -> bool:
+	var size: Vector3 = p.size
+	var thin := size.min_axis_index()
+	if size[thin] > FLAT_THICK:
+		return false
+	for axis in 3:
+		if axis != thin and size[axis] < FLAT_WIDE:
+			return false
+	return absf(((p.xf as Transform3D).basis[thin] as Vector3).normalized().y) > 0.95
+
+
+## How high the top of a surface (see _surface_of) is if `point` (in its frame) stands
+## on it or just over it (within `below` metres), else -INF. Decoration also counts
+## when the feet are a little under it (sunk into a rug, flush with paint).
+static func _underfoot(e: Dictionary, point: Vector3, below: float) -> float:
+	var local: Vector3 = (e.inv as Transform3D) * point
+	var half: Vector3 = e.half
+	var under := 0.05 if e.decor else 0.0
+	if local.y < -half.y - under or local.y > half.y + below:
+		return -INF
+	if e.round:
+		if Vector2(local.x, local.z).length() > half.x:
+			return -INF
+	elif absf(local.x) > half.x or absf(local.z) > half.z:
+		return -INF
+	return e.top
+
+
+## What a surface is made of where `point` (in its frame) stands on it: its painted
+## face's kind's material if the face underfoot is painted (a painted face wins over
+## the block's own material), else the block's.
+static func _material_under(e: Dictionary, point: Vector3) -> String:
+	var faces: Dictionary = e.faces
+	if faces.is_empty():
+		return e.material
+	var inv: Transform3D = e.inv
+	var up := (inv.basis * Vector3.UP).normalized()   # up, in the block's own frame
+	var normal := Vector3.ZERO
+	var planes: Array = e.planes
+	if not planes.is_empty():
+		# A hull: the face straight up from the point (the nearest plane that way).
+		var local := inv * point
+		var nearest := INF
+		for plane: Plane in planes:
+			var rise := plane.normal.dot(up)
+			if rise <= 0.05:
+				continue
+			var reach := (plane.d - plane.normal.dot(local)) / rise
+			if reach < nearest:
+				nearest = reach
+				normal = plane.normal
+	if normal == Vector3.ZERO:
+		# A box, a cylinder, a cone: the side that faces most nearly up.
+		var axis := up.abs().max_axis_index()
+		normal[axis] = signf(up[axis])
+	return faces.get(MapBlock.face_key(normal * (e.scale as Vector3)), e.material)
+
+
+## What is at `point` (or just under it, within `below` metres): a BlockMaterials
+## name. The highest surface wins, so a rug or a painted patch lying on a floor is what
+## you hear; on a block whose face underfoot is painted, that face's kind. Feet on the
+## ground: pass the player's position.
 func material_at(point: Vector3, below: float = 0.25) -> String:
 	var best := ""
 	var best_top := -INF
 	var key := Vector2i(floori(point.x / SURFACE_BUCKET), floori(point.z / SURFACE_BUCKET))
 	for e in _surfaces.get(key, []):
-		var local: Vector3 = (e.inv as Transform3D) * point
-		var half: Vector3 = e.half
-		if local.y < -half.y or local.y > half.y + below:
-			continue
-		if e.round:
-			if Vector2(local.x, local.z).length() > half.x:
-				continue
-		elif absf(local.x) > half.x or absf(local.z) > half.z:
-			continue
-		if e.top > best_top:
-			best_top = e.top
-			best = e.material
+		var top := _underfoot(e, point, below)
+		if top > best_top:
+			best_top = top
+			best = _material_under(e, point)
 	if best == "" and not movers.is_empty():
 		best = _mover_material_at(point, below)
 	if best == "":
@@ -371,25 +463,20 @@ func _mover_material_at(point: Vector3, below: float) -> String:
 		return ""
 	var m: Dictionary = movers[index]
 	var local: Vector3 = (m.body as AnimatableBody3D).transform.affine_inverse() * point
+	if not m.has("surfaces"):   # (its pieces as footsteps see them, in its own frame: worked out once)
+		var surfaces := []
+		for p in m.pieces:
+			var entry := _surface_of(p)
+			if not entry.is_empty():
+				surfaces.append(entry)
+		m["surfaces"] = surfaces
 	var best := ""
 	var best_top := -INF
-	for p in m.pieces:
-		if not p.solid:
-			continue
-		var at: Vector3 = (p.xf as Transform3D).affine_inverse() * local
-		var half: Vector3 = (p.size as Vector3) * 0.5
-		if at.y < -half.y or at.y > half.y + below:
-			continue
-		if p.shape != "box":
-			if Vector2(at.x, at.z).length() > half.x:
-				continue
-		elif absf(at.x) > half.x or absf(at.z) > half.z:
-			continue
-		var top: float = ((p.xf as Transform3D) * Vector3(0, half.y, 0)).y
+	for e in m.surfaces:
+		var top := _underfoot(e, local, below)
 		if top > best_top:
 			best_top = top
-			var mat: String = p.get("material", "")
-			best = mat if BlockMaterials.TABLE.has(mat) else BlockMaterials.for_kind(p.kind, palette)
+			best = _material_under(e, local)
 	return best
 
 
@@ -460,11 +547,11 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
 		if child is MapBlock:
-			pieces.append((child as MapBlock).to_piece(at))
+			var piece := (child as MapBlock).to_piece(at)
+			pieces.append(piece)
 			if child is MapHazard:
-				var b := child as MapBlock
-				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),
-					"shape": MapBlock.SHAPE_NAMES[b.shape], "mover": mover})
+				hazards.append({"xf": piece.xf, "size": piece.size, "shape": piece.shape,
+					"planes": piece.get("planes", []), "mover": mover})
 		elif child is MapSpawn:
 			# (Inside a mover `at` is in the mover's frame: it is put in the map's here,
 			# and kept there as the mover moves.)
@@ -721,6 +808,10 @@ func _standing_on(point: Vector3, at_nav: bool) -> int:
 			var up: float = (piece.xf as Transform3D).basis.x.y
 			if piece.shape == "box":
 				inside = absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3
+			elif piece.shape == "hull":
+				var top := MapMesher.hull_top(piece.planes, p.x, p.z, 0.3)
+				inside = top > -INF
+				gap = p.y - top
 			elif piece.shape == "wedge" and absf(up) > 0.99:
 				# A wedge lying on its side is a three-cornered slab of ground (Sky Island's
 				# deck round its hole is made of them): its own x is up, and it covers the
@@ -943,6 +1034,9 @@ func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
 		if h.shape == "box":
 			if absf(local.x) <= half.x and absf(local.z) <= half.z:
 				return true
+		elif h.shape == "hull":
+			if MapMesher.hull_has(h.planes, local, margin):
+				return true
 		elif Vector2(local.x, local.z).length() <= half.x:
 			return true
 	return false
@@ -970,8 +1064,13 @@ func mover_ground_at(point: Vector3, at: float, tolerance: float = 0.5) -> int:
 				continue
 			if piece.shape == "tube" and Vector2(local.x, local.z).length() < float(piece.get("inner", 0.0)) * 0.5:
 				continue   # in a tube's hole: nothing there to stand on
+			var top := half.y
+			if piece.shape == "hull":
+				top = MapMesher.hull_top(piece.planes, local.x, local.z)
+				if top == -INF:
+					continue   # inside the box round it, but not over the hull itself
 			near = true
-			if absf(local.y - half.y) <= tolerance:
+			if absf(local.y - top) <= tolerance:
 				return 1
 	return 0 if near else -1
 
@@ -1069,6 +1168,167 @@ func _palette_changed() -> void:
 	if Engine.is_editor_hint() and is_inside_tree():
 		propagate_call("refresh_preview")
 		update_gizmos()
+
+
+# ---------------------------------------------------------------------------
+# Editor drawing: the blocks merged, as in the game. The map is cut into cubes
+# EDITOR_CUBE metres across; the blocks whose middles are in a cube are drawn in two
+# meshes, one for the drawn blocks (a surface for each kind) and one for the ghosts of
+# the solid-but-not-drawn ones. A block that changes or moves has its cube drawn again,
+# once a frame however many changed. (A mesh for each block ran some graphics drivers
+# out of buffers on a map of thousands, and Godot crashed: see MapBlock.)
+
+const EDITOR_CUBE := 32.0
+
+var _editor_cube_of := {}       # MapBlock -> Vector3i: the cube it is drawn in
+var _editor_cubes := {}         # Vector3i -> {MapBlock: true}
+var _editor_meshes := {}        # Vector3i -> [MeshInstance3D for the drawn, for the ghosts]
+var _editor_dirty := {}         # Vector3i -> true: to be drawn again
+var _editor_queued := false
+
+
+## Editor: draws `block` (its MapBlock.editor_arrays) merged with the blocks round it,
+## or again where it now is, as it now looks.
+func editor_draw(block: MapBlock) -> void:
+	var at := (global_transform.affine_inverse() * block.global_position)
+	var cube := Vector3i((at / EDITOR_CUBE).floor())
+	var was: Variant = _editor_cube_of.get(block)
+	if was != null and was != cube:
+		(_editor_cubes[was] as Dictionary).erase(block)
+		_editor_dirty[was] = true
+	_editor_cube_of[block] = cube
+	if not _editor_cubes.has(cube):
+		_editor_cubes[cube] = {}
+	_editor_cubes[cube][block] = true
+	_editor_dirty[cube] = true
+	_queue_editor_redraw()
+
+
+## Editor: `block` is no longer drawn merged (it left the map, or has a mesh of its own).
+func editor_forget(block: MapBlock) -> void:
+	var was: Variant = _editor_cube_of.get(block)
+	if was == null:
+		return
+	_editor_cube_of.erase(block)
+	(_editor_cubes[was] as Dictionary).erase(block)
+	_editor_dirty[was] = true
+	_queue_editor_redraw()
+
+
+## How many meshes the editor draws the merged blocks with (for the tests).
+func editor_mesh_count() -> int:
+	var n := 0
+	for pair: Array in _editor_meshes.values():
+		for m in pair:
+			if m != null:
+				n += 1
+	return n
+
+
+func _queue_editor_redraw() -> void:
+	if not _editor_queued:
+		_editor_queued = true
+		_editor_redraw.call_deferred()
+
+
+func _editor_redraw() -> void:
+	_editor_queued = false
+	if not is_inside_tree():
+		return   # (its blocks are drawn again when it is back: they come back with it)
+	var inverse := global_transform.affine_inverse()
+	for cube: Vector3i in _editor_dirty:
+		_editor_redraw_cube(cube, inverse)
+	_editor_dirty.clear()
+
+
+func _editor_redraw_cube(cube: Vector3i, inverse: Transform3D) -> void:
+	# lots[0]: the drawn blocks, lots[1]: the ghosts. Each kind -> [placed arrays, ...].
+	var lots := [{}, {}]
+	var blocks: Dictionary = _editor_cubes.get(cube, {})
+	for block: MapBlock in blocks:
+		if block.editor_arrays.is_empty():
+			continue
+		var xf := inverse * block.global_transform
+		var lot: Dictionary = lots[1 if block.editor_ghost else 0]
+		for kind: String in block.editor_arrays:
+			if not lot.has(kind):
+				lot[kind] = []
+			lot[kind].append(_placed(block.editor_arrays[kind], xf))
+	if blocks.is_empty():
+		_editor_cubes.erase(cube)
+	var pair: Array = _editor_meshes.get(cube, [null, null])
+	for i in 2:
+		var mesh := _merged(lots[i], i == 1)
+		if mesh == null:
+			if pair[i] != null:
+				(pair[i] as Node).queue_free()
+				pair[i] = null
+			continue
+		if pair[i] == null:
+			var instance := MeshInstance3D.new()
+			instance.name = "EditorCube_%d_%d_%d%s" % [cube.x, cube.y, cube.z, "_ghosts" if i == 1 else ""]
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if i == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			add_child(instance, false, Node.INTERNAL_MODE_FRONT)
+			pair[i] = instance
+		(pair[i] as MeshInstance3D).mesh = mesh
+	if pair[0] == null and pair[1] == null:
+		_editor_meshes.erase(cube)
+	else:
+		_editor_meshes[cube] = pair
+
+
+## One block's arrays for a kind (in its own frame), put where `xf` says.
+static func _placed(arrays: Array, xf: Transform3D) -> Array:
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	if xf.basis.is_conformal():
+		normals = Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * normals
+	else:
+		# Stretched: a normal goes by the inverse transpose, and needs its length back.
+		var turn := xf.basis.inverse().transposed()
+		var out := PackedVector3Array()
+		out.resize(normals.size())
+		for i in normals.size():
+			out[i] = (turn * normals[i]).normalized()
+		normals = out
+	return [xf * (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array), normals, arrays[Mesh.ARRAY_COLOR], arrays[Mesh.ARRAY_CUSTOM0]]
+
+
+## A mesh of these placed arrays (kind -> [placed, ...]), a surface for each kind: in
+## its kind's material, or all in the ghosts'. Null for none.
+func _merged(by_kind: Dictionary, ghosts: bool) -> ArrayMesh:
+	if by_kind.is_empty():
+		return null
+	var mesh := ArrayMesh.new()
+	for kind: String in by_kind:
+		var verts := PackedVector3Array()
+		var normals := PackedVector3Array()
+		var colors := PackedColorArray()
+		var custom := PackedFloat32Array()
+		var any_custom := false
+		for placed: Array in by_kind[kind]:
+			if placed[3] != null:
+				any_custom = true
+		for placed: Array in by_kind[kind]:
+			if any_custom:
+				if placed[3] != null:
+					custom.append_array(placed[3])
+				else:
+					var none := PackedFloat32Array()
+					none.resize((placed[0] as PackedVector3Array).size() * 4)
+					custom.append_array(none)
+			verts.append_array(placed[0])
+			normals.append_array(placed[1])
+			colors.append_array(placed[2])
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_COLOR] = colors
+		if any_custom:
+			arrays[Mesh.ARRAY_CUSTOM0] = custom
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
+		mesh.surface_set_material(mesh.get_surface_count() - 1, ghost_material() if ghosts else material_for(kind))
+	return mesh
 
 
 func _get_configuration_warnings() -> PackedStringArray:

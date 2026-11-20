@@ -15,13 +15,28 @@ signal command(what: String)
 
 const TOOLS := [
 	["Draw", "Drag out a new block. In the 3D view: drag its footprint on a face or the ground, let go, pull it out and click. In a top, front or side view: drag a rectangle."],
-	["Clip", "Cut the selected blocks in two where you click."],
+	["Clip", "Cut the selected blocks in two where you click. Drag a line to cut at an angle (in 3D, across a face; click a third point to tilt it), then Enter; X chooses which parts to keep."],
+	["Vertex", "Move the corners of the selected hull blocks: click or drag a box to pick corners, drag them (Shift: up and down), arrow keys to nudge, Delete to remove, double-click an edge or face to add one."],
+	["Paint", "Paint single faces and move their pattern: click a face to pick it (Shift: more), then click a kind in the Map dock; arrows slide the pattern, Page Up/Down turn it, +/- scale it, Delete resets, Ctrl+C/V copies. Alt+click paints a face with the chosen kind."],
 ]
 const MENU := [
 	["Hollow...", "hollow"],
 	["Mirror...", "mirror"],
 	["Array...", "array"],
 	["Snap to Neighbours", "snap"],
+	["Turn 90° about Up", "turn:1:1"],
+	["Turn 90° about Left-Right", "turn:0:1"],
+	["Turn 90° about Front-Back", "turn:2:1"],
+	["Make Editable (Hull)", "make_editable"],
+	[],
+	["Select Touching", "select:touching"],
+	["Select Inside", "select:inside"],
+	["Select Tall", "select:tall"],
+	["Invert Selection", "select:invert"],
+	[],
+	["CSG: Subtract", "csg_subtract"],
+	["CSG: Merge", "csg_merge"],
+	["CSG: Intersect", "csg_intersect"],
 	[],
 	["Add Stairs or Ramp", "piece:Stairs"],
 	["Add Row", "piece:Row"],
@@ -31,6 +46,10 @@ const MENU := [
 	[],
 	["Show Invisible Blocks", "view:invisible"],
 	["Show Solid Blocks Only", "view:solid"],
+	["Isolate Selection", "view:isolate"],
+	["Show Grid Under Mouse", "view:grid"],
+	["Show Selected Edges", "view:edges"],
+	["Show Terminal Links", "view:links"],
 ]
 
 var _tool_buttons: Array[Button] = []

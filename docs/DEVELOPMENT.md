@@ -619,6 +619,16 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
   invisible wall, shown in the editor as a faint blue box), **Tint** (to make one block
   a little lighter or darker), **Material Type** (what it is made of: its footsteps and
   how it breaks; see below) and a **Breaking** section (see "Breakable walls and floors").
+  A **Hull** block is any convex shape: the smallest one round its **Points** (corners in
+  the block's own frame). It draws, collides, is stood on and counts as a hazard as the
+  shape you see, not the box round it. Its corners are kept centred on the block, and
+  its Size is the box round them: changing Size (or dragging a face handle) stretches the
+  corners. At most 32 corners (`MapMesher.MAX_HULL_CORNERS`); fewer than four that are not
+  all in one plane and it warns, standing in as the box round its corners. Picking Hull
+  as a block's Shape in the inspector starts it from the shape it was (a tube, an arch or
+  a hollow dome filled in); **Map > Make Editable** keeps their holes. A hull breaks only
+  whole (Break Settings: Whole Block), never per cell. Mirror turns its corners into
+  their mirror image.
 - Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
   grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
   3D view selects the whole object. To change one part, pick the part in the Scene
@@ -666,7 +676,7 @@ makes ordinary MapBlocks and is one step of undo.
 
 - **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
   2 or 4 m. `[` makes it finer, `]` coarser.
-- **Draw** and **Clip** are tools you turn on: press the button (or its key) again, or
+- **Draw**, **Clip**, **Vertex** and **Paint** are tools you turn on: press the button (or its key) again, or
   Esc, and you are back to the editor's own select, move, rotate and scale.
 - **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
   the new block's footprint; let go, move the mouse to pull it out of the face, and
@@ -677,14 +687,100 @@ makes ordinary MapBlocks and is one step of undo.
 - **Moving** is the editor's own move tool. After a move, **Map > Snap to Neighbours**
   (Alt+N) nudges the selection, by up to one grid square, so its faces meet those of the
   blocks beside it that lie square to it.
+- **Nudging**: with no map tool on, the arrow keys move the selection one grid square
+  across the view (the map axis nearest the view's right, and its up in a top, front or
+  side view or forward in 3D), Page Up and Page Down up and down. **Shift** with an arrow
+  key puts down a copy one grid square on and selects it: press again for the next, to
+  lay out a row.
+- **Map > Turn 90° about Up / Left-Right / Front-Back**: a quarter turn of the selection
+  round its middle, exact (no 0.9999s creep in).
+- **Map > Select Touching / Inside / Tall, Invert Selection**: from the selected blocks,
+  pick the blocks that touch them, lie inside them, or stand within their ground plan
+  however high (a top view's "tall"), or everything else. By the boxes round blocks,
+  and as a click would pick them (a whole selection group).
+- **Map > Isolate Selection**: only the selection is shown (and can be picked) until you
+  turn it off. It is the editor's view only: nothing in the scene changes.
+- **Shearing** a hull is the Vertex tool's: pick a face and nudge its corners with the
+  arrow keys.
+- **Map > Make Editable (Hull)**: each selected block becomes a Hull block of exactly
+  the same shape, corners where they were, keeping its kind and settings (a cylinder of
+  12 sides is a hull of 24 corners). A tube, an arch or a hollow or cut-open dome
+  becomes a group of hull blocks, one per convex lump, so its hole stays. Shapes of more
+  than 32 corners are left alone (lower their Sides first), and so are blocks a Stairs,
+  Row or Ring made. Then move its corners with the Vertex tool.
+- **Vertex** (`V`): the selected hull blocks show their edges and corners (the face
+  handles are put away meanwhile). Click a corner, an edge or a face to pick it (an
+  edge or a face is its corners), Shift-click to add or take one away, or drag a box
+  round several corners; corners of different blocks in the same place are picked and
+  move together.
+  - Drag a picked corner or edge to move what is picked: level in the 3D view (hold
+    Shift for straight up and down), in the view's plane in a top, front or side view.
+    A corner lands on the grid; an edge moves by whole grid squares.
+  - Drag a face to push or pull it straight out from itself, by whole grid squares,
+    while every other face stays in its plane: the faces round it grow or shrink to
+    meet it (a sloping side carries on up when you raise the top).
+  - The arrow keys move the picked corners a grid square across the view, Page Up and
+    Page Down up and down; Delete takes them away.
+  - Double-click an edge to add a corner in its middle, or a face for one in the face's
+    middle, then drag it out.
+
+  A hull stays convex: a move that would sink a corner inside the shape, or push a face
+  out until the faces round it close over it, is refused (the edges turn red and the
+  shape stays at the last allowed move); a corner that another's move leaves inside is
+  dropped. A click on no selected hull selects the block under it. Esc or a right
+  click puts a drag back; Esc again leaves the tool. Each drag, nudge, add or delete is
+  one step of undo.
+- **Paint** (`P`): single faces of any block get their own kind, and their pattern can be
+  moved, turned and scaled (the map tools' answer to texture alignment, for this game's
+  patterns). Click a face to pick it, Shift-click to pick more (or take one back); a
+  click on no block picks nothing. With faces picked: click a kind in the Map dock to
+  paint them (instead of the whole blocks); the arrow keys slide their pattern a grid
+  square across or up the face, Page Up and Page Down turn it 15°, `+` and `-` make it
+  bigger or smaller (1.25 times); Delete puts them back as their block; Ctrl+C takes the
+  first face's paint and pattern, Ctrl+V gives it to all the picked faces. Alt+click
+  paints the face under the mouse with the kind chosen in the dock. A face is known by
+  the way it looks in its block's own frame, so it keeps its paint however the block is
+  moved, turned or stretched, or its corners dragged, as long as it looks the same way;
+  Mirror moves the paint to the mirrored side. A painted face is only how it looks: what
+  the block is made of (footsteps, breaking) stays its own kind's, and a block that
+  breaks cell by cell is drawn in its own kind once it starts breaking. The settings are
+  the block's **Faces** in the inspector (`face_kinds`, `face_patterns`).
+- **A hull's face handles**: outside the Vertex tool, a selected hull block has a
+  handle in the middle of every face, slanted faces too. Drag one to push or pull that
+  face the same way (on the grid; Ctrl for whole metres).
 - **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes
   only across their height.
+  **At any angle**: drag a line instead of clicking. In a top, front or side view the
+  cut runs through the line straight into the view (drag anywhere). In the 3D view,
+  start on a face of a selected block: the cut runs through the line you draw across
+  the face, square to it (a diagonal across a box's side cuts it into two slopes); then
+  click a third point on any block to tilt the cut through all three. The ends snap to
+  the grid. The parts are outlined, kept ones yellow and the rest red: `X` chooses what
+  to keep (both, the part in front of the cut, the part behind it), Enter cuts, Esc or
+  a right click gives up. A box cut square to its sides stays boxes; anything else
+  becomes hull blocks. Tubes, arches and hollow domes are only cut straight.
 - **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): turn those settings
   on or off on every selected block, in groups too.
 - **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
   thickness you type that fills the same outside. You can leave the top or the floor off.
+  Any other shape of one lump (a wedge, a cylinder, a hull...) is hollowed too: walls
+  square to each of its faces, the top and floor being the faces that look up and down.
+- **Map > CSG: Subtract**: the selected blocks carve their shapes out of every other
+  block they overlap, then go themselves (a block the size of a doorway, through a wall,
+  leaves a doorway). Each block cut becomes a group of the pieces left, with its kind and
+  settings; a box cut by a box stays boxes, anything else becomes hull blocks.
+- **Map > CSG: Merge**: as TrenchBroom's convex merge, the selected blocks become one,
+  the smallest convex block round them all, with the first one's settings. Two boxes
+  side by side make one box; a box with a slope that fits its top, a box with a sloping
+  roof. Any gap or inside corner between them is filled in (a block cannot be
+  L-shaped): a beam sticking out of a wall becomes a slope from the wall's edges to the
+  beam's end. To keep blocks together as they are, group them instead.
+- **Map > CSG: Intersect**: the selected blocks become one, the part they all share.
+  None of the CSG commands works on tubes, arches or hollow domes (Make Editable them
+  first); Merge and Intersect refuse if a block other than the first has something
+  standing under it.
 - **Map > Mirror**: across x or z, about the middle of the map or of the selection, as
   a copy or in place. Nothing is scaled by -1: a mirrored wedge is a wedge facing the
   other way.
@@ -704,6 +800,21 @@ makes ordinary MapBlocks and is one step of undo.
   a plain group first.
 - **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
   second hides everything you cannot bump into, to check a map's real shape.
+- **Map > Show Grid Under Mouse / Show Selected Edges / Show Terminal Links** (all on
+  at first; remembered per project): drawn over the 3D view whatever tool is on. The
+  grid, at its current size, on the surface under the mouse (or the ground), fading out
+  round the cursor; on a surface square to the map it is the map's grid. The selected
+  blocks' edges over everything, so a block behind or inside another can be seen. From
+  each terminal and lever a line to the event it sets off, or (an event has no place in
+  the map) the event's name beside it, in red if the event cannot be found.
+- **The Map dock, Problems**: **Check Map** looks the open map over and lists what is
+  wrong; click one to select what it is about. It finds every block's own warnings (a
+  kind missing from the palette, a hull with no volume, a block too thick to break per
+  cell...), blocks thinner than a centimetre (left over from a cut or a drag), too few
+  spawn points and spawn points outside the bounds, and terminals whose event cannot be
+  found. Tick **Flickering too** to also find two colours sharing a plane where both
+  show (the same check as `tests/map_flicker_test.gd`, now in
+  `addons/map_tools/map_flicker.gd`); it takes a while on a big map.
 - **The Map dock, Kinds**: the palette as swatches, with how many blocks use each.
   Click one: new blocks get that kind, and the selected blocks are painted with it.
   Right-click one to select every block of that kind. **Add Kind** adds a colour to the
@@ -712,7 +823,15 @@ makes ordinary MapBlocks and is one step of undo.
   a scene under `game/maps/prefabs/`. Pick one and press **Place**, then click in the
   map: each click puts down a copy as plain blocks in one group. A copy has no tie to
   the prefab's file, so changing the prefab later does not change maps that used it.
-  Kinds go by name; the dock tells you if this map's palette lacks one.
+  Kinds go by name; the dock tells you if this map's palette lacks one. **Place Linked**
+  puts down the prefab itself instead: the map saves a link to its file, so every linked
+  copy changes when you change the prefab (open its scene to edit it). To change one copy
+  alone, right-click it in the Scene dock and choose Make Local.
+- **The Map dock, Layers**: the map's top-level groups that hold blocks, each with three
+  switches. **View**: shown in the editor (off hides it from view only; the scene is not
+  changed). **Lock**: clicks in the 3D view pass it by (Godot's lock, on the group: it
+  covers everything in it). **Game**: in the game (off leaves it out, as the eye icon
+  does).
 
 The keys are editor shortcuts (Editor Settings > Shortcuts, under `map_tools`), and work
 while the mouse is over the 3D view.
@@ -783,10 +902,27 @@ comes from the palette's **Material** list (kind -> material), else from the kin
 `game/arena/block_materials.gd`: for now most materials reuse the step and break sounds
 at another pitch, so real sounds can drop in there later without touching any map.
 
+Footsteps go by what is seen underfoot (`MapRoot.material_at`): the highest surface
+there wins. That is a solid block, or **decoration lying flat on it**: a block that is
+drawn but not solid, no more than 12 cm thick, level, at least 30 cm across both ways
+(a rug, a grate, a patch of dirt or grass, paint), and only when what it is made of is
+known (its Material Type, the palette's Material list, or its kind's name: dirt, rug,
+grate, plank, stone, tile...), so a glowing strip or a painted sign leaves the floor's
+sound alone. On a block whose face underfoot is painted another kind (the Paint tool),
+that face's kind is what you hear, over the block's own Material Type. (Moving parts
+the same.) What a block breaks like is still its own.
+
 **Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
 practice mode on that map. In the game, all blocks of one kind are merged into a single
 mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
 things needs no extra step.
+
+In the editor too a map draws its blocks merged, a few meshes for each 32 m cube of it
+(`MapRoot.editor_draw`); only the selected blocks (up to 300, counting those inside a
+selected group) get meshes of their own, so that they redraw quickly while dragged and
+the selection box goes round them. A mesh for every block ran some graphics drivers out
+of buffers on a map of thousands (Empyrean Tower has over 15,000), and Godot crashed
+opening it.
 
 The Construction Site's crane, the netting on its scaffold and steel, the cover in its
 yard and most of its dressing were written by `tools/arena/construction_site_revamp.gd`

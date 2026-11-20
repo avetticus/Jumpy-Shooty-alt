@@ -25,21 +25,44 @@ const BOX_FACES := [   # normal, then the two in-plane axes (u, v) with u x v = 
 
 ## kind -> ArrayMesh
 static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basis = Basis()) -> Dictionary:
+	var result := {}
+	var by_kind := build_arrays(pieces, shade, shade_basis)
+	for kind in by_kind:
+		var arrays: Array = by_kind[kind]
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
+		result[kind] = mesh
+	return result
+
+
+## kind -> the arrays for a mesh surface (Mesh.ARRAY_MAX long: corners, normals,
+## colours, and CUSTOM0 when a face's pattern is moved), as build() would put in its
+## mesh. Nothing is handed to the GPU: the editor keeps every block's arrays and
+## draws them merged (MapRoot's editor drawing), since a GPU mesh for each of a big
+## map's thousands of blocks runs some graphics drivers out of buffers.
+static func build_arrays(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basis = Basis()) -> Dictionary:
 	_shade = shade
 	_shade_basis = shade_basis
 	var by_kind := {}
+	_by_kind = by_kind
 	for piece in pieces:
 		if piece.get("hidden", false):
 			continue
-		if not by_kind.has(piece.kind):
-			by_kind[piece.kind] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
-		var buf: Array = by_kind[piece.kind]
+		_face_kinds = piece.get("face_kinds", {})
+		_face_patterns = piece.get("face_patterns", {})
+		_key_scale = piece.get("scale", Vector3.ONE)
+		_custom = Vector4.ZERO
+		var buf := _buffer(piece.kind)
 		match piece.shape:
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
 			"cone": _cone(buf, piece)
-			"wedge", "bevel", "dome", "arch": _hulls(buf, piece)
+			"wedge", "bevel", "dome", "arch", "hull": _hulls(buf, piece)
 			_: _box(buf, piece)
+	_by_kind = {}
+	_face_kinds = {}
+	_face_patterns = {}
+	_custom = Vector4.ZERO
 	var result := {}
 	for kind in by_kind:
 		var buf: Array = by_kind[kind]
@@ -48,10 +71,71 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 		arrays[Mesh.ARRAY_VERTEX] = buf[0]
 		arrays[Mesh.ARRAY_NORMAL] = buf[1]
 		arrays[Mesh.ARRAY_COLOR] = buf[2]
-		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		result[kind] = mesh
+		if buf[3] != null:
+			arrays[Mesh.ARRAY_CUSTOM0] = buf[3]
+		result[kind] = arrays
 	return result
+
+
+## The flags a surface made from `arrays` needs: a face pattern's settings (CUSTOM0)
+## are four 32-bit numbers a corner.
+static func surface_flags(arrays: Array) -> int:
+	if arrays.size() > Mesh.ARRAY_CUSTOM0 and arrays[Mesh.ARRAY_CUSTOM0] != null:
+		return Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	return 0
+
+
+# ---------------------------------------------------------------------------
+# Faces of their own (MapBlock.face_kinds, face_patterns)
+
+static var _by_kind := {}          # kind -> buffer, for the build going on
+static var _face_kinds := {}       # the piece being built: face -> kind
+static var _face_patterns := {}    # face -> Vector4(across, up, turn (degrees), scale)
+static var _custom := Vector4.ZERO # what the face being drawn tells the surface shader
+static var _key_scale := Vector3.ONE # the block's stretch (piece "scale"): faces are named unstretched
+
+
+## The buffer for a kind: [corners, normals, colours, pattern settings (or null while
+## no face in it has any)].
+static func _buffer(kind: String) -> Array:
+	if not _by_kind.has(kind):
+		_by_kind[kind] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray(), null]
+	return _by_kind[kind]
+
+
+## Where the face of the piece being built that looks along `normal` (in its own
+## frame) goes: its own kind's buffer if it has one, else `buf`. Also sets what its
+## corners tell the surface shader about its pattern: (across, up, turn in radians,
+## scale - 1), all nothing for a face left as it is.
+static func _route(buf: Array, normal: Vector3) -> Array:
+	if _face_kinds.is_empty() and _face_patterns.is_empty():
+		_custom = Vector4.ZERO
+		return buf
+	# (A face's way out in the stretched piece leans back toward the block's own: the
+	# block names its faces unstretched, as the Paint tool sees them.)
+	var key := MapBlock.face_key(normal * _key_scale)
+	var p: Vector4 = _face_patterns.get(key, Vector4(0, 0, 0, 1))
+	_custom = Vector4(p.x, p.y, deg_to_rad(p.z), p.w - 1.0)
+	var kind: String = _face_kinds.get(key, "")
+	return buf if kind == "" else _buffer(kind)
+
+
+## Adds the pattern settings for the last `count` corners put in `buf`. A buffer gets
+## them only once a face needs them (the corners before get nothing: as they are).
+static func _put_custom(buf: Array, count: int) -> void:
+	if buf[3] == null:
+		if _custom == Vector4.ZERO:
+			return
+		var none := PackedFloat32Array()
+		none.resize(((buf[0] as PackedVector3Array).size() - count) * 4)
+		buf[3] = none
+	var custom: PackedFloat32Array = buf[3]
+	for i in count:
+		custom.append(_custom.x)
+		custom.append(_custom.y)
+		custom.append(_custom.z)
+		custom.append(_custom.w)
+	buf[3] = custom
 
 
 ## The same mesh, marked as part of something that moves (a MapMover's body): its
@@ -65,7 +149,7 @@ static func riding(mesh: ArrayMesh) -> ArrayMesh:
 	mark.fill(Vector2(1, 0))
 	arrays[Mesh.ARRAY_TEX_UV2] = mark
 	var out := ArrayMesh.new()
-	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
 	return out
 
 
@@ -79,6 +163,7 @@ static func _quad(buf: Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n:
 		verts.append(v)
 		normals.append(n)
 		colors.append(color)
+	_put_custom(buf, 6)
 
 
 static func _box(buf: Array, piece: Dictionary) -> void:
@@ -92,7 +177,7 @@ static func _box(buf: Array, piece: Dictionary) -> void:
 		var c: Vector3 = n * h
 		var du: Vector3 = u * h
 		var dv: Vector3 = v * h
-		_quad(buf, xf * (c - du - dv), xf * (c + du - dv), xf * (c + du + dv), xf * (c - du + dv), xf.basis * n, color)
+		_quad(_route(buf, n), xf * (c - du - dv), xf * (c + du - dv), xf * (c + du + dv), xf * (c - du + dv), xf.basis * n, color)
 
 
 ## A cylinder with flat sides (inner = 0), or a pipe you can see through (inner > 0).
@@ -112,14 +197,14 @@ static func _prism(buf: Array, piece: Dictionary, inner: float) -> void:
 		var n := Vector3(cos(am), 0, sin(am))
 		var up := Vector3(0, hy, 0)
 		# outside wall
-		_quad(buf, xf * (d1 * r - up), xf * (d0 * r - up), xf * (d0 * r + up), xf * (d1 * r + up), xf.basis * n, color)
+		_quad(_route(buf, n), xf * (d1 * r - up), xf * (d0 * r - up), xf * (d0 * r + up), xf * (d1 * r + up), xf.basis * n, color)
 		if ri > 0.0:
-			_quad(buf, xf * (d0 * ri - up), xf * (d1 * ri - up), xf * (d1 * ri + up), xf * (d0 * ri + up), xf.basis * -n, color)
-			_quad(buf, xf * (d0 * ri + up), xf * (d1 * ri + up), xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
-			_quad(buf, xf * (d1 * ri - up), xf * (d0 * ri - up), xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
+			_quad(_route(buf, -n), xf * (d0 * ri - up), xf * (d1 * ri - up), xf * (d1 * ri + up), xf * (d0 * ri + up), xf.basis * -n, color)
+			_quad(_route(buf, Vector3.UP), xf * (d0 * ri + up), xf * (d1 * ri + up), xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
+			_quad(_route(buf, Vector3.DOWN), xf * (d1 * ri - up), xf * (d0 * ri - up), xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
 		else:
-			_tri(buf, xf * up, xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
-			_tri(buf, xf * -up, xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
+			_tri(_route(buf, Vector3.UP), xf * up, xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
+			_tri(_route(buf, Vector3.DOWN), xf * -up, xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
 
 
 ## A cone with flat sides, coming to a point (top = 0) or cut off flat at the top.
@@ -138,11 +223,11 @@ static func _cone(buf: Array, piece: Dictionary) -> void:
 		var b1 := d1 * r - up
 		var n := cone_side_normal(d0, d1, r, rt, piece.size.y)
 		if rt > 0.0:
-			_quad(buf, xf * b1, xf * b0, xf * (d0 * rt + up), xf * (d1 * rt + up), xf.basis * n, color)
-			_tri(buf, xf * up, xf * (d1 * rt + up), xf * (d0 * rt + up), xf.basis * Vector3.UP, color)
+			_quad(_route(buf, n), xf * b1, xf * b0, xf * (d0 * rt + up), xf * (d1 * rt + up), xf.basis * n, color)
+			_tri(_route(buf, Vector3.UP), xf * up, xf * (d1 * rt + up), xf * (d0 * rt + up), xf.basis * Vector3.UP, color)
 		else:
-			_tri(buf, xf * b1, xf * b0, xf * up, xf.basis * n, color)
-		_tri(buf, xf * -up, xf * b0, xf * b1, xf.basis * Vector3.DOWN, color)
+			_tri(_route(buf, n), xf * b1, xf * b0, xf * up, xf.basis * n, color)
+		_tri(_route(buf, Vector3.DOWN), xf * -up, xf * b0, xf * b1, xf.basis * Vector3.DOWN, color)
 
 
 ## The outward normal of the cone's side between the corners `d0` and `d1` (unit
@@ -205,15 +290,92 @@ static func tube_hulls(piece: Dictionary) -> Array:
 # from those same corners, so they always agree.
 
 ## The convex lumps a piece is made of, each a list of corners in the piece's own
-## frame. A wedge, a bevelled box and a whole solid dome are one lump; a hollow or
-## cut-open dome and an arch are several.
+## frame. A wedge, a bevelled box, a whole solid dome and a hull are one lump; a
+## hollow or cut-open dome and an arch are several.
 static func hull_points(piece: Dictionary) -> Array:
 	match piece.shape:
 		"wedge": return [wedge_points(piece)]
 		"bevel": return [bevel_points(piece)]
 		"dome": return dome_hulls(piece)
 		"arch": return arch_hulls(piece)
+		"hull": return [piece.points]
 	return []
+
+
+# ---------------------------------------------------------------------------
+# Hulls: blocks of any convex shape, given by their corners (MapBlock.Shape.HULL).
+
+## A hull block has at most this many corners: finding a hull's faces gets slow past
+## it, and the map is built from every block's faces when it loads.
+const MAX_HULL_CORNERS := 32
+
+
+## The corners of the convex lump round `pts`: the points that are a corner of one
+## of its faces, in the order given, each once. Points inside it, or in the middle
+## of a face or an edge, are left out. Empty if `pts` are all in one plane.
+static func hull_corners(pts: PackedVector3Array) -> PackedVector3Array:
+	var planes := hull_planes(pts)
+	var out := PackedVector3Array()
+	for p in pts:
+		# A corner lies on three faces or more; a point in the middle of an edge on two,
+		# in the middle of a face on one, inside on none.
+		var on := 0
+		for plane in planes:
+			if absf(plane.distance_to(p)) <= 0.0005:
+				on += 1
+		if on < 3:
+			continue
+		var seen := false
+		for q in out:
+			if q.distance_to(p) <= 0.0005:
+				seen = true
+				break
+		if not seen:
+			out.append(p)
+	return out
+
+
+## The faces of the convex lump round `pts` as planes, each facing out (a point is
+## inside the lump when it is behind every one of them). Fewer than 4 when the
+## points are all in one plane (or there are too few): no solid shape.
+static func hull_planes(pts: PackedVector3Array) -> Array[Plane]:
+	var out: Array[Plane] = []
+	for face in hull_faces(pts):
+		var n: Vector3 = face[0]
+		var d := 0.0
+		for p: Vector3 in face[1]:
+			d += n.dot(p)
+		out.append(Plane(n, d / (face[1] as Array).size()))   # (through the middle of its corners)
+	return out
+
+
+## Is `p` (in the hull's own frame) inside the hull with these `planes`, or no more
+## than `margin` metres outside it?
+static func hull_has(planes: Array, p: Vector3, margin: float = 0.0) -> bool:
+	for plane: Plane in planes:
+		if plane.distance_to(p) > margin:
+			return false
+	return true
+
+
+## How high the top of the hull with these `planes` is at (`x`, `z`) in its own
+## frame: the y of its upper surface straight above or below that point. -INF if
+## the point is not over the hull, with `margin` metres to spare round its sides.
+static func hull_top(planes: Array, x: float, z: float, margin: float = 0.0) -> float:
+	var top := INF
+	var bottom := -INF
+	for plane: Plane in planes:
+		var n := plane.normal
+		var level := plane.d - n.x * x - n.z * z
+		if n.y > 0.001:
+			top = minf(top, level / n.y)       # under this face
+		elif n.y < -0.001:
+			bottom = maxf(bottom, level / n.y)  # over this face
+		elif -level > margin * Vector2(n.x, n.z).length():
+			return -INF                         # outside an upright side
+	if top == INF or bottom > top + margin:
+		return -INF
+	return top
 
 
 ## A slope: tall at the back (-z), down to nothing at the front (+z).
@@ -348,15 +510,15 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 				n = n.normalized()
 				if n.dot(a + c) < 0.0:
 					n = -n
-				_flat(buf, xf, [a, b, c] if j + 1 == rings else [a, b, c, d], n, color)
-		_flat(buf, xf, Array(foot), Vector3.DOWN, color)
+				_flat(_route(buf, n), xf, [a, b, c] if j + 1 == rings else [a, b, c, d], n, color)
+		_flat(_route(buf, Vector3.DOWN), xf, Array(foot), Vector3.DOWN, color)
 		return
 	# Every face of every lump; a face two lumps share (the same place, looking opposite
 	# ways) is inside the piece and is left out.
 	var faces := []   # [normal, corners in order, a key for where its middle is]
 	var count := {}
 	for pts in hull_points(piece):
-		for face in hull_faces(pts):
+		for face in hull_surface(pts):
 			var mid := Vector3.ZERO
 			for p in face[1]:
 				mid += p
@@ -367,7 +529,7 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 			faces.append(face)
 	for face in faces:
 		if count[face[2]] == 1:
-			_flat(buf, xf, face[1], face[0], color)
+			_flat(_route(buf, face[0]), xf, face[1], face[0], color)
 
 
 ## One flat face with these corners (in the piece's own frame, in order round it,
@@ -384,18 +546,25 @@ static func _flat(buf: Array, xf: Transform3D, corners: Array, n: Vector3, color
 		_tri(buf, xf * corners[0], xf * corners[k], xf * corners[k + 1], out, color)
 
 
-## The flat faces of the convex lump with these corners: [[normal, corners going
-## counter-clockwise seen from outside], ...]. Corners that lie in one plane make one face.
+## The flat faces of the convex lump with these corners, as the map tools work with
+## them (its planes, its edges, which face is which): [[normal, corners going
+## counter-clockwise seen from outside], ...]. Corners that lie in one plane make one
+## face, its outline: a point inside a face, or in the middle of one of its edges, is
+## not one of its corners. Points within half a millimetre of a plane count as on it,
+## and faces in all but the same plane are one face, so a slanted face stays one face
+## however often its corners are rounded. (For drawing, see hull_surface: on points
+## that have drifted badly these faces may not quite close up.)
 static func hull_faces(pts: PackedVector3Array) -> Array:
 	var n := pts.size()
-	var faces := []
-	var seen := {}
+	var groups := []   # one per face: [normal (out), how far out its plane is, {index of a point on it: true}]
 	for a in n:
 		for b in range(a + 1, n):
 			for c in range(b + 1, n):
-				var normal := (pts[b] - pts[a]).cross(pts[c] - pts[a])
-				if normal.length_squared() < 1e-10:
-					continue
+				var ab := pts[b] - pts[a]
+				var ac := pts[c] - pts[a]
+				var normal := ab.cross(ac)
+				if normal.length() < 0.001 * ab.length() * ac.length():
+					continue   # (all but in a line: the plane through them could lean any way)
 				normal = normal.normalized()
 				var d := normal.dot(pts[a])
 				var above := false
@@ -409,33 +578,173 @@ static func hull_faces(pts: PackedVector3Array) -> Array:
 						below = true
 					else:
 						on.append(i)
+					if above and below:
+						break   # points on both sides: not a face
 				if above and below:
 					continue
 				if above:
 					normal = -normal
-				var key := "%d %d %d %d" % [roundi(normal.x * 500), roundi(normal.y * 500), roundi(normal.z * 500), roundi(normal.dot(pts[a]) * 500)]
+				# Other threes on the same face find it again, perhaps with a few points
+				# more or less on it (when they have drifted a hair out of one plane): all
+				# of them go to one face, never two all but the same (cutting with both
+				# would make stray corners).
+				d = normal.dot(pts[a])
+				var group: Array = []
+				for g in groups:
+					if (g[0] as Vector3).dot(normal) > 0.9999 and absf(float(g[1]) - d) < 0.001:
+						group = g
+						break
+				if group.is_empty():
+					group = [normal, d, {}]
+					groups.append(group)
+				for i in on:
+					group[2][i] = true
+	var faces := []
+	for g in groups:
+		var on_points := []
+		for i in (g[2] as Dictionary):
+			on_points.append(pts[i])
+		var corners := _outline(on_points, g[0], 0.0005)
+		if corners.size() < 3:
+			continue
+		# The face's own way out, from all its corners, not just the three it was found
+		# by; a face with next to no area is no face.
+		var fit := _twice_area(corners)
+		if fit.length() < 2e-6:
+			continue
+		fit = fit.normalized()
+		faces.append([fit if fit.dot(g[0]) > 0.0 else -fit, corners])
+	return faces
+
+
+## The faces of the convex lump with these corners as they are drawn ([[normal,
+## corners going counter-clockwise seen from outside], ...]): always a closed surface,
+## with no face missing, overlapping or folded over, even for points that have drifted
+## or were dragged a few millimetres apart.
+##
+## These are the lump's faces as they are, to within a fiftieth of a millimetre: points
+## truly in one plane (a box's side) make one face, points a hair out of one plane make
+## several flat ones, side by side, which look the same. Together they always cover the
+## lump with no gap or overlap. (The map tools use hull_faces, where a face whose
+## corners are a little out of one plane is still one face.)
+static func hull_surface(pts: PackedVector3Array) -> Array:
+	# On a plane means on it, to a nanometre: any looser and three points of a face a
+	# hair out of one plane can call it one face where another three call it two, and the
+	# surface gets a face twice in one place and none in another. The sums are done in
+	# 64-bit numbers (Godot's vectors are 32-bit, and a face only millimetres wide would
+	# come out leaning the wrong way); 32-bit points truly in one plane, as a box's side
+	# is, still come out exactly on it.
+	const EXACT := 1e-9
+	var n := pts.size()
+	var x := PackedFloat64Array()
+	var y := PackedFloat64Array()
+	var z := PackedFloat64Array()
+	for p in pts:
+		x.append(p.x)
+		y.append(p.y)
+		z.append(p.z)
+	var faces := []   # [normal (out), its corners in order]
+	var seen := {}
+	for a in n:
+		for b in range(a + 1, n):
+			var ux := x[b] - x[a]
+			var uy := y[b] - y[a]
+			var uz := z[b] - z[a]
+			for c in range(b + 1, n):
+				var vx := x[c] - x[a]
+				var vy := y[c] - y[a]
+				var vz := z[c] - z[a]
+				var nx := uy * vz - uz * vy
+				var ny := uz * vx - ux * vz
+				var nz := ux * vy - uy * vx
+				var length := sqrt(nx * nx + ny * ny + nz * nz)
+				if length < 1e-12:
+					continue   # (in a line)
+				var above := false
+				var below := false
+				var on := []
+				for i in n:
+					# How far in front of the plane the point is (from a point on it, so
+					# that a point truly in it comes out as nothing at all).
+					var s := ((x[i] - x[a]) * nx + (y[i] - y[a]) * ny + (z[i] - z[a]) * nz) / length
+					if s > EXACT:
+						above = true
+					elif s < -EXACT:
+						below = true
+					else:
+						on.append(i)
+					if above and below:
+						break   # points on both sides: not a face
+				if above and below:
+					continue
+				var normal := Vector3(nx / length, ny / length, nz / length)
+				if above:
+					normal = -normal
+				var key := str(on)   # (other threes on the same face find it again)
 				if seen.has(key):
 					continue
 				seen[key] = true
-				# Put the corners in order round the face.
-				var mid := Vector3.ZERO
+				var on_points := []
 				for i in on:
-					mid += pts[i]
-				mid /= on.size()
-				var u := (pts[on[0]] - mid).normalized()
-				var v := normal.cross(u)
-				var ring := []
-				for i in on:
-					var r: Vector3 = pts[i] - mid
-					ring.append([atan2(r.dot(v), r.dot(u)), pts[i]])
-				ring.sort_custom(func(p, q): return p[0] < q[0])
-				var corners := []
-				for r in ring:
-					if corners.is_empty() or (corners[-1] as Vector3).distance_to(r[1]) > 0.0005:
-						corners.append(r[1])
-				if corners.size() >= 3:
-					faces.append([normal, corners])
+					on_points.append(pts[i])
+				var ring := _outline(on_points, normal, 0.0)
+				if ring.size() >= 3 and _twice_area(ring).length() > 1e-12:
+					faces.append([normal, ring])
+	if faces.size() < 4:
+		return []   # all in one plane (or too few points): no solid
 	return faces
+
+
+## Twice a flat ring's area, facing the way its corners turn counter-clockwise
+## (Newell's method).
+static func _twice_area(ring: Array) -> Vector3:
+	var out := Vector3.ZERO
+	for k in ring.size():
+		var p: Vector3 = ring[k]
+		var q: Vector3 = ring[(k + 1) % ring.size()]
+		out += Vector3((p.y - q.y) * (p.z + q.z), (p.z - q.z) * (p.x + q.x), (p.x - q.x) * (p.y + q.y))
+	return out
+
+
+## The outline of `points` (all in one plane facing along `normal`): its corners in
+## order, counter-clockwise seen from the side it faces. A point inside the outline, in
+## the middle of one of its sides or on top of another (within `slack` metres) is left out.
+static func _outline(points: Array, normal: Vector3, slack := 0.0005) -> Array:
+	var u := normal.cross(Vector3.UP if absf(normal.y) < 0.9 else Vector3.RIGHT).normalized()
+	var v := normal.cross(u)   # (u, v, normal) turn the right way: counter-clockwise in u, v is seen from outside
+	var flat := []
+	for p: Vector3 in points:
+		flat.append([Vector2(p.dot(u), p.dot(v)), p])
+	flat.sort_custom(func(p: Array, q: Array) -> bool:
+		return p[0].x < q[0].x or (p[0].x == q[0].x and p[0].y < q[0].y))
+	# Andrew's monotone chain: the lower side left to right, then the upper side back.
+	var chain := []
+	for pass_ in 2:
+		var start := chain.size()
+		var order := flat if pass_ == 0 else flat.duplicate()
+		if pass_ == 1:
+			order.reverse()
+		for p in order:
+			while chain.size() - start >= 2 and _bends_back(chain[-2][0], chain[-1][0], p[0], slack):
+				chain.pop_back()
+			if chain.size() - start >= 1 and (chain[-1][0] as Vector2).distance_to(p[0]) <= slack:
+				continue
+			chain.append(p)
+		chain.pop_back()   # (the last of each side is the first of the next)
+	var out := []
+	for c in chain:
+		if out.is_empty() or (out[-1] as Vector3).distance_to(c[1]) > slack:
+			out.append(c[1])
+	if out.size() > 1 and (out[0] as Vector3).distance_to(out[-1]) <= slack:
+		out.pop_back()
+	return out
+
+
+## Going from `o` to `a` and on to `b`, does the way turn clockwise, or run straight on
+## (within `slack` metres)? Then `a` is not a corner of a counter-clockwise outline.
+static func _bends_back(o: Vector2, a: Vector2, b: Vector2, slack: float) -> bool:
+	var turn := (a - o).cross(b - o)
+	return turn <= slack * maxf((a - o).length(), (b - o).length())
 
 
 static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, color: Color) -> void:
@@ -447,6 +756,7 @@ static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, col
 		verts.append(v)
 		normals.append(n)
 		colors.append(color)
+	_put_custom(buf, 3)
 
 
 static func _shaded(color: Color, n: Vector3) -> Color:

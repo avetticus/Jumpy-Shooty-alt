@@ -3,7 +3,9 @@ extends EditorDock
 ## The Map dock. Kinds: the map's palette as swatches. Click one to make it the kind
 ## new blocks get, and to paint the selected blocks with it; right-click one to
 ## select every block of that kind. Prefabs: groups of blocks saved under
-## game/maps/prefabs; pick one and click in the map to put a copy down.
+## game/maps/prefabs; pick one and click in the map to put a copy down (Place Linked:
+## the prefab itself, which changes when the prefab does). Layers: the map's top-level
+## groups, each with switches for in view (editor only), locked, and in the game.
 ##
 ## It only shows things and says what was pressed; plugin.gd acts.
 
@@ -18,7 +20,15 @@ signal kind_selected(kind: String)
 signal add_kind_pressed
 ## Place was pressed (or a prefab double-clicked): the prefab's file.
 signal prefab_chosen(path: String)
+## Place Linked was pressed: the prefab's file.
+signal prefab_linked(path: String)
 signal save_prefab_pressed
+## A layer's switch: `what` is "view", "lock" or "game".
+signal layer_toggled(node: Node3D, what: String, on: bool)
+## The Problems list's Check was pressed (`flicker`: look for flickering too).
+signal check_requested(flicker: bool)
+## A problem was picked in the list: its index.
+signal problem_chosen(index: int)
 
 var ctx: RefCounted   # MapContext
 
@@ -28,6 +38,9 @@ var _add_kind: Button
 var _prefabs: ItemList
 var _place: Button
 var _missing: Label
+var _layers: VBoxContainer
+var _problems: ItemList
+var _problems_note: Label
 var _dirty := true
 var _palette: MapPalette
 
@@ -79,12 +92,69 @@ func _init() -> void:
 		if not picked.is_empty():
 			prefab_chosen.emit(_prefabs.get_item_metadata(picked[0])))
 	row.add_child(_place)
+	var linked := Button.new()
+	linked.text = "Place Linked"
+	linked.tooltip_text = "Then click in the map: each click puts down the prefab itself, linked to its file, so every linked copy changes when you change the prefab. (To change one copy alone, right-click it in the Scene dock and Make Local.) Esc to stop."
+	linked.pressed.connect(func() -> void:
+		var picked := _prefabs.get_selected_items()
+		if not picked.is_empty():
+			prefab_linked.emit(_prefabs.get_item_metadata(picked[0])))
+	row.add_child(linked)
 	var save := Button.new()
 	save.text = "Save Selection..."
 	save.tooltip_text = "Save the selected blocks and groups as a prefab."
 	save.pressed.connect(func() -> void: save_prefab_pressed.emit())
 	row.add_child(save)
+
+	var layers_tab := VBoxContainer.new()
+	layers_tab.name = "Layers"
+	tabs.add_child(layers_tab)
+	var key := Label.new()
+	key.text = "View: shown in the editor.  Lock: clicks in the 3D view pass it by.  Game: in the game (off: left out, as the eye icon does)."
+	key.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layers_tab.add_child(key)
+	var layer_scroll := ScrollContainer.new()
+	layer_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layer_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	layers_tab.add_child(layer_scroll)
+	_layers = VBoxContainer.new()
+	_layers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layer_scroll.add_child(_layers)
+
+	var problems_tab := VBoxContainer.new()
+	problems_tab.name = "Problems"
+	tabs.add_child(problems_tab)
+	var check_row := HBoxContainer.new()
+	problems_tab.add_child(check_row)
+	var flicker := CheckBox.new()
+	flicker.text = "Flickering too (slow)"
+	flicker.tooltip_text = "Also look for two colours in one plane where both show (they flicker as the camera moves). Takes a while on a big map."
+	var check := Button.new()
+	check.text = "Check Map"
+	check.tooltip_text = "Look the open map over: block warnings, leftover slivers, spawn points, terminals without their event."
+	check.pressed.connect(func() -> void: check_requested.emit(flicker.button_pressed))
+	check_row.add_child(check)
+	check_row.add_child(flicker)
+	_problems_note = Label.new()
+	_problems_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_problems_note.text = "Press Check Map. Click a problem to select what it is about."
+	problems_tab.add_child(_problems_note)
+	_problems = ItemList.new()
+	_problems.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_problems.item_selected.connect(func(i: int) -> void: problem_chosen.emit(i))
+	problems_tab.add_child(_problems)
 	set_process(true)
+
+
+## Shows what a check found (the texts, worst first).
+func show_problems(texts: Array) -> void:
+	if _problems == null:
+		return
+	_problems.clear()
+	for t: String in texts:
+		var i := _problems.add_item(t)
+		_problems.set_item_tooltip(i, t)
+	_problems_note.text = "Nothing found." if texts.is_empty() else "%d found. Click one to select what it is about." % texts.size()
 
 
 ## Something it shows may have changed: redraw soon (once, however often this is called).
@@ -96,6 +166,42 @@ func _process(_delta: float) -> void:
 	if _dirty and is_visible_in_tree():
 		_dirty = false
 		_refresh_kinds()
+		_refresh_layers()
+
+
+## The map's layers: its top-level groups that hold blocks.
+func _refresh_layers() -> void:
+	for c in _layers.get_children():
+		_layers.remove_child(c)
+		c.queue_free()
+	if ctx == null or ctx.map == null:
+		return
+	var hidden: Dictionary = Engine.get_meta(&"map_tools_view_hidden", {})
+	for node in ctx.map.get_children():
+		if not (node is Node3D) or node is MapBlock:
+			continue
+		var count := MapOps.blocks_in(node).size()
+		if count == 0:
+			continue
+		var layer := node as Node3D
+		var row := HBoxContainer.new()
+		for spec in [["view", "View", not hidden.has(layer.get_instance_id()), "Shown in the editor (the scene is not changed)."],
+				["lock", "Lock", layer.get_meta("_edit_lock_", false), "Locked: clicks in the 3D view pass it by."],
+				["game", "Game", layer.visible, "In the game. Off: left out of the game (the eye icon)."]]:
+			var box := CheckBox.new()
+			box.text = spec[1]
+			box.button_pressed = spec[2]
+			box.tooltip_text = spec[3]
+			box.focus_mode = Control.FOCUS_NONE
+			box.toggled.connect(func(on: bool) -> void: layer_toggled.emit(layer, spec[0], on))
+			row.add_child(box)
+		var label := Label.new()
+		label.text = "%s   %d" % [layer.name, count]
+		label.tooltip_text = "%d blocks." % count
+		label.clip_text = true
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		_layers.add_child(row)
 
 
 func _refresh_kinds() -> void:

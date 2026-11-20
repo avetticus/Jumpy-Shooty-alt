@@ -10,14 +10,16 @@ const MapEdit := preload("res://addons/map_tools/map_edit.gd")
 const PIECES := ["Stairs", "Row", "Ring"]
 
 
-## Each selected box becomes a room of walls `thickness` thick.
+## Each selected block becomes a room of walls `thickness` thick: a box as six walls
+## that do not overlap (MapOps.hollow), any other one-lump shape as walls square to its
+## faces (MapOps.hollowed).
 static func hollow(ctx: RefCounted, thickness: float, open_top: bool, no_floor: bool) -> RefCounted:
 	var edit := MapEdit.new()
 	edit.name = "Hollow map block"
 	for n in ctx.selected():
 		if not (n is MapBlock):
 			continue
-		var room := MapOps.hollow(n, thickness, open_top, no_floor)
+		var room := _room(n, thickness, open_top, no_floor)
 		if room == null:
 			continue
 		edit.removes.append(n)
@@ -27,13 +29,120 @@ static func hollow(ctx: RefCounted, thickness: float, open_top: bool, no_floor: 
 	return edit
 
 
+static func _room(block: MapBlock, thickness: float, open_top: bool, no_floor: bool) -> Node3D:
+	if block.shape == MapBlock.Shape.BOX:
+		return MapOps.hollow(block, thickness, open_top, no_floor)
+	return MapOps.hollowed(block, thickness, open_top, no_floor)
+
+
 ## How many of the selected nodes Hollow would change.
 static func hollowable(ctx: RefCounted, thickness: float) -> int:
 	var count := 0
 	for n in ctx.selected():
-		if n is MapBlock and MapOps.can_hollow(n, thickness):
+		if not (n is MapBlock):
+			continue
+		if (n as MapBlock).shape == MapBlock.Shape.BOX:
+			if MapOps.can_hollow(n, thickness):
+				count += 1
+			continue
+		var room := MapOps.hollowed(n, thickness)
+		if room:
 			count += 1
+			room.free()
 	return count
+
+
+## The selected blocks a CSG command works on: not those a piece made.
+static func _csg_blocks(ctx: RefCounted) -> Array:
+	return ctx.selected_blocks().filter(func(b: MapBlock) -> bool: return not b.has_meta(MapPiece.GENERATED))
+
+
+## Subtract: the selected blocks carve their shapes out of every other block they
+## overlap (each becomes a group of the pieces left, or goes if nothing is), and then
+## go themselves. Nothing happens if they overlap nothing.
+static func subtract(ctx: RefCounted) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Subtract map blocks"
+	var cutters := _csg_blocks(ctx)
+	var shapes := []
+	var reach := AABB()
+	for c: MapBlock in cutters:
+		var planes := MapOps.world_planes(c)
+		if planes.is_empty():
+			continue
+		shapes.append(planes)
+		var box := MapOps.bounds_of([c])
+		reach = box if shapes.size() == 1 else reach.merge(box)
+	if shapes.is_empty():
+		return edit
+	for e in ctx.blocks():
+		var b: MapBlock = e.block
+		if b in cutters or b.has_meta(MapPiece.GENERATED) or not MapOps.bounds_of([b]).intersects(reach):
+			continue
+		var left := MapOps.subtracted(b, shapes)
+		if left == null:
+			continue
+		edit.removes.append(b)
+		if left.get_child_count() > 0:
+			edit.adds.append([b.get_parent(), left, b.get_index()])
+			edit.select.append(left)
+		else:
+			left.free()
+	if edit.removes.is_empty():
+		return edit
+	for c: MapBlock in cutters:
+		edit.removes.append(c)
+	edit.reselect = true
+	return edit
+
+
+## Merge: the selected blocks become one, the smallest convex block round them all
+## (with the first one's settings). Nothing happens if one is not a single lump or the
+## result would have too many corners, or if a block other than the first has
+## something standing under it (it would be lost).
+static func merge(ctx: RefCounted) -> RefCounted:
+	return _combine(ctx, "Merge map blocks", MapOps.merged)
+
+
+## Intersect: the selected blocks become one, the part they all share.
+static func intersect(ctx: RefCounted) -> RefCounted:
+	return _combine(ctx, "Intersect map blocks", MapOps.intersected)
+
+
+static func _combine(ctx: RefCounted, title: String, how: Callable) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = title
+	# The selected blocks themselves (inside a selected group: its blocks), not what
+	# stands under a block.
+	var blocks := []
+	for n in ctx.selected_tops():
+		var mine: Array = [n] if n is MapBlock else MapOps.blocks_in(n).filter(func(b: MapBlock) -> bool: return not (b.get_parent() is MapBlock))
+		for b: MapBlock in mine:
+			if not b.has_meta(MapPiece.GENERATED):
+				blocks.append(b)
+	if blocks.size() < 2:
+		return edit
+	for i in range(1, blocks.size()):
+		if (blocks[i] as Node).get_child_count() > 0:
+			return edit   # something stands under it that would be lost
+	var made: MapBlock = how.call(blocks)
+	if made == null:
+		return edit
+	var first: MapBlock = blocks[0]
+	for c in made.get_children():   # (copies of what stood under the first: it stays itself)
+		made.remove_child(c)
+		c.free()
+	for c in first.get_children():
+		var dup := MapPiece.copy(c)
+		made.add_child(dup)
+		if dup is Node3D:   # stays where it stood in the map
+			(dup as Node3D).transform = made.transform.affine_inverse() * first.transform * (c as Node3D).transform
+	edit.adds.append([first.get_parent(), made, first.get_index()])
+	for b: MapBlock in blocks:
+		edit.removes.append(b)
+	edit.select = [made]
+	edit.reselect = true
+	return edit
 
 
 ## Mirrors the selection across the plane through `pivot` facing along `axis` (0 x,
@@ -49,7 +158,32 @@ static func mirror(ctx: RefCounted, axis: int, pivot: Vector3, copy: bool) -> Re
 		else:
 			for step in MapOps.mirror_plan(n, axis, pivot):
 				edit.sets.append([step[0], "transform", step[1], (step[0] as Node3D).transform])
+			for hull in MapOps.hulls_in(n):
+				edit.sets.append([hull, "points", MapOps.mirrored_points(hull), hull.points])
+			for painted in MapOps.painted_in(n):
+				var faces := MapOps.mirrored_faces(painted)
+				edit.sets.append([painted, "face_kinds", faces[0], painted.face_kinds])
+				edit.sets.append([painted, "face_patterns", faces[1], painted.face_patterns])
 	edit.reselect = copy and not edit.select.is_empty()
+	return edit
+
+
+## Each selected block becomes hull blocks of the same shape, whose corners can be
+## edited (MapOps.make_editable). Blocks already hulls, blocks a piece made, and
+## shapes with too many corners are left as they are.
+static func make_editable(ctx: RefCounted) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Make map blocks editable"
+	for b: MapBlock in ctx.selected_blocks():
+		if b.has_meta(MapPiece.GENERATED):
+			continue
+		var made := MapOps.make_editable(b)
+		if made == null:
+			continue
+		edit.removes.append(b)
+		edit.adds.append([b.get_parent(), made, b.get_index()])
+		edit.select.append(made)
+	edit.reselect = not edit.select.is_empty()
 	return edit
 
 
@@ -137,6 +271,77 @@ static func snap_to_neighbours(ctx: RefCounted) -> RefCounted:
 		var to: Vector3 = n.position + MapOps.parent_global(n).basis.inverse() * (frame.basis * move)
 		edit.sets.append([n, "position", to, n.position])
 	return edit
+
+
+## Nudge: every selected thing moved `delta` (metres, in the map). `copy`: copies of
+## them are moved instead, and selected (press again to lay out a row).
+static func nudge(ctx: RefCounted, delta: Vector3, copy: bool) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Duplicate and move map blocks" if copy else "Move map blocks"
+	for n in ctx.selected_tops():
+		var step := MapOps.parent_global(n).basis.inverse() * delta
+		if copy:
+			var dup := MapPiece.copy(n) as Node3D
+			dup.position = n.position + step
+			edit.adds.append([n.get_parent(), dup, n.get_index() + 1])
+			edit.select.append(dup)
+		else:
+			edit.sets.append([n, "position", n.position + step, n.position])
+	edit.reselect = copy and not edit.select.is_empty()
+	return edit
+
+
+## Turns the selection a quarter turn (`dir` 1 or -1, counter-clockwise seen from the
+## + end of the axis) about the map's axis `axis` (0 x, 1 y, 2 z) through its middle.
+static func turn(ctx: RefCounted, axis: int, dir: int) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Turn map blocks"
+	var tops: Array = ctx.selected_tops()
+	if tops.is_empty():
+		return edit
+	var pivot := MapOps.bounds_of(tops).get_center()
+	for n in tops:
+		var now := MapOps.quarter_turned(MapOps.global_of(n), axis, dir, pivot)
+		edit.sets.append([n, "transform", MapOps.parent_global(n).affine_inverse() * now, n.transform])
+	return edit
+
+
+## What Select Touching, Inside or Tall ("touching", "inside", "tall") picks: the
+## blocks shown that are not selected and touch, lie inside, or stand within the ground
+## plan of the selected ones, as the editor's own click would pick them (a whole group).
+static func related(ctx: RefCounted, how: String) -> Array:
+	var chosen: Array = ctx.selected_blocks()
+	if chosen.is_empty():
+		return []
+	var others := []
+	for e in ctx.blocks():
+		if e.block not in chosen:
+			others.append(e.block)
+	var found: Array
+	match how:
+		"touching": found = MapOps.touching(chosen, others)
+		"inside": found = MapOps.inside(chosen, others)
+		_: found = MapOps.tall(chosen, others)
+	return _pickable(ctx, found)
+
+
+## Invert Selection: everything shown that is not selected (as the editor's click picks).
+static func inverted(ctx: RefCounted) -> Array:
+	var chosen: Array = ctx.selected_blocks()
+	var others := []
+	for e in ctx.blocks():
+		if e.block not in chosen:
+			others.append(e.block)
+	return _pickable(ctx, others)
+
+
+static func _pickable(ctx: RefCounted, blocks: Array) -> Array:
+	var out := []
+	for b in blocks:
+		var node: Node = ctx.selectable(b)
+		if node and node not in out and node not in ctx.selected():
+			out.append(node)
+	return out
 
 
 ## A new piece of the given sort ("Stairs": stairs or a ramp; "Row"; "Ring") with its blocks

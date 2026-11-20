@@ -53,6 +53,21 @@ void vertex() {
 		map_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 		map_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	}
+	// A face whose pattern was moved, turned or scaled (MapBlock.face_patterns, through
+	// MapMesher): CUSTOM0 is (across, up, turn in radians, scale - 1), all 0 for a face
+	// left as it is. The pattern is measured from a place turned about the face's normal,
+	// shrunk by the scale, and slid along the face.
+	if (CUSTOM0 != vec4(0.0)) {
+		vec3 n = normalize(map_normal);
+		vec3 u = normalize(abs(n.y) < 0.9 ? cross(vec3(0.0, 1.0, 0.0), n) : cross(vec3(1.0, 0.0, 0.0), n));
+		vec3 v = cross(n, u);
+		float grow = max(1.0 + CUSTOM0.w, 0.01);
+		vec2 across = vec2(dot(map_pos, u), dot(map_pos, v));
+		float ct = cos(CUSTOM0.z);
+		float st = sin(CUSTOM0.z);
+		across = vec2(across.x * ct - across.y * st, across.x * st + across.y * ct) / grow + CUSTOM0.xy;
+		map_pos = u * across.x + v * across.y + n * dot(map_pos, n);
+	}
 }
 
 float hash(vec2 p) {

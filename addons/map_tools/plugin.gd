@@ -25,10 +25,13 @@ const MapToolbar := preload("res://addons/map_tools/map_toolbar.gd")
 const MapDialogs := preload("res://addons/map_tools/map_dialogs.gd")
 const MapDock := preload("res://addons/map_tools/map_dock.gd")
 const PieceInspector := preload("res://addons/map_tools/piece_inspector.gd")
+const MapAids := preload("res://addons/map_tools/map_aids.gd")
+const MapProblems := preload("res://addons/map_tools/map_problems.gd")
 
-## The tools. Draw and Clip have a button in the strip; SELECT is none of them: the
-## editor.s own select, move, rotate and scale.
-enum Tool { SELECT, DRAW, CLIP, PLACE }
+## The tools. Draw, Clip, Vertex and Paint have a button in the strip (in this order:
+## the strip counts them from 1); SELECT is none of them: the editor's own select, move,
+## rotate and scale.
+enum Tool { SELECT, DRAW, CLIP, VERTEX, PAINT, PLACE }
 
 ## Editor shortcuts (Editor Settings > Shortcuts > Map Tools): [name, title, key, with Alt].
 const SHORTCUTS := [
@@ -37,6 +40,8 @@ const SHORTCUTS := [
 	["tool_draw", "Draw Tool", KEY_B, false],
 	["tool_clip", "Clip Tool", KEY_K, false],
 	["clip_turn", "Clip: Next Cut Direction", KEY_X, false],
+	["tool_vertex", "Vertex Tool", KEY_V, false],
+	["tool_paint", "Paint Tool", KEY_P, false],
 	["solid", "Toggle Solid", KEY_S, true],
 	["drawn", "Toggle Drawn", KEY_D, true],
 	["breakable", "Toggle Breakable", KEY_B, true],
@@ -56,6 +61,10 @@ var _toolbar: HBoxContainer
 var _dialogs: Node
 var _dock: EditorDock
 var _inspector: EditorInspectorPlugin
+var _mouse := {}           # a 3D view's camera (instance id) -> where the mouse is over it
+## The aids drawn over the 3D view (map_aids.gd), each on or off (Map menu).
+var _aids := {"grid": true, "edges": true, "links": true}
+var _problems := []        # what the Problems list last found (MapProblems.find)
 
 
 func _enter_tree() -> void:
@@ -64,7 +73,9 @@ func _enter_tree() -> void:
 	ctx.commit = apply_edit
 	ctx.select = _select
 	ctx.grid = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "grid", 0.5)
-	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.PLACE, "tool_place.gd"]]:
+	for aid in _aids:
+		_aids[aid] = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "aid_" + aid, true)
+	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.VERTEX, "tool_vertex.gd"], [Tool.PAINT, "tool_paint.gd"], [Tool.PLACE, "tool_place.gd"]]:
 		var made: RefCounted = load("res://addons/map_tools/" + t[1]).new()
 		made.ctx = ctx
 		_tools[t[0]] = made
@@ -94,6 +105,10 @@ func _enter_tree() -> void:
 	_dock.kind_selected.connect(_on_kind_selected)
 	_dock.add_kind_pressed.connect(func() -> void: _dialogs.ask_kind(_add_kind))
 	_dock.prefab_chosen.connect(place_prefab)
+	_dock.prefab_linked.connect(func(path: String) -> void: place_prefab(path, true))
+	_dock.layer_toggled.connect(_on_layer_toggled)
+	_dock.check_requested.connect(_check_problems)
+	_dock.problem_chosen.connect(_on_problem_chosen)
 	_dock.save_prefab_pressed.connect(func() -> void: run("prefab"))
 	add_dock(_dock)
 	_inspector = PieceInspector.new()
@@ -106,6 +121,8 @@ func _enter_tree() -> void:
 	get_undo_redo().version_changed.connect(_on_edited)
 	get_undo_redo().history_changed.connect(_on_edited)   # this one fires when a step is first done
 	ctx.changed.connect(_on_context_changed)
+	EditorInterface.get_selection().selection_changed.connect(update_overlays)   # (the selected edges)
+	EditorInterface.get_selection().selection_changed.connect(_update_live)
 	EditorInterface.get_resource_filesystem().filesystem_changed.connect(_dock.refresh_prefabs)
 	_dock.refresh_prefabs()
 	_on_scene_changed(EditorInterface.get_edited_scene_root())
@@ -113,6 +130,9 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	scene_changed.disconnect(_on_scene_changed)
+	EditorInterface.get_selection().selection_changed.disconnect(update_overlays)
+	EditorInterface.get_selection().selection_changed.disconnect(_update_live)
+	_set_live({})
 	get_undo_redo().version_changed.disconnect(_on_edited)
 	get_undo_redo().history_changed.disconnect(_on_edited)
 	EditorInterface.get_resource_filesystem().filesystem_changed.disconnect(_dock.refresh_prefabs)
@@ -142,6 +162,15 @@ func _on_scene_changed(root: Node) -> void:
 	for t in _tools.values():
 		t.cancel()
 	tool = Tool.SELECT
+	ctx.editing_corners = false
+	# The view-only lists belong to the scene they were made in.
+	Engine.set_meta(&"map_tools_isolated", {})
+	Engine.set_meta(&"map_tools_view_hidden", {})
+	_toolbar.show_view("view:isolate", false)
+	for aid in _aids:
+		_toolbar.show_view("view:" + aid, _aids[aid])
+	_problems = []
+	_dock.show_problems([])
 	ctx.map = root as MapRoot
 	_toolbar.visible = ctx.map != null
 	if ctx.map and ctx.map.palette and not ctx.map.palette.colors.has(ctx.kind) and not ctx.map.palette.colors.is_empty():
@@ -170,6 +199,43 @@ func _on_context_changed() -> void:
 
 func _selected() -> Array:
 	return EditorInterface.get_selection().get_selected_nodes()
+
+
+## The most blocks a selection gives meshes of their own. A map draws its blocks merged
+## in the editor (MapRoot.editor_draw); the picked ones get their own (MapBlock's
+## "map_tools_live"), so that dragging one redraws only it and the editor's selection
+## box goes round it. Past this many (a big group picked whole) the rest stay merged:
+## a mesh for each of thousands of blocks runs some graphics drivers out of buffers.
+const LIVE_MOST := 300
+
+
+## The selection changed: the blocks in it get meshes of their own, the ones that
+## left it go back to being drawn merged.
+func _update_live() -> void:
+	var live := {}
+	for n in _selected():
+		_gather_live(n, live)
+	_set_live(live)
+
+
+func _gather_live(node: Node, live: Dictionary) -> void:
+	if live.size() >= LIVE_MOST:
+		return
+	if node is MapBlock:
+		live[node.get_instance_id()] = true
+	for c in node.get_children():
+		_gather_live(c, live)
+
+
+func _set_live(live: Dictionary) -> void:
+	var was: Dictionary = Engine.get_meta(&"map_tools_live", {})
+	Engine.set_meta(&"map_tools_live", live)
+	for id: int in was.keys() + live.keys():
+		if was.has(id) == live.has(id):
+			continue
+		var block := instance_from_id(id) as MapBlock
+		if block and block.is_inside_tree():
+			block.refresh_preview()
 
 
 func _select(nodes: Array) -> void:
@@ -237,6 +303,12 @@ func set_tool(to: int) -> void:
 		_tools[tool].cancel()
 	tool = to as Tool
 	_toolbar.show_state(tool, ctx.grid)
+	# The Vertex and Paint tools take the clicks: the face handles are put away meanwhile.
+	ctx.editing_corners = tool == Tool.VERTEX or tool == Tool.PAINT
+	for n in _selected():
+		if n is Node3D:
+			for b in MapOps.blocks_in(n):
+				b.update_gizmos()
 	update_overlays()
 
 
@@ -251,13 +323,19 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		return AFTER_GUI_INPUT_PASS
 	var view := _view_of(camera)
 	var used := false
+	if event is InputEventMouseMotion:
+		_mouse[camera.get_instance_id()] = (event as InputEventMouseMotion).position
+		if _aids.grid:
+			update_overlays()   # the grid follows the mouse
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 		ctx.touch()   # a click always works from the scene as it is now
 	if _tools.has(tool):
 		used = _tools[tool].input(view, event)
-		if event is InputEventMouse:
+		if event is InputEventMouse or used:
 			update_overlays()
 	var key := event as InputEventKey
+	if not used and key and key.pressed and tool == Tool.SELECT and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		used = _nudge_key(view, key)   # (held down, an arrow key repeats)
 	if not used and key and key.pressed and not key.echo and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		used = _key(key)
 	# A button whose press a tool used: its release is the tool's too, whatever the tool
@@ -285,6 +363,8 @@ func _key(key: InputEventKey) -> bool:
 			"grid_up": step_grid(1)
 			"tool_draw": set_tool(Tool.SELECT if tool == Tool.DRAW else Tool.DRAW)
 			"tool_clip": set_tool(Tool.SELECT if tool == Tool.CLIP else Tool.CLIP)
+			"tool_vertex": set_tool(Tool.SELECT if tool == Tool.VERTEX else Tool.VERTEX)
+			"tool_paint": set_tool(Tool.SELECT if tool == Tool.PAINT else Tool.PAINT)
 			"clip_turn":
 				if tool != Tool.CLIP:
 					return false
@@ -298,12 +378,57 @@ func _key(key: InputEventKey) -> bool:
 	return false
 
 
+## The arrow keys (and Page Up, Page Down) move the selection a grid square, across
+## the view; with Shift, a copy moves instead. False if it is not one of those keys
+## or nothing in the map is selected.
+func _nudge_key(view: RefCounted, key: InputEventKey) -> bool:
+	if key.alt_pressed or key.is_command_or_control_pressed():
+		return false
+	var dir: Vector3 = MapOps.arrow_direction((view.camera as Camera3D).global_basis, view.ortho_axis(), key.keycode)
+	if dir == Vector3.ZERO or ctx.selected_tops().is_empty():
+		return false
+	if key.shift_pressed and key.echo:
+		return true   # (a held Shift+arrow would lay copies down as fast as the key repeats)
+	var focus := _focused()
+	apply_edit(MapCommands.nudge(ctx, dir * ctx.grid, key.shift_pressed))
+	_keep_focus(focus)
+	return true
+
+
+## The control the keyboard is on (the 3D view, when a key reaches the map tools).
+func _focused() -> Control:
+	return EditorInterface.get_base_control().get_viewport().gui_get_focus_owner()
+
+
+## Gives the keyboard back to `focus` after an edit: changing the scene or the
+## selection makes the Scene dock and the Inspector redraw, and they can take the
+## keyboard, so the next arrow key would move about in them instead of nudging. Done at
+## once, and again once the frame is over (when they have finished redrawing).
+func _keep_focus(focus: Control) -> void:
+	if focus == null:
+		return
+	var back := func() -> void:
+		if is_instance_valid(focus) and focus.is_visible_in_tree() and _focused() != focus:
+			focus.grab_focus()
+	back.call_deferred()
+	get_tree().process_frame.connect(back, CONNECT_ONE_SHOT)
+
+
 func _forward_3d_force_draw_over_viewport(overlay: Control) -> void:
-	if ctx.map == null or not _tools.has(tool):
+	if ctx.map == null or not is_instance_valid(ctx.map):
 		return
 	var camera := _camera_for(overlay)
-	if camera:
-		_tools[tool].draw(_view_of(camera), overlay)
+	if camera == null:
+		return
+	var view := _view_of(camera)
+	if _aids.links:
+		MapAids.draw_links(view, overlay, ctx.map)
+	if _aids.edges and tool != Tool.VERTEX:   # (the Vertex tool draws its own)
+		MapAids.draw_selected_edges(view, overlay, ctx)
+	if _aids.grid:
+		MapAids.draw_grid(view, overlay, ctx, _mouse.get(camera.get_instance_id()))
+	if _tools.has(tool):
+		_tools[tool].draw(view, overlay)
 
 
 func _view_of(camera: Camera3D) -> RefCounted:
@@ -339,15 +464,50 @@ func run(what: String) -> void:
 		_tools[Tool.PLACE].start(func() -> Node3D: return MapCommands.new_piece(sort, ctx.kind), sort.to_lower())
 		set_tool(Tool.PLACE)
 		return
+	if what.begins_with("turn:"):
+		var parts := what.split(":")
+		if ctx.selected_tops().is_empty():
+			_dialogs.tell("Select the blocks or groups to turn.")
+		else:
+			apply_edit(MapCommands.turn(ctx, int(parts[1]), int(parts[2])))
+		return
+	if what.begins_with("select:"):
+		var how := what.trim_prefix("select:")
+		if how != "invert" and ctx.selected_blocks().is_empty():
+			_dialogs.tell("Select some blocks first: this picks the blocks that touch them, lie inside them, or stand within their ground plan.")
+			return
+		_select(MapCommands.inverted(ctx) if how == "invert" else MapCommands.related(ctx, how))
+		return
 	match what:
 		"solid", "drawn", "breakable":
 			apply_edit(MapCommands.toggle(ctx, what))
 		"snap":
 			apply_edit(MapCommands.snap_to_neighbours(ctx))
+		"csg_subtract":
+			var edit := MapCommands.subtract(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select the blocks to carve out of the others. They are taken out of every block they overlap, and then removed. (Tubes, arches and hollow domes cannot be cut: Make Editable them first.)")
+			else:
+				apply_edit(edit)
+		"csg_merge", "csg_intersect":
+			var edit: RefCounted = MapCommands.merge(ctx) if what == "csg_merge" else MapCommands.intersect(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select two or more blocks to %s. Each must be one solid lump (not a tube, an arch or a hollow dome), only the first may have things standing under it, and the result can have at most %d corners.%s" % [
+					"merge into one" if what == "csg_merge" else "turn into the part they share",
+					MapMesher.MAX_HULL_CORNERS,
+					"" if what == "csg_merge" else " They must overlap."])
+			else:
+				apply_edit(edit)
+		"make_editable":
+			var edit := MapCommands.make_editable(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select one or more MapBlocks to make into hull blocks. Blocks that already are hulls, blocks a Stairs, Row or Ring piece made, and shapes of more than %d corners (lower their Sides) are left as they are." % MapMesher.MAX_HULL_CORNERS)
+			else:
+				apply_edit(edit)
 		"hollow":
 			var thickness := maxf(ctx.grid, 0.1) if ctx.grid <= 0.5 else 0.25
 			if MapCommands.hollowable(ctx, 0.05) == 0:
-				_dialogs.tell("Select one or more box-shaped MapBlocks to hollow. (A group is not hollowed: pick the block itself in the Scene dock.)")
+				_dialogs.tell("Select one or more MapBlocks to hollow (any one-lump shape: not a tube, an arch or a hollow dome). (A group is not hollowed: pick the block itself in the Scene dock.)")
 				return
 			_dialogs.ask_hollow(thickness, func(t: float, open_top: bool, no_floor: bool) -> void:
 				if MapCommands.hollowable(ctx, t) == 0:
@@ -382,9 +542,88 @@ func run(what: String) -> void:
 		"view:solid":
 			_set_solid_only(not ctx.solid_only)
 			_toolbar.show_view(what, ctx.solid_only)
+		"view:grid", "view:edges", "view:links":
+			var aid := what.trim_prefix("view:")
+			_aids[aid] = not _aids[aid]
+			EditorInterface.get_editor_settings().set_project_metadata("map_tools", "aid_" + aid, _aids[aid])
+			_toolbar.show_view(what, _aids[aid])
+			update_overlays()
+		"view:isolate":
+			var isolated: Dictionary = Engine.get_meta(&"map_tools_isolated", {})
+			if isolated.is_empty():
+				var tops: Array = ctx.selected_tops()
+				if tops.is_empty():
+					_dialogs.tell("Select what to see on its own.")
+					_toolbar.show_view(what, false)
+					return
+				for n in tops:
+					isolated[n.get_instance_id()] = true
+			else:
+				isolated = {}
+			_set_view_meta(&"map_tools_isolated", isolated)
+			_toolbar.show_view(what, not isolated.is_empty())
 
 
 ## Editor view: show only the blocks you can bump into.
+## Sets one of the editor's view-only lists (map_tools_isolated, map_tools_view_hidden:
+## see MapBlock.view_hides) and redraws the blocks.
+func _set_view_meta(key: StringName, ids: Dictionary) -> void:
+	Engine.set_meta(key, ids)
+	ctx.touch()
+	if ctx.map and is_instance_valid(ctx.map):
+		for b in MapOps.blocks_in(ctx.map):
+			b.refresh_preview()
+	_dock.queue_refresh()
+	update_overlays()
+
+
+## The Problems list's Check: look the map over (`flicker`: for flickering surfaces too).
+func _check_problems(flicker: bool) -> void:
+	if ctx.map == null or not is_instance_valid(ctx.map):
+		return
+	_problems = MapProblems.find(ctx.map, flicker)
+	_dock.show_problems(_problems.map(func(p: Dictionary) -> String: return p.text))
+
+
+## A problem picked in the list: select what it is about.
+func _on_problem_chosen(index: int) -> void:
+	if index < 0 or index >= _problems.size():
+		return
+	_select((_problems[index].nodes as Array).filter(func(n: Node) -> bool: return is_instance_valid(n) and n.is_inside_tree()))
+
+
+## A switch in the Map dock's Layers: `what` is "view" (shown in the editor; the scene
+## is not changed), "lock" (clicks in the 3D view do not pick it) or "game" (left in the
+## game, or out: the eye icon).
+func _on_layer_toggled(node: Node3D, what: String, on: bool) -> void:
+	if not is_instance_valid(node):
+		return
+	match what:
+		"view":
+			var hidden: Dictionary = Engine.get_meta(&"map_tools_view_hidden", {}).duplicate()
+			if on:
+				hidden.erase(node.get_instance_id())
+			else:
+				hidden[node.get_instance_id()] = true
+			_set_view_meta(&"map_tools_view_hidden", hidden)
+		"lock":
+			var edit := MapEdit.new()
+			edit.name = "Lock layer %s" % node.name if on else "Unlock layer %s" % node.name
+			if on:
+				edit.do_calls.append([node, "set_meta", "_edit_lock_", true])
+				edit.undo_calls.append([node, "remove_meta", "_edit_lock_"])
+			else:
+				edit.do_calls.append([node, "remove_meta", "_edit_lock_"])
+				edit.undo_calls.append([node, "set_meta", "_edit_lock_", true])
+			apply_edit(edit)
+		"game":
+			var edit := MapEdit.new()
+			edit.name = "Put layer %s %s the game" % [node.name, "in" if on else "out of"]
+			edit.sets.append([node, "visible", on, node.visible])
+			apply_edit(edit)
+	_dock.queue_refresh()
+
+
 func _set_solid_only(on: bool) -> void:
 	ctx.solid_only = on
 	Engine.set_meta(&"map_tools_solid_only", on)
@@ -396,6 +635,9 @@ func _set_solid_only(on: bool) -> void:
 
 func _on_kind_chosen(kind: String) -> void:
 	ctx.kind = kind
+	if tool == Tool.PAINT and not _tools[Tool.PAINT].picked.is_empty():
+		_tools[Tool.PAINT].paint(_tools[Tool.PAINT].picked, kind)   # the picked faces, not whole blocks
+		return
 	apply_edit(MapCommands.paint(ctx, kind))
 
 
@@ -461,12 +703,17 @@ func _save_prefab(prefab_name: String) -> void:
 	_dock.refresh_prefabs()
 
 
-## Starts placing copies of a prefab with clicks in the map.
-func place_prefab(path: String) -> void:
+## Starts placing copies of a prefab with clicks in the map: plain blocks, or
+## `linked`, the prefab scene itself (it changes when the prefab does).
+func place_prefab(path: String, linked := false) -> void:
 	var scene := load(path) as PackedScene
 	if scene == null or ctx.map == null:
 		return
-	_tools[Tool.PLACE].start(func() -> Node3D: return MapOps.place_prefab(scene), path.get_file().get_basename())
+	if linked and ctx.map.scene_file_path == path:
+		_dialogs.tell("A prefab cannot be placed inside itself.")
+		return
+	var make := func() -> Node3D: return MapOps.place_prefab_linked(scene) if linked else MapOps.place_prefab(scene)
+	_tools[Tool.PLACE].start(make, path.get_file().get_basename())
 	set_tool(Tool.PLACE)
 
 

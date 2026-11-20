@@ -33,6 +33,9 @@ var kind := "concrete":
 ## Editor view: leave out blocks that are drawn only (set with the plugin's switch).
 var solid_only := false
 
+## The Vertex tool is on: blocks show no face handles (block_gizmo.gd).
+var editing_corners := false
+
 ## () -> Array of the selected nodes.
 var selection := Callable()
 ## (MapEdit): make this change (as one undo step, in the editor).
@@ -89,7 +92,7 @@ func _gather(node: Node) -> void:
 			continue
 		if c is MapBlock:
 			var b := c as MapBlock
-			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only):
+			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only) and not MapBlock.view_hides(b):
 				var box := MapOps.box_of(b)
 				_cache.append({"block": b, "xf": box[0], "half": box[1]})
 		_gather(c)
@@ -130,9 +133,31 @@ func selectable(node: Node) -> Node:
 		if up.get_meta("_edit_group_", false):
 			result = up
 		up = up.get_parent()
-	if result.get_meta("_edit_lock_", false):
-		return null
+	# Locked, or inside something locked (a layer locked in the Map dock): not picked.
+	var held := result
+	while held and held != map:
+		if held.get_meta("_edit_lock_", false):
+			return null
+		held = held.get_parent()
 	return result
+
+
+## A click that a tool took for itself but that was only a click: select the block
+## under it as the editor's own click would (`adding`, Shift: add it to the
+## selection). Nothing under it: select nothing.
+func click_select(origin: Vector3, dir: Vector3, adding: bool) -> void:
+	var hit := pick(origin, dir)
+	if hit.is_empty():
+		if not adding:
+			select.call([])
+		return
+	var node := selectable(hit.block)
+	if node == null:
+		return
+	var chosen: Array = selected() if adding else []
+	if node not in chosen:
+		chosen.append(node)
+	select.call(chosen)
 
 
 ## Where a new block goes: beside the first selected node, else under the map.
