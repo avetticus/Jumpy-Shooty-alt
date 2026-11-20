@@ -396,6 +396,7 @@ const ACTIONS := [
 	["interact", "Interact", ["key:%d" % KEY_G]],
 	["grapple", "Grappling hook", ["mouse:%d" % MOUSE_BUTTON_MIDDLE]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
+	["alt_fire", "Alt fire (tilt pistols, sticky grenades)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],
 	["weapon_2", "Weapon slot 2", ["key:%d" % KEY_2]],
@@ -416,7 +417,8 @@ const CAN_SHARE := [["sprint", "glide"]]
 ## Saved bindings older than this are brought up to date as they load (see _load_bindings).
 ## 2: the glide moved from Shift to Alt, which Dive gave up.
 ## 3: the mobility button moved from right mouse to middle mouse (see _mobility_to_middle).
-const BINDINGS_VERSION := 3
+## 4: alt fire came in, on right mouse (see _alt_fire_to_right).
+const BINDINGS_VERSION := 4
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -470,6 +472,8 @@ func _load_bindings(cfg: ConfigFile) -> void:
 			bindings[a[0]] = list
 	if version < 3:
 		_mobility_to_middle(cfg.has_section_key("bindings", "grapple"))
+	if version < 4:
+		_alt_fire_to_right()   # (after the mobility button: it may have kept right mouse)
 	_apply_bindings()
 
 
@@ -490,6 +494,18 @@ func _mobility_to_middle(saved: bool) -> void:
 	if i >= 0 and not middle_taken and not list.has(middle):
 		list[i] = middle
 	bindings["grapple"] = list
+
+
+## Bindings saved before version 4 had no alt fire. It takes right mouse, its default,
+## unless you had put right mouse on something else: then it starts unbound (bind it on
+## the Controls tab), so nothing you chose is taken from you.
+func _alt_fire_to_right() -> void:
+	var right := "mouse:%d" % MOUSE_BUTTON_RIGHT
+	var taken := false
+	for a in ACTIONS:
+		if a[0] != "alt_fire" and (bindings[a[0]] as Array).has(right):
+			taken = true
+	bindings["alt_fire"] = [] if taken else [right]
 
 
 func _save_bindings(cfg: ConfigFile) -> void:

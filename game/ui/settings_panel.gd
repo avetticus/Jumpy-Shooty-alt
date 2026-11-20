@@ -22,7 +22,8 @@ const CHEAT_SHEET := [
 	["crouch", "Crouch; moving forward: dive, moving back: slide on your back"], ["dive", "Dive (keep holding to land in a belly slide)"],
 	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grappling hook"],
 	["interact", "Interact: press at a map terminal"],
-	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
+	["fire", "Shoot; melee: hold to wind up, let go to swing"],
+	["alt_fire", "Alt fire: hold to tilt the pistols, press for a sticky grenade"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],
 	["debug_menu", "Debug menu (Practice and Vs Bots)"],
 ]

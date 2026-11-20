@@ -109,6 +109,11 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "golden_gun"]
 @export var looks_like := ""
 ## Drawn in gold (the Golden Gun).
 @export var golden := false
+## What alt fire (right mouse by default) does with this weapon: "" nothing; "tilt" (the
+## pistols) is a hold: the gun turns on its side and fires faster but wider, and everyone
+## sees it turned (Player.alt_held); "sticky" (the grenade launcher) is a press: it fires
+## a sticky proximity grenade instead of a normal one (Player._alt_pressed).
+@export var alt := ""
 @export_group("Projectile")
 ## Kind.PROJECTILE: a rocket or grenade that flies (the host follows it) and blows up
 ## where it lands: full `damage` within `splash_inner` metres, falling to nothing at
@@ -146,6 +151,7 @@ static func pistol() -> WeaponData:
 	var w := WeaponData.new()
 	w.blurb = "Semi-auto sidearm. Accurate, quick to reload, 4 body shots."
 	w.knockback = 2.0
+	w.alt = "tilt"
 	return w
 
 
@@ -354,6 +360,7 @@ static func akimbo() -> WeaponData:
 	w.kick = 1.1
 	w.knockback = 1.6
 	w.move_bonus = 1.03
+	w.alt = "tilt"
 	return w
 
 
@@ -527,6 +534,7 @@ static func grenade_launcher() -> WeaponData:
 	w.kick = 1.8
 	w.knockback = 12.0
 	w.knockback_up = 5.0
+	w.alt = "sticky"
 	return w
 
 
@@ -657,6 +665,12 @@ func blast_knockback(charge: float, distance: float) -> Array:
 ## A gun in each hand, firing in turn.
 func is_akimbo() -> bool:
 	return muzzle_bone_left != ""
+
+
+## Alt fire is something you hold (the pistols' tilt), not a single press: the hold
+## travels in snapshots so everyone sees it (see Player.alt_held).
+func alt_is_hold() -> bool:
+	return alt == "tilt"
 
 
 func is_projectile() -> bool:

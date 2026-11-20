@@ -463,6 +463,7 @@ func read_local_input() -> void:
 		input.sprint = false
 		input.jump_held = false
 		input.fire = false
+		input.alt_fire = false
 		input.grapple = false
 		input.dive = false
 		input.interact = false
@@ -486,6 +487,9 @@ func read_local_input() -> void:
 	input.fire = Input.is_action_pressed("fire")
 	if Input.is_action_just_pressed("fire"):
 		input.fire_pressed = true
+	input.alt_fire = Input.is_action_pressed("alt_fire")
+	if Input.is_action_just_pressed("alt_fire"):
+		input.alt_fire_pressed = true
 	if Input.is_action_just_pressed("jump"):
 		input.jump_pressed = true
 	input.dive = Input.is_action_pressed("dive")
@@ -518,6 +522,8 @@ func _update_weapon(delta: float) -> void:
 		_fire_buffer = 0.1
 	else:
 		_fire_buffer = max(_fire_buffer - delta, 0.0)
+	if input.alt_fire_pressed:
+		_alt_pressed()
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
@@ -552,6 +558,24 @@ func _update_weapon(delta: float) -> void:
 		_burst_left = weapon.data.burst - 1
 		_burst_wait = weapon.data.burst_gap
 	_fire_round()
+
+
+## Alt fire was pressed with a weapon in hand (you are alive and not racing: the same
+## times the trigger counts, see _update_weapon). It is for a press-style alt fire
+## (WeaponData.alt "sticky": the grenade launcher's sticky proximity grenade, which fills
+## this in); the pistols' tilt is a hold instead (see alt_held). For now nothing happens.
+func _alt_pressed() -> void:
+	pass
+
+
+## Holding alt fire with a weapon whose alt fire is a hold (WeaponData.alt_is_hold: the
+## pistols turned on their side). Yours, or a bot's, comes from the input; anyone else's
+## from their snapshots (bit 22 of the animation flags, see RobotAnimInput.make_flags),
+## so every copy of the game, the killcam's included, can pose it.
+func alt_held() -> bool:
+	if is_local:
+		return alive and not racing and weapon != null and weapon.data.alt_is_hold() and input.alt_fire
+	return alive and RobotAnimInput.alt_of(_anim.flags)
 
 
 ## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
@@ -1686,7 +1710,8 @@ func _my_anim_flags() -> int:
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
 		_kicks, _fly_kick > 0.0, motor.boosts, (_charge >= 0.0 or _blast_held >= 0.0) and alive, jetpack != null and jetpack.on and alive, _swing_side,
 		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3,
-		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side))
+		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side),
+		alt_held())
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1878,6 +1903,8 @@ func _hold_still() -> void:
 	input.grapple = false
 	input.grapple_pressed = false
 	input.fire = false
+	input.alt_fire = false
+	input.alt_fire_pressed = false
 	input.kick_pressed = false
 	input.boost_pressed = false
 	input.glide = false

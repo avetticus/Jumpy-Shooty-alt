@@ -47,14 +47,17 @@ const FLIP_RIGHT := 3
 ## bits 20-21 dived into the rope it is on and not there yet (MovementController.dove_in;
 ##           the body zips along it: see RopeSwing): 0 no, 1 yes, 2 yes and steering
 ##           left as it pulled tight, 3 yes and steering right
+## bit 22    holding alt fire with a gun whose alt fire is a hold (the pistols turned
+##           on their side: see WeaponData.alt, Player.alt_held)
+## (Snapshots carry this as a float: bits past 23 would not survive the trip.)
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
 		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0,
-		pumping: bool = false, zip: int = 0) -> int:
+		pumping: bool = false, zip: int = 0, alt: bool = false) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
 		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
 		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15) | ((step & 7) << 16) \
-		| ((1 if pumping else 0) << 19) | ((zip & 3) << 20)
+		| ((1 if pumping else 0) << 19) | ((zip & 3) << 20) | ((1 if alt else 0) << 22)
 
 
 ## The `zip` of make_flags from what the movement says (MovementController.dove_in, dove_side).
@@ -77,6 +80,11 @@ static func step_of(f: int) -> int:
 ## The jetpack is firing.
 static func jetpack_of(f: int) -> bool:
 	return (f >> 15) & 1 == 1
+
+
+## Alt fire is held (bit 22 of make_flags).
+static func alt_of(f: int) -> bool:
+	return (f >> 22) & 1 == 1
 
 
 static func winding_of(f: int) -> bool:

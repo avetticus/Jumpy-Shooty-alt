@@ -168,7 +168,10 @@ Quick checks:
   and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
   fails if any button, text box or slider is off screen, if a robot or weapon button
   cuts its name short, or if the death screen's two columns do not fit;
-- controls rebinding (`tests/controls_check.gd`), the main menu's mode switch
+- controls rebinding (`tests/controls_check.gd`: defaults, conflicts, save and load, the
+  Controls tab, and saved bindings brought up to date: the glide to Alt, the mobility button
+  to middle mouse, alt fire onto right mouse unless it is taken; alt fire's weapon data and
+  its held flag surviving a snapshot), the main menu's mode switch
   (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
   (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
   Practice match (`tests/debug_test.gd`);
@@ -1668,6 +1671,16 @@ the left gun rides on its own bones in the left fist (`pistol_l`, `pistol_l_slid
 `mag_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
 (`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
+
+**Alt fire.** The `alt_fire` action (right mouse by default) is read with the trigger in
+`Player.read_local_input` into `PlayerInput.alt_fire` (held) and `alt_fire_pressed` (this
+frame), and is cleared wherever the trigger is (mouse not captured, a frozen player).
+What it does is `WeaponData.alt`: "tilt" (Pistol, Akimbo) is a hold, "sticky" (Grenade
+Launcher) a press. `Player.alt_held()` says whether a player is holding a hold-style alt
+fire: for your own player and bots from the input, for everyone else from bit 22 of the
+animation flags in their snapshots (`RobotAnimInput.make_flags`, `alt_of`), which the
+killcam's frames carry too, so a pose built on it shows on every screen. A press calls
+`Player._alt_pressed()` from `_update_weapon` (alive, not racing, a weapon in hand).
 
 **Your own body in first person.** The arms and gun you see are the separate arms
 model on the camera (`view_model.gd`). The legs and torso are your real body: the same

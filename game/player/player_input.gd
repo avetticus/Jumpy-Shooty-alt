@@ -18,6 +18,8 @@ var grapple := false          ## grapple button held
 var grapple_pressed := false  ## grapple button pressed this frame
 var fire := false          ## trigger held (automatic weapons)
 var fire_pressed := false  ## trigger pulled this frame (semi-automatic weapons)
+var alt_fire := false          ## alt fire held (see WeaponData.alt: the pistols' tilt)
+var alt_fire_pressed := false  ## alt fire pressed this frame (the grenade launcher's sticky grenade)
 var kick_pressed := false  ## kick pressed this frame (any weapon; a flying kick while you have a player hooked)
 var boost_pressed := false ## rocket boots fired this frame
 var glide := false         ## glide held (Shift in mid-air)
@@ -36,6 +38,7 @@ func clear_edges() -> void:
 	jump_pressed = false
 	dive_pressed = false
 	fire_pressed = false
+	alt_fire_pressed = false
 	grapple_pressed = false
 	crouch_pressed = false
 	kick_pressed = false
