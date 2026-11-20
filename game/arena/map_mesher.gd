@@ -38,7 +38,7 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
 			"cone": _cone(buf, piece)
-			"wedge", "bevel", "dome", "arch": _hulls(buf, piece)
+			"wedge", "bevel", "dome", "arch", "hull": _hulls(buf, piece)
 			_: _box(buf, piece)
 	var result := {}
 	for kind in by_kind:
@@ -205,15 +205,90 @@ static func tube_hulls(piece: Dictionary) -> Array:
 # from those same corners, so they always agree.
 
 ## The convex lumps a piece is made of, each a list of corners in the piece's own
-## frame. A wedge, a bevelled box and a whole solid dome are one lump; a hollow or
-## cut-open dome and an arch are several.
+## frame. A wedge, a bevelled box, a whole solid dome and a hull are one lump; a
+## hollow or cut-open dome and an arch are several.
 static func hull_points(piece: Dictionary) -> Array:
 	match piece.shape:
 		"wedge": return [wedge_points(piece)]
 		"bevel": return [bevel_points(piece)]
 		"dome": return dome_hulls(piece)
 		"arch": return arch_hulls(piece)
+		"hull": return [piece.points]
 	return []
+
+
+# ---------------------------------------------------------------------------
+# Hulls: blocks of any convex shape, given by their corners (MapBlock.Shape.HULL).
+
+## A hull block has at most this many corners: finding a hull's faces gets slow past
+## it, and the map is built from every block's faces when it loads.
+const MAX_HULL_CORNERS := 32
+
+
+## The corners of the convex lump round `pts`: the points that are a corner of one
+## of its faces, in the order given, each once. Points inside it, or in the middle
+## of a face or an edge, are left out. Empty if `pts` are all in one plane.
+static func hull_corners(pts: PackedVector3Array) -> PackedVector3Array:
+	var corners := []
+	for face in hull_faces(pts):
+		corners.append_array(face[1])
+	var out := PackedVector3Array()
+	for p in pts:
+		var corner := false
+		for c: Vector3 in corners:
+			if c.distance_to(p) <= 0.0005:
+				corner = true
+				break
+		if not corner:
+			continue
+		var seen := false
+		for q in out:
+			if q.distance_to(p) <= 0.0005:
+				seen = true
+				break
+		if not seen:
+			out.append(p)
+	return out
+
+
+## The faces of the convex lump round `pts` as planes, each facing out (a point is
+## inside the lump when it is behind every one of them). Fewer than 4 when the
+## points are all in one plane (or there are too few): no solid shape.
+static func hull_planes(pts: PackedVector3Array) -> Array[Plane]:
+	var out: Array[Plane] = []
+	for face in hull_faces(pts):
+		var n: Vector3 = face[0]
+		out.append(Plane(n, n.dot((face[1] as Array)[0])))
+	return out
+
+
+## Is `p` (in the hull's own frame) inside the hull with these `planes`, or no more
+## than `margin` metres outside it?
+static func hull_has(planes: Array, p: Vector3, margin: float = 0.0) -> bool:
+	for plane: Plane in planes:
+		if plane.distance_to(p) > margin:
+			return false
+	return true
+
+
+## How high the top of the hull with these `planes` is at (`x`, `z`) in its own
+## frame: the y of its upper surface straight above or below that point. -INF if
+## the point is not over the hull, with `margin` metres to spare round its sides.
+static func hull_top(planes: Array, x: float, z: float, margin: float = 0.0) -> float:
+	var top := INF
+	var bottom := -INF
+	for plane: Plane in planes:
+		var n := plane.normal
+		var level := plane.d - n.x * x - n.z * z
+		if n.y > 0.001:
+			top = minf(top, level / n.y)       # under this face
+		elif n.y < -0.001:
+			bottom = maxf(bottom, level / n.y)  # over this face
+		elif -level > margin * Vector2(n.x, n.z).length():
+			return -INF                         # outside an upright side
+	if top == INF or bottom > top + margin:
+		return -INF
+	return top
 
 
 ## A slope: tall at the back (-z), down to nothing at the front (+z).
@@ -409,6 +484,8 @@ static func hull_faces(pts: PackedVector3Array) -> Array:
 						below = true
 					else:
 						on.append(i)
+					if above and below:
+						break   # points on both sides: not a face
 				if above and below:
 					continue
 				if above:

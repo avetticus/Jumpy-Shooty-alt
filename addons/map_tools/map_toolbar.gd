@@ -22,6 +22,7 @@ const MENU := [
 	["Mirror...", "mirror"],
 	["Array...", "array"],
 	["Snap to Neighbours", "snap"],
+	["Make Editable (Hull)", "make_editable"],
 	[],
 	["Add Stairs or Ramp", "piece:Stairs"],
 	["Add Row", "piece:Row"],

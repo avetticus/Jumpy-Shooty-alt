@@ -22,6 +22,7 @@ func _initialize() -> void:
 	_check_export()
 	_check_modes()
 	_check_blocks()
+	_check_hulls()
 	_check_face_moves()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -90,6 +91,24 @@ func _check_export() -> void:
 			if not packed.is_empty() and (script == null or not script.is_tool()) and state.get_node_instance(i) == null:
 				lost.append("%s %s: %s" % [file, state.get_node_path(i), ", ".join(packed)])
 	_expect(lost.is_empty(), "no map scene sets a packed array on a node whose script does not run in the editor%s" % ("" if lost.is_empty() else " (an export would drop: %s)" % "; ".join(lost)))
+
+
+## A hull in a built map: what you touch is the hull, not the box round it.
+func _check_hulls() -> void:
+	print("  hulls")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var slope := MapHazard.new()   # a slope of something deadly: 4 m square, 2 m tall at the back (-z)
+	slope.shape = MapBlock.Shape.HULL
+	slope.points = MapMesher.wedge_points({"size": Vector3(4, 2, 4)})
+	slope.position = Vector3(0, 1, 0)
+	slope.solid = false
+	map.add_child(slope)
+	map.build()
+	_expect(map.hazards.size() == 1 and map.hazards[0].shape == "hull", "a hull hazard is a hull to the map")
+	_expect(map.hazard_at(Vector3(0, 0.5, 0)), "under the slope, you touch it")
+	_expect(not map.hazard_at(Vector3(0, 1.5, 0.5)), "over the slope, inside the box round it, you do not")
+	map.free()
 
 
 func _check_blocks() -> void:

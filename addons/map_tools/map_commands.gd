@@ -49,7 +49,28 @@ static func mirror(ctx: RefCounted, axis: int, pivot: Vector3, copy: bool) -> Re
 		else:
 			for step in MapOps.mirror_plan(n, axis, pivot):
 				edit.sets.append([step[0], "transform", step[1], (step[0] as Node3D).transform])
+			for hull in MapOps.hulls_in(n):
+				edit.sets.append([hull, "points", MapOps.mirrored_points(hull), hull.points])
 	edit.reselect = copy and not edit.select.is_empty()
+	return edit
+
+
+## Each selected block becomes hull blocks of the same shape, whose corners can be
+## edited (MapOps.make_editable). Blocks already hulls, blocks a piece made, and
+## shapes with too many corners are left as they are.
+static func make_editable(ctx: RefCounted) -> RefCounted:
+	var edit := MapEdit.new()
+	edit.name = "Make map blocks editable"
+	for b: MapBlock in ctx.selected_blocks():
+		if b.has_meta(MapPiece.GENERATED):
+			continue
+		var made := MapOps.make_editable(b)
+		if made == null:
+			continue
+		edit.removes.append(b)
+		edit.adds.append([b.get_parent(), made, b.get_index()])
+		edit.select.append(made)
+	edit.reselect = not edit.select.is_empty()
 	return edit
 
 

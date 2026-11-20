@@ -344,6 +344,12 @@ func run(what: String) -> void:
 			apply_edit(MapCommands.toggle(ctx, what))
 		"snap":
 			apply_edit(MapCommands.snap_to_neighbours(ctx))
+		"make_editable":
+			var edit := MapCommands.make_editable(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select one or more MapBlocks to make into hull blocks. Blocks that already are hulls, blocks a Stairs, Row or Ring piece made, and shapes of more than %d corners (lower their Sides) are left as they are." % MapMesher.MAX_HULL_CORNERS)
+			else:
+				apply_edit(edit)
 		"hollow":
 			var thickness := maxf(ctx.grid, 0.1) if ctx.grid <= 0.5 else 0.25
 			if MapCommands.hollowable(ctx, 0.05) == 0:

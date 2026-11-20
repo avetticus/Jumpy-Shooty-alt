@@ -2,18 +2,31 @@
 class_name MapBlock
 extends Node3D
 ## One piece of a map: a box, a cylinder, a tube, a cone, a wedge (a slope), a bevelled
-## box, a dome or an arch, painted with a "kind" from the map's palette. Move and turn it like any node; resize it with the inspector's
+## box, a dome, an arch, or a hull (any convex shape, given by its corners), painted
+## with a "kind" from the map's palette. Move and turn it like any node; resize it with the inspector's
 ## Size or by dragging the orange handles on its faces (see addons/map_tools).
 ##
 ## In the game, MapRoot.build() merges every block into one mesh per kind and one
 ## collision body, so a map of thousands of blocks still draws in a few calls. A
 ## block (or a group of them) hidden with the eye icon is left out of the game.
 
-enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
+enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 
+## Hull: any convex shape, the smallest one round its Points. Picking Hull here turns
+## the block's present shape into its corners (a tube, an arch or a hollow dome is
+## filled in: Map > Make Editable keeps their holes, as several hull blocks).
 @export var shape := Shape.BOX:
 	set(v):
+		var corners := PackedVector3Array()
+		if v == Shape.HULL and shape != Shape.HULL and Engine.is_editor_hint() and is_inside_tree():
+			# Picked in the inspector: start from the shape it was.
+			var all := PackedVector3Array()
+			for lump in shape_lumps():
+				all.append_array(lump)
+			corners = MapMesher.hull_corners(all)
 		shape = v
+		if not corners.is_empty():
+			points = corners
 		notify_property_list_changed()
 		_changed()
 
@@ -26,9 +39,22 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
 ## with Inner it is a shell you can stand inside, with Arc under 360 a slice is left
 ## open (toward +z). Arch: a box (x wide, y high, z thick) with an arched opening cut
 ## up into it from below, Inner wide (0 = the whole width) and leaving Top at the crown.
+## Hull: the box round its corners; changing it stretches the corners to fit.
 @export var size := Vector3.ONE:
 	set(v):
-		size = v.max(Vector3(0.01, 0.01, 0.01))
+		v = v.max(Vector3(0.01, 0.01, 0.01))
+		if shape == Shape.HULL and not _fitting and not points.is_empty():
+			var was := points_bounds(points).size
+			var stretched := PackedVector3Array()
+			for p in points:
+				for axis in 3:
+					if was[axis] > 0.0001:
+						p[axis] *= v[axis] / was[axis]
+				stretched.append(p)
+			_fitting = true
+			points = stretched
+			_fitting = false
+		size = v
 		_changed()
 
 ## Which colour from the map's palette.
@@ -121,8 +147,28 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
 		arc = v
 		_changed()
 
-const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch"]
+## Hulls: the corners, in the block's own frame (metres, before any scale). The block
+## is the smallest convex shape round them; a point inside it does nothing. They are
+## kept centred on the block's origin, so typing one in moves the shape to stay
+## centred, and Size is the box round them. At most MapMesher.MAX_HULL_CORNERS.
+@export var points := PackedVector3Array():
+	set(v):
+		if shape == Shape.HULL and not v.is_empty():
+			var middle := points_bounds(v).get_center()
+			if middle.length_squared() > 1e-10:
+				v = v.duplicate()   # (a packed array is passed by reference: leave the caller's alone)
+				for i in v.size():
+					v[i] -= middle
+		points = v
+		if shape == Shape.HULL and not _fitting and not v.is_empty():
+			_fitting = true
+			size = points_bounds(v).size
+			_fitting = false
+		_changed()
 
+const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch", "hull"]
+
+var _fitting := false   # Size and Points are being matched to each other
 var _preview: MeshInstance3D
 var _triangles: TriangleMesh
 var _shaded_for := Basis()   # the world orientation the preview's face shading was made for
@@ -160,7 +206,53 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["bevel"] = bevel * minf(scale.x, minf(scale.y, scale.z))
 	if shape == Shape.DOME and arc < 360.0:
 		piece["arc"] = arc
+	if shape == Shape.HULL:
+		var pts := PackedVector3Array()
+		for p in points:
+			pts.append(p * scale)
+		var planes := MapMesher.hull_planes(pts)
+		if planes.size() >= 4:
+			piece["points"] = pts
+			piece["planes"] = planes
+		else:
+			piece["shape"] = "box"   # not a solid shape (yet): the box round its corners stands in
 	return piece
+
+
+## This block's shape as convex lumps, each the list of its corners in the block's
+## own frame (before any scale): what it becomes as hull blocks (Map > Make
+## Editable). A box, a cylinder, a cone, a wedge, a bevelled box and a whole solid
+## dome are one lump; a tube, an arch and a hollow or cut-open dome are several.
+func shape_lumps() -> Array:
+	var piece := to_piece(Transform3D.IDENTITY)
+	match shape:
+		Shape.BOX:
+			var h := size * 0.5
+			var box := PackedVector3Array()
+			for i in 8:
+				box.append(Vector3(h.x if i & 1 else -h.x, h.y if i & 2 else -h.y, h.z if i & 4 else -h.z))
+			return [box]
+		Shape.CYLINDER, Shape.TUBE:
+			var ring := MapMesher.tube_hulls(piece) if shape == Shape.TUBE else []
+			if not ring.is_empty():
+				return ring
+			piece["top"] = size.x   # a cylinder is a cone as wide at the top as at the foot
+			return [MapMesher.cone_points(piece)]
+		Shape.CONE:
+			return [MapMesher.cone_points(piece)]
+		Shape.HULL:
+			return [points]
+	return MapMesher.hull_points(piece)
+
+
+## The box round some corners.
+static func points_bounds(pts: PackedVector3Array) -> AABB:
+	if pts.is_empty():
+		return AABB()
+	var box := AABB(pts[0], Vector3.ZERO)
+	for p in pts:
+		box = box.expand(p)
+	return box
 
 
 ## Round the y axis, with one diameter (x): a cylinder, a tube or a cone.
@@ -271,7 +363,10 @@ func _validate_property(property: Dictionary) -> void:
 				property.hint = PROPERTY_HINT_ENUM_SUGGESTION
 				property.hint_string = ",".join(root.palette.colors.keys())
 		"sides":
-			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL:
+			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL or shape == Shape.HULL:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"points":
+			if shape != Shape.HULL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"inner":
 			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH:
@@ -299,6 +394,11 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if breakable and not BlockBreakable.PRESETS.has(break_settings):
 		warnings.append("\"%s\" is not one of the Break Settings (see BlockBreakable); it will break like \"%s\"." % [break_settings, BlockBreakable.DEFAULT])
 	var whole := BlockBreakable.mode_of(break_settings) == "whole"
+	if shape == Shape.HULL:
+		if MapMesher.hull_planes(points).size() < 4:
+			warnings.append("A hull needs at least four corners that are not all in one plane. Until it has them it is the box round its corners.")
+		elif points.size() > MapMesher.MAX_HULL_CORNERS:
+			warnings.append("A hull of more than %d corners is slow to build; split it into two blocks." % MapMesher.MAX_HULL_CORNERS)
 	if breakable and not whole and not MapDestruction.thin_enough(shape, size):
 		warnings.append("Only thin walls and floors (a box at most %.1f m thick and %d m² across) break per cell. Set Break Settings to Whole Block to break this one." % [MapDestruction.MAX_THICKNESS, int(MapDestruction.MIN_AREA)])
 	return warnings

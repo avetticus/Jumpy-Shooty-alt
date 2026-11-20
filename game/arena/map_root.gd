@@ -319,7 +319,8 @@ func _index_surfaces(pieces: Array) -> void:
 		var mat: String = p.get("material", "")
 		if not BlockMaterials.TABLE.has(mat):
 			mat = BlockMaterials.for_kind(p.kind, palette)
-		var entry := {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box", "top": box.end.y, "material": mat}
+		# (A hull is looked up as the box round it: close enough for footsteps.)
+		var entry := {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box" and p.shape != "hull", "top": box.end.y, "material": mat}
 		for x in range(lo.x, hi.x + 1):
 			for z in range(lo.y, hi.y + 1):
 				var key := Vector2i(x, z)
@@ -461,7 +462,7 @@ func _mover_material_at(point: Vector3, below: float) -> String:
 		var half: Vector3 = (p.size as Vector3) * 0.5
 		if at.y < -half.y or at.y > half.y + below:
 			continue
-		if p.shape != "box":
+		if p.shape != "box" and p.shape != "hull":   # (a hull: the box round it, as in material_at)
 			if Vector2(at.x, at.z).length() > half.x:
 				continue
 		elif absf(at.x) > half.x or absf(at.z) > half.z:
@@ -541,11 +542,11 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
 		if child is MapBlock:
-			pieces.append((child as MapBlock).to_piece(at))
+			var piece := (child as MapBlock).to_piece(at)
+			pieces.append(piece)
 			if child is MapHazard:
-				var b := child as MapBlock
-				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),
-					"shape": MapBlock.SHAPE_NAMES[b.shape], "mover": mover})
+				hazards.append({"xf": piece.xf, "size": piece.size, "shape": piece.shape,
+					"planes": piece.get("planes", []), "mover": mover})
 		elif child is MapSpawn:
 			# (Inside a mover `at` is in the mover's frame: it is put in the map's here,
 			# and kept there as the mover moves.)
@@ -802,6 +803,10 @@ func _standing_on(point: Vector3, at_nav: bool) -> int:
 			var up: float = (piece.xf as Transform3D).basis.x.y
 			if piece.shape == "box":
 				inside = absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3
+			elif piece.shape == "hull":
+				var top := MapMesher.hull_top(piece.planes, p.x, p.z, 0.3)
+				inside = top > -INF
+				gap = p.y - top
 			elif piece.shape == "wedge" and absf(up) > 0.99:
 				# A wedge lying on its side is a three-cornered slab of ground (Sky Island's
 				# deck round its hole is made of them): its own x is up, and it covers the
@@ -1024,6 +1029,9 @@ func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
 		if h.shape == "box":
 			if absf(local.x) <= half.x and absf(local.z) <= half.z:
 				return true
+		elif h.shape == "hull":
+			if MapMesher.hull_has(h.planes, local, margin):
+				return true
 		elif Vector2(local.x, local.z).length() <= half.x:
 			return true
 	return false
@@ -1051,8 +1059,13 @@ func mover_ground_at(point: Vector3, at: float, tolerance: float = 0.5) -> int:
 				continue
 			if piece.shape == "tube" and Vector2(local.x, local.z).length() < float(piece.get("inner", 0.0)) * 0.5:
 				continue   # in a tube's hole: nothing there to stand on
+			var top := half.y
+			if piece.shape == "hull":
+				top = MapMesher.hull_top(piece.planes, local.x, local.z)
+				if top == -INF:
+					continue   # inside the box round it, but not over the hull itself
 			near = true
-			if absf(local.y - half.y) <= tolerance:
+			if absf(local.y - top) <= tolerance:
 				return 1
 	return 0 if near else -1
 

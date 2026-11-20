@@ -5,6 +5,9 @@ extends SceneTree
 ##  - Hollow keeps a box's outside and makes six walls that do not overlap;
 ##  - Clip's two halves add up to the block, and only shapes that can be cut are;
 ##  - a mirror twice over is where it started, never scales by -1, and carries a group;
+##  - hulls: any block made editable keeps its corners where they were (a shape of
+##    several lumps becomes a group), draws and collides as itself, stretches with its
+##    Size, keeps its corners centred, mirrors as its mirror image, and knows its top;
 ##  - arrays in a line and round a circle;
 ##  - face snapping picks the nearest face of a neighbour square to the block;
 ##  - each piece makes the blocks its numbers say, and makes them again when they change;
@@ -37,6 +40,7 @@ func _run() -> void:
 	_check_hollow()
 	_check_clip()
 	_check_mirror()
+	_check_hulls()
 	_check_array()
 	_check_snapping()
 	_check_pieces()
@@ -166,6 +170,156 @@ func _check_mirror() -> void:
 	for step in plan:
 		(step[0] as Node3D).transform = step[1]
 	_expect(is_equal_approx(MapOps.global_of(group).origin.z, 17.0) and plan.size() == 2, "mirroring in place across z = 10 moves the group and what is in it")
+	map.free()
+
+
+## The corners of a block's shape in the map, every lump's together.
+func _corners(block: MapBlock) -> Array:
+	var xf := MapOps.global_of(block)
+	var out := []
+	for lump in block.shape_lumps():
+		for p in MapMesher.hull_corners(lump):
+			out.append(xf * p)
+	return out
+
+
+func _corners_of(blocks: Array) -> Array:
+	var out := []
+	for b: MapBlock in blocks:
+		out.append_array(_corners(b))
+	return out
+
+
+## The same points (within a millimetre), in any order.
+func _same_points(a: Array, b: Array) -> bool:
+	if a.size() != b.size() or a.is_empty():
+		return false
+	for p: Vector3 in a:
+		if not b.any(func(q: Vector3) -> bool: return q.distance_to(p) < 0.001):
+			return false
+	return true
+
+
+func _check_hulls() -> void:
+	print("  hulls")
+	var map := MapRoot.new()
+	root.add_child(map)
+
+	# A box made editable is the same box, as eight corners.
+	var box := _block(map, Vector3(4, 1, -2), Vector3(4, 2, 6), "steel")
+	box.rotation.y = 0.7
+	box.tint = Color(0.8, 0.8, 0.8)
+	var hull := MapOps.make_editable(box) as MapBlock
+	_expect(hull != null and hull.shape == MapBlock.Shape.HULL and hull.points.size() == 8, "a box made editable is a hull of 8 corners")
+	if hull:
+		map.add_child(hull)
+		_expect(hull.size.is_equal_approx(box.size) and hull.transform.is_equal_approx(box.transform), "of the same size, where the box was")
+		_expect(_same_points(_corners(hull), _corners(box)), "with the box's corners")
+		_expect(hull.kind == "steel" and hull.tint == box.tint, "and the box's kind and tint")
+		var piece := hull.to_piece(MapOps.global_of(hull))
+		_expect(piece.shape == "hull" and (piece.planes as Array).size() == 6, "its piece is a hull with six faces")
+		var mesh: ArrayMesh = MapMesher.build([piece]).get("steel")
+		_expect(mesh != null and mesh.surface_get_array_len(0) == 36, "drawn as 12 triangles, as the box is")
+		var shapes := map.collision_shapes(piece)
+		_expect(shapes.size() == 1 and shapes[0] is ConvexPolygonShape3D and (shapes[0] as ConvexPolygonShape3D).points.size() == 8,
+			"and bumped into as one convex shape of its corners")
+		hull.size = Vector3(8, 2, 3)
+		_expect(MapBlock.points_bounds(hull.points).size.is_equal_approx(Vector3(8, 2, 3)), "a new Size stretches the corners to fit")
+		hull.size = box.size
+		_expect(_same_points(_corners(hull), _corners(box)), "and back again")
+		var moved := hull.points
+		moved[0] += Vector3(-1, 0, 0)   # the corner at -x -y -z, pulled out a metre
+		hull.points = moved
+		_expect(MapBlock.points_bounds(hull.points).get_center().is_zero_approx() and is_equal_approx(hull.size.x, 5.0),
+			"its corners are kept centred, and Size is the box round them")
+		var flat := MapBlock.new()
+		flat.shape = MapBlock.Shape.HULL
+		flat.points = PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)])
+		map.add_child(flat)
+		_expect(flat.to_piece(Transform3D.IDENTITY).shape == "box" and " ".join(flat._get_configuration_warnings()).contains("four corners"),
+			"a hull with no volume stands in as a box, and warns")
+		flat.free()
+		_expect(MapOps.make_editable(hull) == null, "a hull is not made editable again")
+
+	# Shapes off their own middle, scaled and tilted, keep every corner where it was.
+	var cone := _block(map, Vector3(-6, 2, 3), Vector3(3, 4, 3))
+	cone.shape = MapBlock.Shape.CONE
+	cone.sides = 5
+	cone.rotation = Vector3(0.2, 1.1, 0.0)
+	cone.scale = Vector3(1, 2, 1)
+	var stub := MapBlock.new()   # something standing under the cone
+	stub.position = Vector3(0, 3, 0)
+	cone.add_child(stub)
+	var cone_hull := MapOps.make_editable(cone) as MapBlock
+	if cone_hull:
+		map.add_child(cone_hull)
+	_expect(cone_hull != null and cone_hull.points.size() == 6 and _same_points(_corners(cone_hull), _corners(cone)),
+		"a five-sided cone (not centred on its own axis), tilted and scaled, keeps its corners where they were")
+	_expect(cone_hull != null and cone_hull.get_child_count() == 1 and MapOps.global_of(cone_hull.get_child(0)).origin.is_equal_approx(MapOps.global_of(stub).origin),
+		"and what stands under it stays where it was")
+	var pipe := _block(map, Vector3(0, 0, 9), Vector3(2, 3, 2))
+	pipe.shape = MapBlock.Shape.CYLINDER
+	var pipe_hull := MapOps.make_editable(pipe) as MapBlock
+	_expect(pipe_hull != null and pipe_hull.points.size() == 24, "a 12-sided cylinder is a hull of 24 corners")
+	if pipe_hull:
+		pipe_hull.free()
+	pipe.sides = 20
+	_expect(MapOps.make_editable(pipe) == null, "one of 40 corners is too many (at most %d)" % MapMesher.MAX_HULL_CORNERS)
+	pipe.shape = MapBlock.Shape.TUBE
+	pipe.sides = 8
+	pipe.inner = 1.0
+	var tube := MapOps.make_editable(pipe)
+	if tube:
+		map.add_child(tube)
+	_expect(tube != null and not (tube is MapBlock) and tube.get_child_count() == 8 and tube.get_meta("_edit_group_", false),
+		"a tube is a group of hull blocks, one for each side, so its hole stays")
+	_expect(tube != null and _same_points(_corners_of(MapOps.blocks_in(tube)), _corners(pipe)), "with all the tube's corners where they were")
+
+	# A mirror turns a hull's corners inside out, as a mirror image.
+	var group := Node3D.new()
+	group.position = Vector3(5, 0, 5)
+	group.rotation.y = 0.6
+	map.add_child(group)
+	var spike := MapBlock.new()   # a lopsided corner piece: not the same either side of its own x
+	spike.shape = MapBlock.Shape.HULL
+	spike.points = PackedVector3Array([Vector3(0, 0, 0), Vector3(2, 0, 0), Vector3(0, 0, 2), Vector3(0, 1, 0)])
+	spike.position = Vector3(1, 0, 2)
+	spike.rotation.y = 0.3
+	group.add_child(spike)
+	var want := []
+	for p: Vector3 in _corners(spike):
+		want.append(p * Vector3(-1, 1, 1))
+	var copy := MapOps.mirrored_copy(group, 0, Vector3.ZERO)
+	map.add_child(copy)
+	var mirrored := MapOps.blocks_in(copy)[0]
+	_expect(_same_points(_corners(mirrored), want), "a mirrored copy of a lopsided hull is its mirror image")
+	var ctx := _context(map)
+	_picked = [group]
+	var start := _corners(spike)
+	ctx.commit.call(MapCommands.mirror(ctx, 0, Vector3.ZERO, false))
+	_expect(_same_points(_corners(spike), want), "mirrored in place, too")
+	ctx.commit.call(MapCommands.mirror(ctx, 0, Vector3.ZERO, false))
+	_expect(_same_points(_corners(spike), start), "and twice over it is as it was")
+
+	# Make Editable, the command.
+	var crate := _block(map, Vector3(-10, 0.5, -10), Vector3(1, 1, 1), "wood")
+	var made := _block(map, Vector3(-12, 0.5, -10), Vector3(1, 1, 1), "wood")
+	made.set_meta(MapPiece.GENERATED, true)
+	_picked = [crate, made]
+	ctx.commit.call(MapCommands.make_editable(ctx))
+	_expect(_picked.size() == 1 and (_picked[0] as MapBlock).shape == MapBlock.Shape.HULL and not crate.is_inside_tree() and made.shape == MapBlock.Shape.BOX,
+		"Make Editable replaces the selected box with a hull, and leaves a block a piece made")
+	_release(ctx)
+	crate.free()
+
+	# Where its top is, for standing on it and for hazards.
+	var planes := MapMesher.hull_planes(MapMesher.wedge_points({"size": Vector3(4, 2, 4)}))
+	_expect(is_equal_approx(MapMesher.hull_top(planes, 0, 0), 0.0) and is_equal_approx(MapMesher.hull_top(planes, 1, -2), 1.0),
+		"a slope's top is half way up in its middle and at the top at its back")
+	_expect(MapMesher.hull_top(planes, 3, 0) == -INF and is_equal_approx(MapMesher.hull_top(planes, 3, 0, 1.5), 0.0),
+		"off its side there is no top, unless there is a margin to spare")
+	_expect(MapMesher.hull_has(planes, Vector3(0, -0.5, 0)) and not MapMesher.hull_has(planes, Vector3(0, 0, 0.5)),
+		"a point under the slope is inside it, one over it is not")
 	map.free()
 
 

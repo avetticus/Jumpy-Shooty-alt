@@ -604,6 +604,16 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
   invisible wall, shown in the editor as a faint blue box), **Tint** (to make one block
   a little lighter or darker), **Material Type** (what it is made of: its footsteps and
   how it breaks; see below) and a **Breaking** section (see "Breakable walls and floors").
+  A **Hull** block is any convex shape: the smallest one round its **Points** (corners in
+  the block's own frame). It draws, collides, is stood on and counts as a hazard as the
+  shape you see, not the box round it. Its corners are kept centred on the block, and
+  its Size is the box round them: changing Size (or dragging a face handle) stretches the
+  corners. At most 32 corners (`MapMesher.MAX_HULL_CORNERS`); fewer than four that are not
+  all in one plane and it warns, standing in as the box round its corners. Picking Hull
+  as a block's Shape in the inspector starts it from the shape it was (a tube, an arch or
+  a hollow dome filled in); **Map > Make Editable** keeps their holes. A hull breaks only
+  whole (Break Settings: Whole Block), never per cell. Mirror turns its corners into
+  their mirror image.
 - Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
   grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
   3D view selects the whole object. To change one part, pick the part in the Scene
@@ -662,6 +672,13 @@ makes ordinary MapBlocks and is one step of undo.
 - **Moving** is the editor's own move tool. After a move, **Map > Snap to Neighbours**
   (Alt+N) nudges the selection, by up to one grid square, so its faces meet those of the
   blocks beside it that lie square to it.
+- **Map > Make Editable (Hull)**: each selected block becomes a Hull block of exactly
+  the same shape, corners where they were, keeping its kind and settings (a cylinder of
+  12 sides is a hull of 24 corners). A tube, an arch or a hollow or cut-open dome
+  becomes a group of hull blocks, one per convex lump, so its hole stays. Shapes of more
+  than 32 corners are left alone (lower their Sides first), and so are blocks a Stairs,
+  Row or Ring made. Moving the corners with the mouse is the next step of the map tools
+  (see `docs/MAP_EDITOR_ROADMAP.md`); for now type them in the inspector's Points.
 - **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes

@@ -164,7 +164,7 @@ func _faces(piece: Dictionary) -> Array:
 		return _cone_faces(piece)
 	if piece.shape == "dome":
 		return out   # curved all over: no flat face to share a plane with
-	if piece.shape in ["wedge", "bevel", "arch"]:
+	if piece.shape in ["wedge", "bevel", "arch", "hull"]:
 		for lump in MapMesher.hull_points(piece):
 			for face in MapMesher.hull_faces(lump):
 				var pts := []
@@ -282,11 +282,12 @@ func _seen_overlap(a: Dictionary, b: Dictionary, solids: Array, grid: Dictionary
 func _solid(piece: Dictionary) -> Dictionary:
 	var xf: Transform3D = piece.xf
 	var box: AABB = xf * AABB(-(piece.size as Vector3) * 0.5, piece.size)
-	if piece.shape not in ["box", "wedge"]:
+	if piece.shape not in ["box", "wedge", "hull"]:
 		var d: float = piece.size.x
 		box = xf * AABB(Vector3(-d, -piece.size.y, -d) * 0.5, Vector3(d, piece.size.y, d))
 	return {"inv": xf.affine_inverse(), "half": piece.size * 0.5, "shape": piece.shape, "box": box,
-		"sides": piece.get("sides", 12), "inner": piece.get("inner", 0.0) * 0.5, "top": piece.get("top", 0.0) * 0.5}
+		"sides": piece.get("sides", 12), "inner": piece.get("inner", 0.0) * 0.5, "top": piece.get("top", 0.0) * 0.5,
+		"planes": piece.get("planes", [])}
 
 
 const BUCKET := 6.0
@@ -332,6 +333,10 @@ func _covered(point: Vector3, skip_a: int, skip_b: int, solids: Array, grid: Dic
 			if s.shape == "wedge":
 				# A slope: full height at the back (-z), down to nothing at the front.
 				if absf(local.x) <= half.x and absf(local.z) <= half.z and local.y <= half.y - (local.z + half.z) * half.y / half.z:
+					return true
+				continue
+			if s.shape == "hull":
+				if MapMesher.hull_has(s.planes, local):
 					return true
 				continue
 			if s.shape in ["bevel", "dome", "arch"]:

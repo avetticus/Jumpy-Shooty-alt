@@ -227,6 +227,84 @@ static func clip(block: MapBlock, axis: int, at: float) -> Array[MapBlock]:
 
 
 # ---------------------------------------------------------------------------
+# Hulls
+
+## The corners of each convex lump a block is made of (see MapBlock.shape_lumps),
+## as they would be for hull blocks. Empty if the block cannot be made of hull
+## blocks: a lump with more than MapMesher.MAX_HULL_CORNERS corners, or a flat one.
+static func editable_lumps(block: MapBlock) -> Array:
+	var out := []
+	for lump in block.shape_lumps():
+		var corners := MapMesher.hull_corners(lump)
+		if corners.size() < 4 or corners.size() > MapMesher.MAX_HULL_CORNERS:
+			return []
+		out.append(corners)
+	return out
+
+
+## The block made into hull blocks of the same shape, standing where it stands,
+## to put in its place: one hull block, or for a shape of several lumps (a tube, an
+## arch, a hollow dome) a group of them. Each keeps the block's kind and settings.
+## Null if it cannot be (see editable_lumps) or already is a hull.
+static func make_editable(block: MapBlock) -> Node3D:
+	if block.shape == MapBlock.Shape.HULL:
+		return null
+	var lumps := editable_lumps(block)
+	if lumps.is_empty():
+		return null
+	if lumps.size() == 1:
+		var hull := _hull_copy(block, lumps[0])
+		# Its corners are kept centred: move it by the lump's middle so the shape stays
+		# put, and what stands under it back by as much.
+		var middle := MapBlock.points_bounds(lumps[0]).get_center()
+		hull.position = block.position + block.transform.basis * middle
+		for c in hull.get_children():
+			if c is Node3D:
+				(c as Node3D).position -= middle
+		return hull
+	var group := Node3D.new()
+	group.name = block.name
+	group.transform = block.transform
+	group.visible = block.visible
+	group.set_meta("_edit_group_", true)
+	for i in lumps.size():
+		var part := _hull_copy(block, lumps[i])
+		for c in part.get_children():   # what stood under the block goes to the group, once
+			part.remove_child(c)
+			c.free()
+		part.name = "%s%d" % [block.name, i + 1]
+		part.transform = Transform3D(Basis.IDENTITY, MapBlock.points_bounds(lumps[i]).get_center())
+		part.visible = true
+		group.add_child(part)
+	for c in block.get_children():
+		group.add_child(MapPiece.copy(c))
+	return group
+
+
+static func _hull_copy(block: MapBlock, corners: PackedVector3Array) -> MapBlock:
+	var hull := MapPiece.copy(block) as MapBlock
+	hull.shape = MapBlock.Shape.HULL
+	hull.points = corners
+	return hull
+
+
+## A hull block's corners as a mirror leaves them. A mirror turns a block's own x
+## back rather than scaling it by -1 (see mirrored_global), which is exact for every
+## other shape, as each is the same either side of its own x; a hull need not be, so
+## its corners are mirrored across its own x instead.
+static func mirrored_points(block: MapBlock) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for p in block.points:
+		out.append(Vector3(-p.x, p.y, p.z))
+	return out
+
+
+## Every hull block that is `node` or under it.
+static func hulls_in(node: Node) -> Array[MapBlock]:
+	return blocks_in(node).filter(func(b: MapBlock) -> bool: return b.shape == MapBlock.Shape.HULL)
+
+
+# ---------------------------------------------------------------------------
 # Mirror and array
 
 ## The mirror across the plane through `pivot` that faces along `axis` (0 = x: left
@@ -267,6 +345,8 @@ static func mirrored_copy(node: Node3D, axis: int, pivot: Vector3) -> Node3D:
 	_plan_inside(dup, inside)
 	for step in inside:
 		(step[0] as Node3D).transform = step[1]
+	for hull in hulls_in(dup):
+		hull.points = mirrored_points(hull)
 	return dup
 
 
