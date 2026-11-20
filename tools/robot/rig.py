@@ -115,12 +115,12 @@ BODY = Skeleton([
     ("hand_l", "forearm_l", (-0.215, 0.88, 0)),
     *_finger_bones("l"),
     ("grapple", "forearm_l", (-0.285, 0.90, 0)),      # where the grapple rope leaves the left wrist
-    # The second pistol of the akimbo pair, in the left fist (the same three gun bones, mirrored).
+    # A two-gun weapon's second gun, in the left fist (the same gun bones, mirrored); each
+    # such weapon's left muzzle ("muzzle_<weapon>_l") is added below.
     ("pistol_l", "hand_l", (-0.215, 0.835, 0)),
     ("pistol_l_slide", "pistol_l", (-0.215, 0.835, 0)),
     ("pistol_l_mag", "pistol_l", (-0.215, 0.835, 0)),
     ("pistol_l_vent", "pistol_l", (-0.215, 0.835, 0)),
-    ("muzzle_akimbo_l", "pistol_l", (-0.215, 0.835 - 0.20, -0.064)),
     ("upper_arm_r", "chest", (0.215, 1.40, 0)),
     ("forearm_r", "upper_arm_r", (0.215, 1.13, 0)),
     ("hand_r", "forearm_r", (0.215, 0.88, 0)),
@@ -140,17 +140,24 @@ BODY = Skeleton([
 ])
 
 # Where each long gun's shots leave its barrel, in gun space (x, up, back). The pistol's is "muzzle".
-MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86),
+MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565),
            "revolver": (0.0, 0.066, -0.285), "machine_pistol": (0.0, 0.064, -0.235),
-           "break_action": (0.0, 0.066, -0.66), "smg": (0.0, 0.052, -0.47), "burst_rifle": (0.0, 0.056, -0.62),
-           "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78), "bolt_action": (0.0, 0.060, -0.80),
+           "break_action": (0.0, 0.066, -0.66), "burst_rifle": (0.0, 0.056, -0.62),
+           "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78),
            "railgun": (0.0, 0.062, -0.80), "rocket_launcher": (0.0, 0.115, -0.70),
            "grenade_launcher": (0.0, 0.070, -0.52), "akimbo": (0.0, 0.064, -0.20),
            # The third batch
-           "derringer": (0.0, 0.076, -0.135), "air_cannon": (0.0, 0.075, -0.62),
-           "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72), "laser_rifle": (0.0, 0.060, -0.665),
-           "nail_gun": (0.0, 0.050, -0.50), "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12),
-           "plasma_cannon": (0.0, 0.070, -0.62)}
+           "air_cannon": (0.0, 0.075, -0.62),
+           "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72),
+           "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12),
+           # Two-gun weapons: their sidearm's
+           "dual_revolver": (0.0, 0.066, -0.285), "dual_machine_pistol": (0.0, 0.064, -0.235)}
+
+
+# The weapons with a gun in each hand, and the sidearm each is a pair of: the left gun is
+# the same gun on the left fist's own bones ("pistol_l"...), and its shots leave from
+# "muzzle_<weapon>_l". Each has its own clips (weapon_anims.dual_body_clips).
+DUALS = {"akimbo": "pistol", "dual_revolver": "revolver", "dual_machine_pistol": "machine_pistol"}
 
 
 def _with_muzzles(skel_spec):
@@ -160,6 +167,12 @@ def _with_muzzles(skel_spec):
     for weapon, p in MUZZLES.items():
         pos = grip + GUN_REST @ np.array(p)
         out.insert(at, ("muzzle_" + weapon, "pistol", tuple(float(x) for x in pos)))
+        at += 1
+    left = np.array((-0.215, 0.835, 0.0))
+    at = [n for n, _, _ in out].index("pistol_l_vent") + 1
+    for weapon in DUALS:
+        pos = left + GUN_REST @ np.array(MUZZLES[weapon])
+        out.insert(at, ("muzzle_%s_l" % weapon, "pistol_l", tuple(round(float(x), 6) for x in pos)))
         at += 1
     return out
 

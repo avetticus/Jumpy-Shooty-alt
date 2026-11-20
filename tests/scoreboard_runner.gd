@@ -10,7 +10,7 @@ func run() -> void:
 	print("Scoreboard checks")
 	Net.start_offline("Host", "needle", "pistol")
 	Net.players[2] = {"name": "Client", "color": 1, "character": "orbit", "weapon": "rifle", "mobility": "grapple"}
-	Net.players[3] = {"name": "Far", "color": 2, "character": "rivet", "weapon": "smg", "mobility": "blink"}
+	Net.players[3] = {"name": "Far", "color": 2, "character": "rivet", "weapon": "lmg", "mobility": "grapple"}
 	var bot := Net.add_bot(1)
 	Match.scores = {1: {"kills": 3, "deaths": 1, "level": 0, "points": 1234},
 		2: {"kills": 2, "deaths": 2, "level": 0, "points": 2500}, 3: {"kills": 0, "deaths": 3, "level": 0, "points": 0},

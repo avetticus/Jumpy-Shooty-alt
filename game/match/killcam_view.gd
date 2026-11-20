@@ -149,6 +149,7 @@ func restart() -> void:
 	_killed = false
 	_next = 0
 	for child in _fx.get_children():
+		_fx.remove_child(child)   # (out at once: the replay makes its rockets again under the same names)
 		child.queue_free()
 	_wrecks.clear()   # (they were in _fx)
 	for g in _ghosts.values():
@@ -233,6 +234,7 @@ func _play_killer(delta: float) -> void:
 	# The arms follow what the killer was doing (see ViewModel).
 	var p := _puppet
 	p.alive = bool(f[8])
+	p._anim.flags = int(f[5])   # (what alt fire holds them in: the pistols on their side, see Player.alt_held)
 	p.velocity = f[1]
 	p.input.yaw = yaw
 	p.input.pitch = pitch
@@ -599,7 +601,7 @@ func _play_event(e: Dictionary) -> void:
 				muzzle = (_ghosts[who] as Ghost).robot.marker(data.muzzle_bone)
 			var track: KillClip.Track = clip.tracks.get(who)
 			var color := RobotModel.trim_color(track.color if track else Color.WHITE)
-			var rocket := Projectile.make(int(e.id), data, e.origin, e.direction, muzzle, color)
+			var rocket := Projectile.make(int(e.id), data, e.origin, e.direction, muzzle, color, bool(e.get("sticky", false)))
 			rocket.set_physics_process(not manual)   # (stepped with the clip instead)
 			_fx.add_child(rocket)
 			if mine:
@@ -612,9 +614,47 @@ func _play_event(e: Dictionary) -> void:
 				rocket.queue_free()
 			ShotFx.landed(_fx, e.at, WeaponData.by_id(str(e.weapon)))
 			_sound(ShotFx.landed_sound(WeaponData.by_id(str(e.weapon))), e.at, false)
+		"stick":
+			_play_stick(e)
+		"armed":
+			var sticky := _fx.get_node_or_null("Projectile_%d" % int(e.id)) as Projectile
+			if sticky and not sticky.armed:
+				sticky.arm()
+				_sound("ui_tick", sticky.global_position, false)
+		"gone":
+			var sticky := _fx.get_node_or_null("Projectile_%d" % int(e.id))
+			if sticky:
+				sticky.queue_free()
 		"melee":
 			if mine and _view and str(e.weapon) not in ["kick", "flying_kick"] and not (e.points as PackedVector3Array).is_empty():
 				_view.hit_stop()
+
+
+## A sticky grenade stuck (or is still stuck: Killcam records it again every second, so
+## one stuck before the clip began is there from its start). It rides the stand-in body
+## of the player it is on, or the part of the map it is on.
+func _play_stick(e: Dictionary) -> void:
+	var how: Dictionary = e.how
+	var sticky := _fx.get_node_or_null("Projectile_%d" % int(e.id)) as Projectile
+	var fresh := sticky == null or not sticky.stuck
+	if sticky == null:
+		var track: KillClip.Track = clip.tracks.get(int(e.who))
+		var color := RobotModel.trim_color(track.color if track else Color.WHITE)
+		sticky = Projectile.make(int(e.id), WeaponData.by_id(str(how.get("weapon", ""))), how.at, Vector3.DOWN, Vector3.INF, color, true)
+		sticky.set_physics_process(not manual)
+		_fx.add_child(sticky)
+	if fresh:
+		var on := int(how.get("on", 0))
+		var ride: Node3D = null
+		if on > 0:
+			ride = (_ghosts[on] as Ghost).visual if _ghosts.has(on) else (_killer_body if on == clip.killer else null)
+		else:
+			ride = Projectile.frame_in(map if map != null and is_instance_valid(map) else MapRoot.current, how)
+		sticky.stick(how, ride)
+		if clip.event_time(e) >= clip.start:   # (not for one stuck before the clip began)
+			_sound("grenade_in", sticky.global_position, false)
+	if bool(e.get("armed", false)) and not sticky.armed:
+		sticky.arm()
 
 
 func _sound(sound: String, at: Vector3, own: bool) -> void:

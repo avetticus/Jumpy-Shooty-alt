@@ -3,7 +3,7 @@ extends VBoxContainer
 ## The maps a "Random map" may pick from (lobby, Vs Bots and Practice pages; see
 ## LobbySettings.pool_for): a line saying which and, for whoever picks, a Change button
 ## that opens a chip for each map of the game set up, to tick on or off (one always
-## stays ticked). Laid out like AllowedMobilityPicker. Everyone else just sees the line.
+## stays ticked). Laid out like AllowedWeaponsPicker. Everyone else just sees the line.
 ##
 ## It only reports the choice (changed, with the stored form: [] for every map); the
 ## screen sends it on.

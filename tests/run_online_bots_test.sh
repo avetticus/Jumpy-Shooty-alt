@@ -21,7 +21,7 @@ COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP" --quit-after=15
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=Host --weapon=rifle --host-bots=2 --bot-level=2 \
   --autostart=4 --kill-target=$TARGET --time-limit=90 "${COMMON[@]}" > "$OUT/obots_host.log" 2>&1 &
 sleep 1
-"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=Client --weapon=smg --net-sim=60,15,1 "${COMMON[@]}" \
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=Client --weapon=rifle --net-sim=60,15,1 "${COMMON[@]}" \
   > "$OUT/obots_client.log" 2>&1 &
 for _ in $(seq 1 150); do
   sleep 1

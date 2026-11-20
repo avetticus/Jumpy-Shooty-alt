@@ -64,6 +64,7 @@ var _corpse_fall := 0.0
 var _corpse_room := 0.0
 var _in_remains := false          # the body is hidden because remains took its place (see hide_for_remains)
 var _logged_anim := ""            # --sync-log: the last animation we printed
+var _logged_tilt := false         # --sync-log: the pistols last seen all the way over (see _log_tilt)
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
 var _hook_rope: HookRope          # the grappling hook's rope and hook (made when first needed; see Grapple)
@@ -124,10 +125,8 @@ var _burst_left := 0              # local: rounds of a burst still to fire
 var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
 var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
-## The tool on the mobility button (an id from Mobility): the grapple or blink. A
-## race always has the grapple.
+## The tool on the mobility button (an id from Mobility): the grappling hook, the only one.
 var mobility := Mobility.GRAPPLE
-var blink: Blink                  # local, with blink
 ## Local: everyone's jetpack (hold Space in mid-air: see MovementController.space_jet).
 ## None in a race.
 var jetpack: Jetpack
@@ -206,7 +205,8 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	_build_flame()
 	if motor:
 		motor.grapple.hook_players = not racing
-		jetpack = null if racing else Jetpack.new()   # (a race is the grapple's: no jetpack)
+		# Only when the host turned it on in the lobby (never in a race: see LobbySettings.jetpack).
+		jetpack = Jetpack.new() if LobbySettings.jetpack() and not racing else null
 	set_mobility(Net.player_mobility(id))
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
@@ -242,12 +242,6 @@ func _physics_process(delta: float) -> void:
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
-		# Blink takes the mobility button: the grapple never sees it.
-		var roped := Mobility.is_grapple(mobility)
-		var mobility_pressed := input.grapple_pressed and not roped
-		if not roped:
-			input.grapple = false
-			input.grapple_pressed = false
 		var fly := Cheats.flying() and not is_bot
 		if fly != _flying:
 			_flying = fly
@@ -284,7 +278,6 @@ func _physics_process(delta: float) -> void:
 			if motor.boosts != boosts and DevArgs.sync_log:
 				print("BOOST %d" % peer_id)
 			_check_slam(delta)
-			_update_mobility(delta, mobility_pressed and motor.state != MovementController.State.SLAM)   # (no blinking out of a slam)
 		_report_tether()
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
@@ -430,8 +423,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		weapon.start_reload()
 	elif racing:
 		pass
-	elif not alive and event.is_action_pressed("grapple"):
-		_next_mobility()
 	elif Net.is_deathmatch():
 		if alive:
 			_switch_weapon(event)   # weapons come off the map, not from a pick while dead
@@ -445,7 +436,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## any, numbered from 1; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
 	if GunGame.active() or KillcamMode.active():
-		return   # Gun Game hands out the weapons; Killcam is snipers only
+		return   # Gun Game hands out the weapons; Killcam is anti-materiel rifles only
 	var k := _weapon_slot(event, LobbySettings.weapon_groups().size()) if event else _dev_group
 	var step := 0
 	if event and event.is_action_pressed("weapon_next"):
@@ -464,18 +455,6 @@ func _pick_on_death(event: InputEvent) -> void:
 	Net.set_my_weapon(pick)
 
 
-## Waiting to respawn: the mobility button goes on to the next mobility tool.
-func _next_mobility() -> void:
-	var pick := LobbySettings.next_mobility(Net.pending_mobility())   # only the tools the host allows
-	if pick == Net.pending_mobility():
-		return   # one tool for everyone
-	Settings.mobility = pick
-	Settings.save_settings()
-	Sound.play("ui_select")
-	Net.set_my_mobility(pick)
-	if DevArgs.sync_log:
-		print("MOBILITY_PICK %d %s" % [peer_id, pick])
-
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
 func read_local_input() -> void:
@@ -485,6 +464,7 @@ func read_local_input() -> void:
 		input.sprint = false
 		input.jump_held = false
 		input.fire = false
+		input.alt_fire = false
 		input.grapple = false
 		input.dive = false
 		input.interact = false
@@ -508,6 +488,9 @@ func read_local_input() -> void:
 	input.fire = Input.is_action_pressed("fire")
 	if Input.is_action_just_pressed("fire"):
 		input.fire_pressed = true
+	input.alt_fire = Input.is_action_pressed("alt_fire")
+	if Input.is_action_just_pressed("alt_fire"):
+		input.alt_fire_pressed = true
 	if Input.is_action_just_pressed("jump"):
 		input.jump_pressed = true
 	input.dive = Input.is_action_pressed("dive")
@@ -540,6 +523,8 @@ func _update_weapon(delta: float) -> void:
 		_fire_buffer = 0.1
 	else:
 		_fire_buffer = max(_fire_buffer - delta, 0.0)
+	if input.alt_fire_pressed:
+		_alt_pressed()
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
@@ -562,6 +547,7 @@ func _update_weapon(delta: float) -> void:
 		elif weapon.ammo <= 0 or weapon.is_reloading():
 			_burst_left = 0
 		return
+	weapon.tilted = alt_held()   # the pistols on their side: quicker shots (and wider: see spread_scale)
 	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
 	if not wants or not Match.running:
 		return
@@ -576,9 +562,37 @@ func _update_weapon(delta: float) -> void:
 	_fire_round()
 
 
+## Alt fire was pressed with a weapon in hand (you are alive and not racing: the same
+## times the trigger counts, see _update_weapon). It is for a press-style alt fire: with
+## WeaponData.alt "sticky" (the grenade launcher) it fires a sticky proximity grenade
+## instead of a normal one, by the trigger's rules (a round from the same drum, the same
+## time between shots, a click when empty, and it stops a shell-by-shell reload) and
+## through the same shot (sound, recoil, animation), the host told it is sticky (see
+## Match._host_stick). The pistols' tilt is a hold instead (see alt_held).
+func _alt_pressed() -> void:
+	if weapon.data.alt != "sticky" or not Match.running or _burst_left > 0:
+		return
+	if not weapon.fire():
+		if weapon.ammo <= 0 and sounds.own:
+			Sound.play("dry_click", 0.0, 0.03)   # empty: the gun clicks while it reloads
+		return
+	_fire_buffer = 0.0
+	_fire_round(true)
+
+
+## Holding alt fire with a weapon whose alt fire is a hold (WeaponData.alt_is_hold: the
+## pistols turned on their side). Yours, or a bot's, comes from the input; anyone else's
+## from their snapshots (bit 22 of the animation flags, see RobotAnimInput.make_flags),
+## so every copy of the game, the killcam's included, can pose it.
+func alt_held() -> bool:
+	if is_local:
+		return alive and not racing and weapon != null and weapon.data.alt_is_hold() and input.alt_fire
+	return alive and RobotAnimInput.alt_of(_anim.flags)
+
+
 ## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
-## host is asked what it hit.
-func _fire_round() -> void:
+## host is asked what it hit. `sticky`: a sticky grenade (see _alt_pressed).
+func _fire_round(sticky: bool = false) -> void:
 	_next_gun()
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
@@ -589,7 +603,7 @@ func _fire_round() -> void:
 		view.fire(_akimbo_left)
 	var eye := eye_position()
 	if weapon.data.is_projectile():
-		Match.request_projectile(eye, _aim_direction(eye), peer_id)
+		Match.request_projectile(eye, _aim_direction(eye), peer_id, sticky)
 		return
 	if weapon.data.is_blast():
 		_send_blast(eye)
@@ -722,7 +736,7 @@ func _update_melee(delta: float) -> void:
 		print("ANIM WIND %d" % peer_id)
 
 
-## Which tap comes next: taps take turns (the right, then the left; Karate goes on
+## Which tap comes next: taps take turns (the right, then the left; a longer combo goes on
 ## through its combo), starting from the first again after a pause.
 func _next_side() -> int:
 	var n := MeleeSwing.combo_length(robot.weapon) if robot and WeaponData.melee(robot.weapon) else 2
@@ -1243,9 +1257,14 @@ func ammo_for(gun: String) -> int:
 const GLIDE_SPREAD := 0.5
 
 
-## How wide this player's shots scatter right now, against the gun's own spread (1 = as usual).
+## How wide this player's shots scatter right now, against the gun's own spread (1 = as
+## usual): tighter gliding, wider with a pistol tilted on its side (WeaponData.tilt_spread).
+## The shots are spread with it where they are fired, and the crosshair is drawn with it.
 func spread_scale() -> float:
-	return GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+	var s := GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+	if weapon != null:
+		s *= weapon.data.spread_scale(alt_held())
+	return s
 
 
 ## The directions of one shot's pellets (one for most guns), spread at random
@@ -1409,8 +1428,6 @@ func respawn_at(pos: Vector3, yaw: float, life: int = -1) -> void:
 	_slam_cool = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
-	if blink:
-		blink.reset()
 	if jetpack:
 		jetpack.reset()
 	_send_timer = 0.0  # tell everyone at once
@@ -1570,7 +1587,7 @@ func report_fell_once() -> void:
 # Network state
 
 ## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
-## respawn count (it also goes up on a blink), animation flags (see
+## respawn count, animation flags (see
 ## RobotAnimInput.make_flags), life (see _life). While a grappling hook shot is out
 ## (and a moment after): the whole shot (HookLine.pack) on the end, so any one
 ## snapshot is enough to draw it.
@@ -1597,8 +1614,6 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	var new_life := life != _seen_life
 	if count != _teleport_count or new_life:
 		_teleport_count = count
-		if alive and not _awaiting_respawn and visual.visible and buffer.has_data() and not new_life:
-			_show_warp(latest_position(), Vector3(data[0], data[1], data[2]))   # a blink, not a respawn
 		buffer.clear_history()  # never blend across a respawn
 		if new_life and not alive and _dead_life >= 0 and life > _dead_life:
 			# Back already, and we have not been told yet: the body that fell is not
@@ -1712,7 +1727,8 @@ func _my_anim_flags() -> int:
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
 		_kicks, _fly_kick > 0.0, motor.boosts, (_charge >= 0.0 or _blast_held >= 0.0) and alive, jetpack != null and jetpack.on and alive, _swing_side,
 		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3,
-		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side))
+		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side),
+		alt_held())
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1738,6 +1754,7 @@ func _animate(delta: float) -> void:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
+		_log_tilt()
 
 
 ## The ground under each foot, measured from the floor this body stands on (see
@@ -1788,6 +1805,16 @@ func _log_animation() -> void:
 		return
 	_logged_anim = shown
 	_print_animation(shown)
+
+
+## The sync log: "TILT SELF|SEEN <this copy> <player> on|off" as a player's pistols are
+## seen all the way over on their side (alt fire held, see alt_held), and back.
+func _log_tilt() -> void:
+	var over := animator.tilt() >= 0.99
+	if over == _logged_tilt:
+		return
+	_logged_tilt = over
+	print("TILT %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, "on" if over else "off"])
 
 
 func _print_animation(shown: String) -> void:
@@ -1862,116 +1889,20 @@ func teleport(pos: Vector3, yaw: float) -> void:
 	input.pitch = 0.0
 
 
-## Local: jump to `pos` keeping on the move (a blink). Others see it as a jump, not a
-## dash across the map: the respawn count goes up, so they don't blend from where you
-## were.
-func warp(pos: Vector3, vel: Vector3, yaw: float) -> void:
-	var from := global_position
-	motor.grapple.reset()
-	if motor.state == MovementController.State.MANTLE:
-		motor.state = MovementController.State.AIR
-	global_position = pos
-	velocity = vel
-	motor.warped = true   # off the floor you were on: no snapping back to it, no ground friction
-	input.yaw = yaw
-	_teleport_count += 1
-	_send_timer = 0.0   # tell everyone at once
-	_show_warp(from, pos)
-
-
-## Would this body fit with its feet at `feet`, clear of the map?
-func fits_at(feet: Vector3) -> bool:
-	if _shape == null or not is_inside_tree():
-		return true
-	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = _shape.shape
-	q.transform = Transform3D(Basis.IDENTITY, feet + _shape.position + Vector3(0, 0.04, 0))
-	q.collision_mask = 1
-	q.exclude = [get_rid()]
-	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
-
-
 # ---------------------------------------------------------------------------
-# Mobility: the grapple or blink (see Mobility). The jetpack is everyone's, on Space.
+# Mobility: the grappling hook (see Mobility). The jetpack, when the host turns it on
+# in the lobby, is on Space (see LobbySettings.jetpack).
 
-## Change the tool on the mobility button (picked while waiting to respawn).
 func set_mobility(id: String) -> void:
-	mobility = Mobility.GRAPPLE if racing else Mobility.valid(id)
-	if not is_local:
-		return
-	blink = Blink.new() if mobility == Mobility.BLINK else null
-	if motor == null:
-		return
-	if not Mobility.is_grapple(mobility):
-		motor.grapple.reset()
+	mobility = Mobility.valid(id)
 
 
-## 0..1 how ready the mobility tool is (the HUD).
+## 0..1 how ready the grappling hook is (the HUD).
 func mobility_readiness() -> float:
-	if mobility == Mobility.BLINK:
-		return blink.readiness() if blink else 1.0
 	var g := motor.grapple if motor else null
 	if g and g.cooldown_left > 0.0:
 		return 1.0 - g.cooldown_left / motor.tuning.grapple_cooldown
 	return 1.0
-
-
-## Where the mobility tool aims: the crosshair ray in third person, the eyes otherwise.
-## Bots can pick a direction of their own (PlayerInput.mobility_dir).
-func mobility_aim() -> Array:
-	if input.mobility_dir != Vector3.ZERO:
-		return [eye_position(), input.mobility_dir.normalized()]
-	if input.aim_dir != Vector3.ZERO:
-		return [input.aim_origin, input.aim_dir]
-	return [eye_position(), Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD]
-
-
-func _update_mobility(delta: float, pressed: bool) -> void:
-	if blink:
-		blink.update(delta)
-		if Cheats.cooldowns_off() and not is_bot:
-			blink.reset()
-		if pressed:
-			_try_blink()
-
-
-func _try_blink() -> void:
-	if not blink.ready():
-		return
-	var aim := mobility_aim()
-	var dir: Vector3 = aim[1]
-	var to := Blink.destination(self, _shape, dir)
-	if to == Vector3.INF:
-		sounds.grapple_missed()
-		blink._gap = Blink.GAP
-		return
-	blink.charges -= 1
-	blink._gap = Blink.GAP
-	if DevArgs.sync_log:
-		print("BLINK %d %.2f" % [peer_id, global_position.distance_to(to)])
-	warp(to, Blink.carry(velocity, dir), input.yaw)
-
-
-## What a blink looks and sounds like, here and (from their snapshots) on every other
-## copy: a flash where it left from and where it arrived, and a trail of sparks.
-func _show_warp(from: Vector3, to: Vector3) -> void:
-	if not is_inside_tree():
-		return
-	var mid := Vector3(0, body_height() * 0.5, 0)
-	var fx_parent: Node = Net.arena if Net.arena else get_parent()
-	if not (rig and rig.first_person_amount() > 0.5):
-		Blink.flash(fx_parent, from + mid)
-		Blink.flash(fx_parent, to + mid)
-	Blink.trail(fx_parent, from + mid, to + mid)
-	if is_local and not is_bot:
-		Sound.play("blink", 0.0, 0.05)
-	else:
-		Sound.play_at("blink", to + mid, "move", 0.0, 0.05)
-
-
-## How tall the body's collision shape is right now (crouching, belly sliding...).
-func body_height() -> float:
-	return (_shape.shape as CapsuleShape3D).height if _shape else CAPSULE_HEIGHT
 
 
 # ---------------------------------------------------------------------------
@@ -2000,6 +1931,8 @@ func _hold_still() -> void:
 	input.grapple = false
 	input.grapple_pressed = false
 	input.fire = false
+	input.alt_fire = false
+	input.alt_fire_pressed = false
 	input.kick_pressed = false
 	input.boost_pressed = false
 	input.glide = false
@@ -2052,7 +1985,7 @@ func _scripted_input(delta: float) -> void:
 			input.fire = true
 			if weapon and weapon.data.is_melee():
 				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
-				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a combo (Karate): a run of quick taps, then a full wind-up
+				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a longer combo: a run of quick taps, then a full wind-up
 					input.fire = fmod(t, 0.42) < 0.1 if fmod(t, 4.0) < 3.0 else fmod(t, 4.0) < 3.8
 			elif weapon and weapon.data.is_blast():
 				input.fire = fmod(t, 2.0) < 1.6   # the air cannon: charge it right up, then let go

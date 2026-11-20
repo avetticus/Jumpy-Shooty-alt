@@ -97,7 +97,7 @@ func _picking() -> void:
 		race_ok = race_ok and LobbySettings.pick_map(["office", "sky_ruins", "foundry"], "race") in ["sky_ruins", "foundry"]
 	_expect(race_ok, "a race picks only from the race maps ticked")
 	# The host's pick goes into the settings everyone gets (offline, this copy hosts).
-	Net.start_offline("Host", "needle", "sniper")
+	Net.start_offline("Host", "needle", "lever_action")
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
 	s["mode"] = "kills"
@@ -135,7 +135,7 @@ func _song_setting() -> void:
 
 func _lobby() -> void:
 	print("  lobby")
-	Net.start_offline("Host", "needle", "sniper")
+	Net.start_offline("Host", "needle", "lever_action")
 	var s := Net.match_settings.duplicate()
 	s = GunGame.with_mode(s, "ffa", "office")
 	s["map"] = "office"
@@ -239,7 +239,7 @@ func _menus() -> void:
 	_expect(s.random_map and s.game == "race" and Maps.game_of(s.map) == "race", "Random for a race: a race")
 	s = Game.with_map(s, "office", "ffa")
 	_expect(not s.random_map and s.map == "office", "a map picked: Random is off")
-	Net.start_offline("Host", "needle", "sniper")
+	Net.start_offline("Host", "needle", "lever_action")
 	Net.match_settings = Game.with_map(Net.match_settings, Maps.RANDOM, "ffa")
 	Net.host_pick_random_map()
 	_expect(Net.map_id() in ["office", "castle"], "Vs Bots: the pick is one of the pool's arenas (%s)" % Net.map_id())

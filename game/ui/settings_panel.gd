@@ -20,9 +20,10 @@ const HUD_TAB := 2
 const CHEAT_SHEET := [
 	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide: hold in mid-air (weakens the longer you hold)"], ["jump", "Jump; again in mid-air to flip; hold in mid-air: jetpack"],
 	["crouch", "Crouch; moving forward: dive, moving back: slide on your back"], ["dive", "Dive (keep holding to land in a belly slide)"],
-	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility: grappling hook or blink"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grappling hook"],
 	["interact", "Interact: press at a map terminal"],
-	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
+	["fire", "Shoot; melee: hold to wind up, let go to swing"],
+	["alt_fire", "Alt fire: hold to tilt the pistols, press for a sticky grenade"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],
 	["debug_menu", "Debug menu (Practice and Vs Bots)"],
 ]
@@ -186,7 +187,7 @@ func _build_hud() -> void:
 		func(v): hud.crosshair_thickness = v)
 	_switch("Dark outline", hud.crosshair_outline, func(v): hud.crosshair_outline = v)
 	_switch("Centre dot", hud.crosshair_dot, func(v): hud.crosshair_dot = v)
-	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for snipers.", true, 15)
+	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for the marksman rifles.", true, 15)
 	UiKit.section(_page, "Show")
 	_switch("Hit markers", hud.hit_markers, func(v): hud.hit_markers = v)
 	_switch("Damage numbers", hud.damage_numbers, func(v): hud.damage_numbers = v)

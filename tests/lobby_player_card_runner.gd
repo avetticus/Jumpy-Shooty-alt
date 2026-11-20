@@ -11,7 +11,7 @@ func run() -> void:
 	Achievements.reset_for_test()
 	Achievements.add("xp", PlayerLevel.need(1) + PlayerLevel.need(2) + 10)   # level 3
 	Achievements._toasts.clear()
-	Net.start_offline("Host", "needle", "sniper")
+	Net.start_offline("Host", "needle", "lever_action")
 	_expect(Net.player_level(1) == 3, "your level goes in with you (%d)" % Net.player_level(1))
 
 	# Someone in a crown and the Royal card, both locked for us.

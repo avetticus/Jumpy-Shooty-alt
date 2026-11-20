@@ -9,24 +9,23 @@ static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits:
 	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
 		return
 	weapon = WeaponData.look_of(weapon)
-	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "sniper": 0.22, "break_action": 0.24, "revolver": 0.16,
-		"lever_action": 0.16, "bolt_action": 0.2, "railgun": 0.26, "lmg": 0.13, "smg": 0.09, "machine_pistol": 0.08, "akimbo": 0.1,
-		"derringer": 0.14, "air_cannon": 0.05, "minigun": 0.12, "battle_rifle": 0.14,
-		"laser_rifle": 0.05, "anti_materiel": 0.32}.get(weapon, 0.12)
-	var width: float = {"shotgun": 0.009, "break_action": 0.009, "sniper": 0.028, "bolt_action": 0.022,
-		"railgun": 0.05, "air_cannon": 0.03, "laser_rifle": 0.012,
+	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "break_action": 0.24, "revolver": 0.16,
+		"lever_action": 0.16, "railgun": 0.26, "lmg": 0.13, "machine_pistol": 0.08, "akimbo": 0.1,
+		"dual_revolver": 0.15, "dual_machine_pistol": 0.08,
+		"air_cannon": 0.05, "minigun": 0.12, "battle_rifle": 0.14,
+		"anti_materiel": 0.32}.get(weapon, 0.12)
+	var width: float = {"shotgun": 0.009, "break_action": 0.009,
+		"railgun": 0.05, "air_cannon": 0.03,
 		"anti_materiel": 0.035}.get(weapon, 0.015)
 	var color := Color(1.0, 0.85, 0.5)
-	if weapon in ["sniper", "bolt_action"]:
-		color = Color(0.75, 0.9, 1.0)
-	elif weapon == "railgun":
+	if weapon == "railgun":
 		color = Color(0.35, 0.95, 1.0)
 	var data := WeaponData.by_id(weapon)
 	if data.tracer_color.a > 0.0:
 		color = data.tracer_color
 	elif weapon == "anti_materiel":
 		color = Color(0.75, 0.9, 1.0)
-	var life: float = {"sniper": 0.16, "bolt_action": 0.14, "railgun": 0.45, "anti_materiel": 0.22, "laser_rifle": 0.06,
+	var life: float = {"railgun": 0.45, "anti_materiel": 0.22,
 		"air_cannon": 0.12}.get(weapon, 0.07)
 	_flash(parent, muzzle, Color(1.0, 0.8, 0.4), flash, 0.05)
 	if data.is_blast():

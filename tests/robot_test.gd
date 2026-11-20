@@ -22,24 +22,24 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
-	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo", "muzzle_akimbo_l",
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent",
 	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
-const LONG_GUNS := ["shotgun", "rifle", "sniper"]
+const LONG_GUNS := ["shotgun", "rifle", "anti_materiel"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
 	"pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple",
-	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo_l",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent",
 	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
-## Akimbo (a pistol in each hand) has its own aim and reload, and first-person poses.
-const AKIMBO_BODY_CLIPS := ["aim_akimbo", "reload_akimbo"]
-const AKIMBO_ARM_CLIPS := ["fp_idle_akimbo", "fp_sprint_akimbo", "fp_one_hand_akimbo", "fp_wall_r_akimbo",
-	"fp_dive_akimbo", "fp_raise_akimbo", "fp_reload_akimbo"]
+## A gun in each hand (every weapon with a left muzzle: the Dual Pistols...) has its own
+## aim and reload, and first-person poses, never the one-gun ones (e.g. "aim_akimbo").
+const DUAL_BODY_CLIPS := ["aim", "reload"]
+const DUAL_ARM_CLIPS := ["fp_idle", "fp_sprint", "fp_one_hand", "fp_wall_r", "fp_dive", "fp_raise", "fp_reload"]
 
 var failures := 0
 var robot: RobotModel
@@ -76,10 +76,22 @@ func _checks() -> void:
 			if gun != "rifle":
 				body_clips.append("fire_" + gun)
 				arm_clips.append("fp_fire_" + gun)
-		body_clips.append_array(AKIMBO_BODY_CLIPS)
-		arm_clips.append_array(AKIMBO_ARM_CLIPS)
-		_check_file(Characters.body(id), BODY_BONES, body_clips)
-		_check_file(Characters.arms(id), ARM_BONES, arm_clips)
+		var body_bones := BODY_BONES.duplicate()
+		var arm_bones := ARM_BONES.duplicate()
+		for gun in _duals():
+			var data := WeaponData.by_id(gun)
+			for c in DUAL_BODY_CLIPS:
+				body_clips.append(c + "_" + gun)
+			for c in DUAL_ARM_CLIPS:
+				arm_clips.append(c + "_" + gun)
+			body_bones.append_array([data.muzzle_bone, data.muzzle_bone_left])
+			arm_bones.append_array([data.muzzle_bone, data.muzzle_bone_left])
+		_check_file(Characters.body(id), body_bones, body_clips)
+		_check_file(Characters.arms(id), arm_bones, arm_clips)
+		for gun in _duals():
+			for path in [Characters.body(id), Characters.arms(id)]:
+				var sides := _gun_sides(path, gun)
+				_expect("%s: %s has a gun in each hand" % [path.get_file(), gun], sides[0] > 50 and sides[1] > 50, str(sides))
 		var rig := RobotRig.open(Characters.body(id))
 		var same := rig.bone_names == first.bone_names
 		for i in mini(rig.rest_pos.size(), first.rest_pos.size()):
@@ -103,8 +115,10 @@ func _checks() -> void:
 		for gun in LONG_GUNS:
 			_drop_robot()
 			_check_gun(gun)
-		_drop_robot()
-		_check_akimbo()
+		for gun in _duals():
+			_drop_robot()
+			_check_dual(gun)
+		_check_tilt()
 		_drop_robot()
 	_check_habits()
 
@@ -174,38 +188,145 @@ func _chest(rig: RobotRig, pose: RobotPose) -> Transform3D:
 	return at
 
 
-## Akimbo: a pistol in each fist, both pointing ahead, and each arm kicks only on its own shots.
-func _check_akimbo() -> void:
-	print("%s: akimbo pistols" % Characters.name_of(_character))
-	_weapon = "akimbo"
+## The weapons with a gun in each hand.
+func _duals() -> Array:
+	return WeaponData.GUNS.filter(func(g): return WeaponData.by_id(g).is_akimbo())
+
+
+## How many of a gun's vertices a model file holds by the right fist and by the left
+## (rest pose: the arms hang at the sides): [right, left].
+func _gun_sides(path: String, gun: String) -> Array:
+	var full: Mesh = RobotModel._source(path)[0]
+	var sides := [0, 0]
+	for s in full.get_surface_count():
+		var mat := full.surface_get_material(s)
+		if mat == null or not mat.resource_name.begins_with(gun + "."):
+			continue
+		for v in (full.surface_get_arrays(s)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+			if v.x > 0.1:
+				sides[0] += 1
+			elif v.x < -0.1:
+				sides[1] += 1
+	return sides
+
+
+## A gun in each fist, both pointing ahead, and each arm kicks only on its own shots.
+func _check_dual(gun: String) -> void:
+	print("%s: %s" % [Characters.name_of(_character), WeaponData.name_of(gun)])
+	_weapon = gun
+	var data := WeaponData.by_id(gun)
 	_fresh()
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
-	var right := robot.marker("muzzle_akimbo")
-	var left := robot.marker("muzzle_akimbo_l")
+	var right := robot.marker(data.muzzle_bone)
+	var left := robot.marker(data.muzzle_bone_left)
 	_expect("both guns out in front at chest height", right.z < -0.5 and left.z < -0.5 and right.y > 1.2 and left.y > 1.2,
 		"%s %s" % [right, left])
 	_expect("one gun in each hand", right.x > 0.05 and left.x < -0.05, "%s %s" % [right, left])
-	for g in [["", "muzzle_akimbo"], ["_l", "muzzle_akimbo_l"]]:
+	for g in [["", data.muzzle_bone], ["_l", data.muzzle_bone_left]]:
 		var dir := (robot.marker(g[1]) - robot.marker("pistol" + g[0])).normalized()
 		_expect("the %s gun points forward" % ("left" if g[0] != "" else "right"), dir.dot(Vector3.FORWARD) > 0.9, str(dir))
 	animator.fire(true)
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 2.0 / 60.0)
-	var kick_l := robot.marker("muzzle_akimbo_l").y - left.y
-	var kick_r := robot.marker("muzzle_akimbo").y - right.y
+	var kick_l := robot.marker(data.muzzle_bone_left).y - left.y
+	var kick_r := robot.marker(data.muzzle_bone).y - right.y
 	_expect("a left-hand shot kicks the left gun, not the right", kick_l > 0.01 and absf(kick_r) < kick_l * 0.3, "%.3f vs %.3f" % [kick_l, kick_r])
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+	right = robot.marker(data.muzzle_bone)   # (from where the idle has them now)
+	left = robot.marker(data.muzzle_bone_left)
 	animator.fire(false)
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 2.0 / 60.0)
-	kick_l = robot.marker("muzzle_akimbo_l").y - left.y
-	kick_r = robot.marker("muzzle_akimbo").y - right.y
+	kick_l = robot.marker(data.muzzle_bone_left).y - left.y
+	kick_r = robot.marker(data.muzzle_bone).y - right.y
 	_expect("and a right-hand shot the right", kick_r > 0.01 and absf(kick_l) < kick_r * 0.3, "%.3f vs %.3f" % [kick_r, kick_l])
 	_fresh()
 	var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
 	reloading.flags = RobotAnimInput.make_flags(false, false, true, 0, 0)
 	_run(reloading, 0.4)
-	_expect("reloading: both cells are out of their guns", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.15
-		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.15)
+	# (Out of the grip, or swung out of the frame: a revolver's cylinder.)
+	var out := []
+	for side in ["", "_l"]:
+		var mag := robot.skeleton.get_bone_pose(robot.rig.bones["pistol%s_mag" % side])
+		out.append(mag.origin.length() > 0.03 or mag.basis.get_rotation_quaternion().get_angle() > deg_to_rad(30.0))
+	_expect("reloading: both guns' cells are out", out[0] and out[1], str(out))
 	_weapon = "pistol"
+
+
+## Alt fire "tilt" (bit 22 of the flags: Player.alt_held). The Pistol and the Dual Pistols
+## roll over onto their sides in a moment, each gun's top turning in toward the body's
+## middle and still pointing ahead; the fist and fingers go round with the gun and the
+## forearm turns with them; one pistol's left hand lets go; two guns stay clear of each
+## other; a reload holds them upright; letting go turns them back. No other gun moves.
+func _check_tilt() -> void:
+	print("%s: alt fire turns the pistols on their side" % Characters.name_of(_character))
+	var tilt := RobotAnimInput.make_flags(false, false, false, 0, 0, 0, 0, false, 0, false, false, 0, false, 0, true)
+	for gun in ["pistol", "akimbo"]:
+		_drop_robot()
+		_weapon = gun
+		_fresh()
+		var data := WeaponData.by_id(gun)
+		var sides := [["", "_r", -1.0]]
+		if data.is_akimbo():
+			sides.append(["_l", "_l", 1.0])
+		_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+		var held := {}
+		for side in sides:
+			held[side[0]] = [_bone_basis("pistol" + side[0]), _in_gun(side[0], "index" + side[1]), _in_gun(side[0], "thumb" + side[1]),
+				robot.skeleton.get_bone_pose_rotation(robot.rig.bones["forearm" + side[1]])]
+		var hands := robot.marker("hand_l").distance_to(robot.marker("hand_r"))
+		var tilted := _input(S.GROUND, Vector3.ZERO, 0.0)
+		tilted.flags = tilt
+		_run(tilted, 0.05)
+		_expect("%s: turns over quickly, not in one frame" % gun, animator.tilt() > 0.2 and animator.tilt() < 0.8, "%.2f" % animator.tilt())
+		_run(tilted, 0.25)
+		_expect("%s: all the way over in a tenth of a second or so" % gun, animator.tilt() >= 1.0)
+		for side in sides:
+			var which: String = "the left gun" if side[0] == "_l" else "the right gun"
+			var b := _bone_basis("pistol" + side[0])
+			var up := b * Vector3(0, 0, -1)   # (the gun's sights: rig.GUN_REST)
+			_expect("%s: %s's top turns in toward the middle" % [gun, which], up.x * float(side[2]) > 0.85, str(up))
+			_expect("%s: %s still points ahead" % [gun, which], (b * Vector3.DOWN).dot(Vector3.FORWARD) > 0.9, str(b * Vector3.DOWN))
+			var was: Array = held[side[0]]
+			_expect("%s: %s's fist goes round with it, fingers on the grip" % [gun, which],
+				_in_gun(side[0], "index" + side[1]).distance_to(was[1]) < 0.005 and _in_gun(side[0], "thumb" + side[1]).distance_to(was[2]) < 0.005)
+			var fore := robot.skeleton.get_bone_pose_rotation(robot.rig.bones["forearm" + side[1]])
+			_expect("%s: the forearm turns with it" % gun, fore.angle_to(was[3]) > deg_to_rad(25.0), "%.0f degrees" % rad_to_deg(fore.angle_to(was[3])))
+		if data.is_akimbo():
+			var gap := robot.marker(data.muzzle_bone).distance_to(robot.marker(data.muzzle_bone_left))
+			_expect("%s: the two guns stay clear of each other" % gun, gap > 0.14, "%.2f m between the barrels" % gap)
+		else:
+			var apart := robot.marker("hand_l").distance_to(robot.marker("hand_r"))
+			_expect("%s: the left hand lets go of the gun" % gun, hands < 0.15 and apart > 0.3, "%.2f m apart, %.2f m held" % [apart, hands])
+		var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
+		reloading.flags = tilt | RobotAnimInput.make_flags(false, false, true, 0, 0)
+		_run(reloading, 0.3)
+		_expect("%s: a reload holds it upright" % gun, animator.tilt() == 0.0, "%.2f" % animator.tilt())
+		_fresh()
+		_run(tilted, 0.5)
+		_run(_input(S.GROUND, Vector3.ZERO, 0.0), 0.3)
+		_expect("%s: letting go turns it back" % gun, animator.tilt() == 0.0 and (_bone_basis("pistol") * Vector3(0, 0, -1)).y > 0.8)
+	for gun in ["revolver", "machine_pistol", "dual_revolver", "rifle"]:
+		_drop_robot()
+		_weapon = gun
+		_fresh()
+		_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+		var at := robot.muzzle()
+		_fresh()
+		var tilted := _input(S.GROUND, Vector3.ZERO, 0.0)
+		tilted.flags = tilt
+		_run(tilted, 1.0)
+		_expect("%s: alt fire held does not turn it" % gun, robot.muzzle().distance_to(at) < 0.001 and animator.tilt() == 0.0, str(robot.muzzle() - at))
+	_weapon = "pistol"
+
+
+## A bone's turn in the model's space.
+func _bone_basis(bone: String) -> Basis:
+	return robot.skeleton.get_bone_global_pose(robot.rig.bones[bone]).basis
+
+
+## Where a bone is in a gun's own space ("" the right hand's, "_l" the left's).
+func _in_gun(side: String, bone: String) -> Vector3:
+	var g := robot.skeleton.get_bone_global_pose(robot.rig.bones["pistol" + side])
+	return g.affine_inverse() * robot.skeleton.get_bone_global_pose(robot.rig.bones[bone]).origin
 
 
 func _check_character() -> void:

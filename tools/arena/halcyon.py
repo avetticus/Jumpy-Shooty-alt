@@ -1607,14 +1607,14 @@ def pickups(m):
     for p, w in [
         ((6.5, 16, 49), "rocket_launcher"),      # the top catwalk ring round the reactor
         ((0, 14, -50), "railgun"),               # the hangar's launch gantry
-        ((64.2, 18, 0), "sniper"),               # the top hydroponics terrace
+        ((64.2, 18, 0), "lever_action"),              # the top hydroponics terrace
         ((-56.7, LOW + 15.6, -2), "grenade_launcher"),   # the six-high container stack
         ((28, 20, -54), "lmg"),                  # the perch high on the hangar's east wall
         ((-50.1, 0, 46), "shotgun"),             # a cryo pod aisle
-        ((48, 0, -61), "smg"), ((61, 0, 40), "revolver"), ((-61, 0, -40), "break_action"),   # the ring
+        ((48, 0, -61), "rifle"), ((61, 0, 40), "revolver"), ((-61, 0, -40), "break_action"),   # the ring
         ((-21, 0, -0.5), "rifle"), ((21, 0, 0.5), "burst_rifle"),                           # the west and east spokes
         ((-34.5, 0, 56.5), "sword"),             # the crew mess
         ((0, LOW, 14.5), "lever_action"),        # the round passage under the control room
-        ((59, LOW, -45), "bolt_action"), ((-63, LOW, 45), "hammer"), ((0, LOW, 24), "machine_pistol"),   # lower deck
+        ((59, LOW, -45), "lever_action"), ((-63, LOW, 45), "hammer"), ((0, LOW, 24), "machine_pistol"),   # lower deck
     ]:
         m.weapon(p, w)

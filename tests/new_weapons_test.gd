@@ -1,5 +1,6 @@
 extends SceneTree
-## Headless checks on the third batch of weapons (WeaponData.BATCH_3): there are 14,
+## Headless checks on the third batch of weapons (WeaponData.BATCH_3) and the two-gun
+## sidearms (_check_duals): there are 14,
 ## each is distinct from every other weapon and is in the pickers, the bots, the
 ## sounds, the HUD's icons and the robots' models; and their new ways of playing work:
 ## the minigun spins up, the laser rifle refills itself and overheats, the darts (nails, bolts) hurt only who they hit, and Gun Game climbs through them.
@@ -15,8 +16,8 @@ func _init() -> void:
 	var gg_src := FileAccess.get_file_as_string("res://game/match/gun_game.gd")
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
-	_check(batch.size() == 14, "14 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 38 and WeaponData.IDS[-1] == "karate", "38 weapons in all, Karate the last (%d)" % WeaponData.IDS.size())
+	_check(batch.size() == 6, "6 new weapons (%d)" % batch.size())
+	_check(WeaponData.IDS.size() == 26 and WeaponData.IDS[-1] == "energy_sword", "26 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
@@ -52,6 +53,8 @@ func _init() -> void:
 		_check(not all_parts.has(tris), "%s: a model of its own" % id)
 		all_parts[tris] = id
 
+	_check_duals(bot_src, ladder)
+
 	# The minigun: slow until spun up, then 20 rounds a second.
 	var mini := WeaponData.by_id("minigun")
 	_check(mini.automatic and mini.spin_up > 0.0 and mini.interval_at(0.0) > mini.interval_at(1.0) * 2.5, "minigun: spins up")
@@ -59,50 +62,26 @@ func _init() -> void:
 	_check(_shots_in(s, 1.0, 0.0) < _shots_in(WeaponState.new(mini), 1.0, 1.0) / 2, "minigun: spun down, it fires far slower")
 	_check(_shots_in(WeaponState.new(mini), 1.0, 1.0) >= 16, "minigun: spun up, about 20 rounds a second")
 
-	# Energy guns: never reload while you keep the battery from running flat; flat, they overheat.
-	for id in ["laser_rifle"]:
-		var w := WeaponData.by_id(id)
-		s = WeaponState.new(w)
-		for i in 5:
-			s.fire()
-			_step(s, w.fire_interval + 0.02)
-		_check(s.ammo == w.magazine - 5 and not s.is_reloading(), "%s: shooting drains the battery" % id)
-		_step(s, w.recharge_delay + 5.0 / w.recharge + 0.2)
-		_check(s.ammo == w.magazine, "%s: and it refills by itself a moment after" % id)
-		var guard := 0
-		while not s.is_reloading() and guard < 500:
-			s.fire()
-			_step(s, w.fire_interval + 0.02)
-			guard += 1
-		_check(s.is_reloading() and not s.can_fire(), "%s: run it flat and it overheats" % id)
-		_step(s, w.reload_time + 0.05)
-		_check(s.ammo == w.magazine and s.can_fire(), "%s: cooled down, full again" % id)
-
 	# The air cannon hurts nobody, but a full charge shoves hard enough to kill by the
 	# wall (more in tests/air_cannon_test.gd).
 	var air := WeaponData.by_id("air_cannon")
 	_check(air.is_blast() and air.damage == 0.0 and air.blast_knockback(1.0, 0.0)[0] > 30.0, "air cannon: hurts nobody, a full charge shoves hard")
 	# Darts: no blast; the crossbow kills with a headshot.
-	for id in ["nail_gun", "crossbow"]:
+	for id in ["crossbow"]:
 		var w := WeaponData.by_id(id)
 		_check(w.is_projectile() and not w.explosive and w.self_damage == 0.0, "%s: a dart, no blast" % id)
 	var bow := WeaponData.by_id("crossbow")
 	_check(bow.damage < 100.0 and bow.damage * bow.headshot_multiplier >= 100.0, "crossbow: a headshot kills, a body shot does not")
-	_check(WeaponData.by_id("plasma_cannon").is_projectile() and WeaponData.by_id("plasma_cannon").explosive, "plasma cannon: flies and bursts")
 	var looks_of := {}
 	for id in WeaponData.GUNS:
 		if WeaponData.by_id(id).is_projectile():
 			looks_of[WeaponData.by_id(id).look()] = true
-	_check(looks_of.size() >= 5, "projectiles: five looks (%s)" % [looks_of.keys()])
-	var derringer := WeaponData.by_id("derringer")
-	_check(derringer.magazine == 2 and derringer.damage * 2.0 >= 100.0 and derringer.damage_at(30.0) * 2.0 < 50.0,
-		"derringer: both shots kill up close, not far away")
+	_check(looks_of.size() >= 3, "projectiles: three looks (%s)" % [looks_of.keys()])
 	var amr := WeaponData.by_id("anti_materiel")
 	_check(amr.damage < 100.0 and amr.damage * amr.headshot_multiplier >= 100.0 and amr.structure_damage >= 5.0,
 		"anti-materiel: 95 to the body, a headshot kills, breaks walls")
 	_check(WeaponData.by_id("energy_sword").charge_damage * 2.0 >= 100.0 and WeaponData.by_id("energy_sword").charge_knockback < 17.5,
 		"energy sword: two full swings kill, but it never slams anyone into a wall")
-	_check(WeaponData.by_id("scythe").arc_degrees > WeaponData.by_id("bat").arc_degrees, "scythe: the widest swing")
 
 	# Gun Game: every rung a real gun, no repeats, ends on the knuckles, and the new guns are on it.
 	var seen := {}
@@ -111,7 +90,39 @@ func _init() -> void:
 		seen[id] = true
 	_check(ladder[-1] == "brass_knuckles", "gun game: ends with the knuckles")
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
-	_check(new_rungs >= 7, "gun game: climbs through the new guns too (%d)" % new_rungs)
+	_check(new_rungs >= 4, "gun game: climbs through the new guns too (%d)" % new_rungs)
+
+
+## A gun in each hand: the Dual Pistols (id "akimbo"), and the Dual Revolvers and Dual
+## Machine Pistols beside the single ones, each in the Sidearms right after its single
+## gun, with a left muzzle of its own, its own reload effects (both guns), reload sounds,
+## icon, bot ranges and sounds. Each pair fires faster than its single gun, a little
+## softer, wider, with twice the rounds and a longer reload. Not on the Gun Game ladder.
+func _check_duals(bot_src: String, ladder: Array) -> void:
+	var sidearms: Array = WeaponData.GROUPS[0][1]
+	var pairs := {"akimbo": "pistol", "dual_revolver": "revolver", "dual_machine_pistol": "machine_pistol"}
+	for id in pairs:
+		var w := WeaponData.by_id(id)
+		var one := WeaponData.by_id(pairs[id])
+		_check(WeaponData.has(id) and w.id == id and id in WeaponData.GUNS and id in sidearms, "%s: a sidearm in the pickers" % id)
+		_check(w.is_akimbo() and w.muzzle_bone_left == "muzzle_%s_l" % id and w.muzzle_bone == "muzzle_" + id,
+			"%s: a gun in each hand, shots from both muzzles" % id)
+		if id != "akimbo":
+			_check(sidearms.find(id) == sidearms.find(pairs[id]) + 1, "%s: right after the %s" % [id, one.display_name])
+			_check(w.alt == "", "%s: no alt fire" % id)
+			_check(not id in ladder, "%s: not on the Gun Game ladder" % id)
+		_check(w.automatic == one.automatic and w.damage < one.damage and w.fire_interval < one.fire_interval
+			and w.magazine == one.magazine * 2 and w.reload_time > one.reload_time and w.spread_degrees > one.spread_degrees,
+			"%s: faster than the %s, a little softer, wider, twice the rounds, a longer reload" % [id, one.display_name])
+		var dps_one := one.damage / one.fire_interval
+		var dps := w.damage / w.fire_interval
+		_check(dps > dps_one * 1.2 and dps < dps_one * 1.9, "%s: hits harder a second, but not twice as hard (%.0f vs %.0f)" % [id, dps, dps_one])
+		_check(ReloadFx.GUNS.has(id) and ReloadFx.GUNS[id].get("both", false), "%s: both guns reload" % id)
+		_check(SfxList.RELOAD_STEPS.has(id), "%s: reload sounds" % id)
+		_check(bot_src.contains('"%s": [' % id), "%s: the bots know what range to fight it at" % id)
+		_check(HudStyle.weapon_width(id) != 22.0 and HudStyle.weapon_width(id) != HudStyle.weapon_width(pairs[id]), "%s: an icon of its own" % id)
+		for sound in ["fire_" + id, "fire_%s_fp" % id, "far_" + id, "equip_" + id]:
+			_check(ResourceLoader.exists("res://game/audio/sfx/%s.wav" % sound) and SfxList.VOLUME.has(sound), "%s: sound %s" % [id, sound])
 
 
 ## (Once the tree is up: a bolt has to fly in the world.)

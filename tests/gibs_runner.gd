@@ -64,8 +64,9 @@ func _cut_checks() -> void:
 	ids.append(mix.to_id())
 	for id in ids:
 		_check_cut(id, "rifle", 1)
-	_check_cut(Characters.default_id(), "akimbo", 2)
-	_check_cut(mix.to_id(), "akimbo", 2)
+	for gun in WeaponData.GUNS.filter(func(g): return WeaponData.by_id(g).is_akimbo()):   # a gun in each hand: two guns
+		_check_cut(Characters.default_id(), gun, 2)
+		_check_cut(mix.to_id(), gun, 2)
 	_check_cut("templar", "sword", 0)
 	_check_cut("vanguard", "none", 0)
 

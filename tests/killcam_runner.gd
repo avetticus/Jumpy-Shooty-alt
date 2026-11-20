@@ -119,10 +119,10 @@ func _scores() -> void:
 	var words_gk := KillScore.words({"tags": gk[1], "speed": 26.0, "target_speed": 40.0, "flick": 90.0})
 	_expect(not words_gk.any(func(w): return str(w).begins_with("FLICK") or str(w).begins_with("TARGET AT") or w == "AIR SHOT" or w == "TRICKSHOT"),
 		"its tags leave out what the blow did on its own (%s)" % [words_gk])
-	# A sniper trickshot: off a rope swing, a flick onto a target in the air, 40 m off, both moving.
+	# An anti-materiel trickshot: off a rope swing, a flick onto a target in the air, 40 m off, both moving.
 	var snipe := KillScore.score({"distance": 40.0, "headshot": true, "killer_state": S.GRAPPLE, "victim_state": S.AIR,
 		"killer_speed": 24.0, "victim_speed": 14.0, "flick": 90.0})
-	_expect(snipe[0] > gk[0] + 200, "a sniper trickshot beats grapple-and-kick by a long way (%d against %d)" % [snipe[0], gk[0]])
+	_expect(snipe[0] > gk[0] + 200, "an anti-materiel trickshot beats grapple-and-kick by a long way (%d against %d)" % [snipe[0], gk[0]])
 	var shot_from_rope := KillScore.score({"distance": 25.0, "killer_state": S.GRAPPLE, "killer_speed": 22.0, "victim_speed": 9.0})
 	_expect(shot_from_rope[0] >= gk[0] - 60, "even a plain shot off the rope at a moving target is in the same league (%d against %d)" % [shot_from_rope[0], gk[0]])
 	_expect(gk[0] > KillScore.score({"distance": 2.0, "cause": "kick"})[0] + 150, "grapple-and-kick still beats a kick on the ground (it is a good killcam, just not the best every time)")
@@ -207,7 +207,7 @@ func _mode() -> void:
 func _packing() -> void:
 	print("  what travels with a death")
 	var info := {"seq": 7, "score": 345, "tags": KillScore.T_ROPE | KillScore.T_MID_AIR, "streak": 1,
-		"distance": 23.4, "weapon": "sniper", "speed": 21.7, "target_speed": 9.3, "flick": 84.0, "killer": 2, "victim": 9001}
+		"distance": 23.4, "weapon": "anti_materiel", "speed": 21.7, "target_speed": 9.3, "flick": 84.0, "killer": 2, "victim": 9001}
 	var packed := Match.pack_kill(info)
 	_expect(packed.size() == 11 and packed.all(func(v): return v is int or v is String), "a kill travels as ten plain numbers and a word (%s)" % [packed])
 	_expect(Match.kill_info(packed) == info, "...and turns back into the same kill")

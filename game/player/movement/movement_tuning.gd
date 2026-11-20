@@ -198,8 +198,7 @@ func _apply_b() -> void:
 @export var space_hold_time := 0.25
 
 @export_group("Flip")
-@export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
-@export var flip_up := 4.5                ## and at least this much upward speed
+@export var flip_up := 4.5                ## press jump in mid-air: at least this much upward speed (and no push along)
 @export var flip_time := 0.45             ## how long the flip lasts (for the animation)
 
 ## Mechanic switches. The plain numbers have every one as below; Variant B changes them (see _apply_b).

@@ -168,7 +168,10 @@ Quick checks:
   and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
   fails if any button, text box or slider is off screen, if a robot or weapon button
   cuts its name short, or if the death screen's two columns do not fit;
-- controls rebinding (`tests/controls_check.gd`), the main menu's mode switch
+- controls rebinding (`tests/controls_check.gd`: defaults, conflicts, save and load, the
+  Controls tab, and saved bindings brought up to date: the glide to Alt, the mobility button
+  to middle mouse, alt fire onto right mouse unless it is taken; alt fire's weapon data and
+  its held flag surviving a snapshot), the main menu's mode switch
   (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
   (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
   Practice match (`tests/debug_test.gd`);
@@ -194,18 +197,29 @@ Quick checks:
   from the new life, after a new robot or gun while waiting to see them back, and
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the mobility slot and the jetpack (`tests/mobility_test.gd`), in a real Practice match:
-  blink (range, a wall, its charge), picking a tool (refused while alive, taken while
-  dead; the grapple and blink, an old pick of a tool that is gone is the grapple), and
-  everyone's jetpack on Space (a tap is a plain jump and burns nothing, nor does holding
+  the grappling hook is the only tool (an old pick of one that is gone is the hook); no
+  jetpack by default (holding Space in mid-air is just a jump); with the lobby's jetpack
+  on, it is on Space (a tap is a plain jump and burns nothing, nor does holding
   it through the jump for less than `space_hold_time`; held on in mid-air it fires,
-  lifts you and burns fuel that refills; held in a fall it catches you); bots carry a
-  tool and the jetpack; a race has the grapple and no jetpack;
+  lifts you and burns fuel that refills; held in a fall it catches you); bots have it
+  while it is on; a race has the grapple and never the jetpack;
 - the game boots into practice mode on every map without script errors.
 
 - the railgun (`tests/railgun_test.gd`), in a real Practice match: through a wall a pistol
   round stops at, its slug kills a dummy outright, its tracer runs its whole range and it
   never hurts the one who fired it (`tests/destruction_test.gd` checks that a line through
   walls finds every breakable piece on it);
+- the sticky grenade (`tests/sticky_grenade_test.gd`, with `--fixed-fps 60`), in real Vs
+  Bots matches with the bots frozen: alt fire with the grenade launcher fires one by the
+  trigger's rules (a round from the drum, the time between shots, nothing when empty, it
+  stops the shell-by-shell reload; nothing with other guns); it sticks to the floor and
+  to a player (riding them, on the host and as drawn) without going off; it is armed after
+  0.5 s and not before; its owner never sets it off, an enemy behind a wall does not, an
+  enemy within 3 m in sight does, and one on an enemy goes off once armed, the kill the
+  owner's with the grenade launcher even after a change of gun; a fourth takes the
+  oldest away; it goes without a blast when its owner dies, when the player it is on
+  dies, when the wall piece it is on breaks and when the match ends; the killcam keeps
+  one stuck before a clip; in Search and Destroy a teammate never sets it off;
 - the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
   only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
@@ -246,6 +260,15 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- sticky grenades online (`tests/run_sticky_test.sh`): a client fires four with alt fire
+  at the floor 6 m from the host; each sticks where the host has it and the client draws
+  it there, the fourth takes the first away on both copies, both see them armed, and the
+  host walking within reach sets them off (the client's blasts, with the grenade
+  launcher) while the client sees them go;
+- the pistols' tilt online (`tests/run_tilt_test.sh`): a client with the Pistol holds alt
+  fire; its guns turn over on its own copy and on the host's, and back; tilted, six clicks
+  0.11 s apart all fire, upright the same clicks are too quick for some, and the host
+  takes every shot;
 - respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
   shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
   player's first snapshot from the new life, and both must show every respawned player;
@@ -264,7 +287,7 @@ Networked and bot runs (real time):
   Golden Gun at a time, whoever kills the holder takes it, every kill with it gives its
   round back, and host and client see the same hand-overs and results;
 - Killcam mode (`tests/run_killcam_mode_test.sh`): Vs Bots and online, everyone has the
-  sniper rifle (even a client who picked another gun), each player's points are their
+  anti-materiel rifle (even a client who picked another gun), each player's points are their
   kills' killcam scores plus the #1 killcam bonus, the match ends at the kill that
   reaches the target, the rankings go by points, and host and client agree;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
@@ -436,7 +459,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
 | `--unlock-all` | Nothing is locked behind an achievement (Character Creator items, calling cards, icons) |
 | `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
-| `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
+| `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `railgun` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
@@ -578,7 +601,7 @@ every step to about 2 m), the rocket boots down to the Hearth from every outer i
 will be 6 m up or less (the Citadel and Terrace never come that low: bots go round by
 the pads). Each link rides the part it sets off from. Falling is death (Kill Height
 -36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
-upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the Broken
+upper floor, the lever-action rifle on the Citadel's wall walk, the railgun on the Broken
 Tower's lookout), all inside islands so they ride the bob, so it is listed for
 free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
 --script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the
@@ -788,7 +811,8 @@ it straight away. To put it in the menus, add a line to `LIST` in `game/arena/ma
 To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
 MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
 least 8 pickups of 10 or more different weapons, each over a floor with room to stand,
-and that all the Deathmatch maps together offer every weapon.
+and that all the Deathmatch maps together offer every weapon (but those in its
+`NO_PICKUPS_YET`: the Dual Revolvers and Dual Machine Pistols have no pads yet).
 
 The scripts behind this:
 
@@ -1662,12 +1686,119 @@ mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun
 are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
 game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
 shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
-are in `game/combat/weapon_data.gd`. The akimbo pistols are the one weapon in two hands:
-the left gun rides on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
-`pistol_l_mag`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`, `slide_l` and
-`mag_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
-(`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
-replace the .glb files as long as it keeps the same bone and clip names.
+are in `game/combat/weapon_data.gd`. A model made in Blender later can replace the .glb
+files as long as it keeps the same bone and clip names.
+
+**Two-gun weapons.** The Dual Pistols (id `akimbo`), Dual Revolvers and Dual Machine
+Pistols hold a gun in each hand (the single pistol, revolver and machine pistol stay as
+they are). In the game
+any weapon with a left muzzle (`WeaponData.muzzle_bone_left`, so `is_akimbo()`) is two
+guns: the shots alternate between `muzzle_<id>` and `muzzle_<id>_l`, `fire(left)` kicks
+only the arm that fired, the left hand closes on its own grip, both guns break off as
+gibs and both reload (`ReloadFx` "both"), and the killcam replays which gun each shot
+left. Whether a slide snaps back on a shot is `WeaponData.SLIDE_KICK` (not a revolver's
+hammer). In the tools a two-gun weapon is one line in `rig.DUALS` (the weapon and the
+sidearm it is a pair of): `weapons.dual()` builds that sidearm twice, once on each hand's
+bones (its per-hand builder in `weapons.ONE`: `_pistol_one`, `_revolver_one`,
+`_machine_pistol_one`, each `(mesh, gun, side)`; the single guns are the same builders on
+the right hand), the left
+gun riding on its own bones in the left fist (`pistol_l`, `pistol_l_slide`, `pistol_l_mag`,
+`pistol_l_vent`; pose specs move them with `pistol_l`, `slide_l`, `mag_l` / `mag_rot_l`
+and `vent_l` / `vent_pos_l`), and `rig` adds its left muzzle bone. **The clip rule:** every
+two-gun weapon gets its own clips, named like any gun's (`aim_<id>`, `reload_<id>` and
+`fp_idle_`, `fp_sprint_`, `fp_one_hand_`, `fp_wall_r_`, `fp_dive_`, `fp_raise_`,
+`fp_reload_<id>`), built by `weapon_anims.dual_body_clips(id)` / `dual_arms_clips(id)` from
+the shared two-gun rest pose (`dual_rest`) and its own reload
+(`sidearm_anims.DUAL_RELOADS`, `weapon_anims.DUAL_RELOAD` for its length). With both hands
+full every two-gun reload crosses the arms low to the far hips; the left arm crosses
+under and behind the right, and `Pair.left_keys` adds keys where the arms pass each other
+so the left gun dips clear (`DUAL_PASS`, per reload `CELL_PASSES`,
+`DUAL_REVOLVER_PASSES`; the machine pistols' long cells also need `CELL_WAIT`). A new pair
+also needs its `ReloadFx.GUNS` entry (`"both": true`), its `SfxList.RELOAD_STEPS`, its
+sounds in `make_sfx.py` (`GUNS`, `equip()`, `EQUIP_ORDER`), an icon in
+`HudStyle.weapon_icon` and its bot ranges. The game's
+fallback to the plain clip is never right for one: those hold one gun in both hands, and
+the left gun would hang in the air. The first-person clips it has no version of (sliding,
+wall-running on the left, tucking, mantling) are ones where the left arm is off doing
+something else, and it takes its gun with it.
+`tests/robot_test.gd` checks every such weapon has all of these clips, both muzzles and a
+gun in each hand, in every model file.
+
+**Alt fire.** The `alt_fire` action (right mouse by default) is read with the trigger in
+`Player.read_local_input` into `PlayerInput.alt_fire` (held) and `alt_fire_pressed` (this
+frame), and is cleared wherever the trigger is (mouse not captured, a frozen player).
+What it does is `WeaponData.alt`: "tilt" (Pistol, Dual Pistols) is a hold, "sticky" (Grenade
+Launcher) a press. `Player.alt_held()` says whether a player is holding a hold-style alt
+fire: for your own player and bots from the input, for everyone else from bit 22 of the
+animation flags in their snapshots (`RobotAnimInput.make_flags`, `alt_of`), which the
+killcam's frames carry too, so a pose built on it shows on every screen. A press calls
+`Player._alt_pressed()` from `_update_weapon` (alive, not racing, a weapon in hand).
+
+**The tilt** (alt fire held with the Pistol or the Dual Pistols). The numbers are
+`WeaponData.tilt_interval` (0.6: the time between shots) and `tilt_spread` (3: the
+spread), fields like any other, so another gun that tilts can have its own. Every place
+the pace or the spread is used goes through them:
+- `WeaponState.tilted` (set from `Player.alt_held()` each frame in `_update_weapon`) makes
+  `fire()` wait `WeaponData.interval_at(spin, tilted)`. Still one shot per click.
+- `Player.spread_scale()` multiplies in `WeaponData.spread_scale(alt_held())`; the shot's
+  pellets are spread with it where they are fired (`shot_directions`, on the shooter's
+  copy: the host is sent the directions), and the HUD sizes the crosshair with it (a
+  spectated player's too, from their flags).
+- The host: `Match._host_shot` turns away shots closer together than 0.7 of
+  `WeaponData.shot_gap()`, which for a gun that tilts is its tilted pace. A shot does not
+  say whether the gun was tilted (the flag in a snapshot can arrive after the shot), so a
+  gun that tilts is held to the quicker pace always.
+- Bots never hold alt fire (their `_fire_wait` still goes by `fire_interval`); killcams
+  and replays play the shots as they were fired, and pose the guns from the flag.
+
+The pose is procedural, laid over whatever clip the arms are playing, rather than baked
+clips: it has to work over every pose and blend (idle, run, wall run, dive, the recoil,
+the aim pitch) and in every model file, and new clips would mean versions of all of them.
+`RobotAnimator.tilt_gun` rolls one gun `TILT_ROLL` (90 degrees) about its barrel, the top
+turning in toward the body's middle: the hand turns about the barrel's line through the
+wrist (the gun's bone points it down its -Y, `rig.GUN_REST`), so the gun, the fist and the
+fingers go round together, and the forearm takes `TILT_FOREARM` of the turn about its own
+length (which leaves the wrist where it is), so it looks like the wrist and arm turn rather
+than the gun spinning in the hand. Both `RobotAnimator` (the body everyone sees, from bit
+22 of the flags) and `ViewModel` (your arms, from `Player.alt_held()`; the killcam's arms
+from the flag in the recording) call it, after everything else, easing in and out at
+`TILT_RATE` (about a tenth of a second). Body: one Pistol's arms blend to a one-handed hold
+(the right arm of the `grapple` clip, `AIM_R_ONE`; the left of `sprint` as the arms pass the
+body), and the left arm then takes no aim pitch; the Dual Pistols' arms swing out
+`TILT_SPREAD` about the shoulders, the hands turned back so the guns still point ahead, so
+the two guns turned in do not meet. Arms: the gun in the right hand turns in every pose
+but `TILT_BUSY`; the left hand only in `TILT_LEFT` (where it is up at the gun): the Dual
+Pistols' left gun turns, and one Pistol's left arm drops to `fp_one_hand`'s (turned with
+the chest, since `fp_idle` turns the shoulders). It shows only where the gun is up: not in
+a reload (`_reload_w`), on the rope with the gun at your side, or with the arms pumping;
+holding alt fire keeps the arms out of the sprint pose. `RobotAnimator.tilt()` is how far
+over it is (tests; `--sync-log` prints `TILT SELF|SEEN` as it goes all the way over and
+back). `tests/robot_test.gd` checks the pose on every character, `tests/weapon_test.gd`
+the numbers, `tests/run_tilt_test.sh` the pace and the pose online.
+
+**Rockets, grenades and sticky grenades.** A projectile is host-authoritative: the
+shooter asks (`Match.request_projectile`), the host flies its own copy in
+`Match._physics_process` (`_projectiles`) and every copy draws the same flight from the
+same start (`projectile_fired`, `Projectile`), until the host says where it blew up
+(`exploded`, `_host_explode`: the splash, knockback, self-damage and wall damage). The
+grenade launcher's alt fire (`_alt_pressed`) goes through the same `_fire_round` and
+request with `sticky` set. The host flies it the same way, but where a grenade would go
+off it calls `_host_stick` instead: on the map (and on a moving part of it, which it
+then follows, named to the other copies by its path in the map), on a player (kept as
+an offset from their feet in the frame of their yaw, so it rides them), and remembering
+the breakable cell it is on. Everyone is told `projectile_stuck` with that `how`
+dictionary, then `projectile_armed` after `Projectile.STICKY_ARM`, and either `exploded`
+(the normal blast; an enemy within `STICKY_REACH` and in sight, see
+`Match.sticky_sees_enemy`, or the player it is on) or `projectile_gone` (no blast:
+`_host_vanish`, for its owner dying or leaving, the player it is on dying, its cell
+breaking, a fourth sticky over `STICKY_MAX`, never landing, and
+`_host_clear_projectiles` at a match end, a new match or a new round). Each copy's
+`Arena` makes the `Projectile` stick, ride the player's body or the map part, blink
+faster once armed, and go. A copy that joins mid-match asks for the ones already stuck
+(`Match.request_stickies`). The killcam records `stick`, `armed` and `gone` events and
+records each stuck sticky again every `Killcam.STICK_AGAIN` seconds; `KillClip.cut`
+keeps the latest one from before a clip, so a sticky stuck long before the kill is
+there when the replay starts.
 
 **Your own body in first person.** The arms and gun you see are the separate arms
 model on the camera (`view_model.gd`). The legs and torso are your real body: the same
@@ -1771,7 +1902,7 @@ gun or relaxed. The left hand under a fore-end is cupped, palm up (`weapon_anims
 so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun with an
 upright handle there says `"upright"` and it is held like a second grip. What the clips
 cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
-clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
+clips): a blade's handle in the fist (`MeleeSwing.hold`), the Dual Pistols' left gun. The
 Character Creator's other bodies have the same hands in their own colours
 (`creatures.hand()`: which material the palm and fingers, the back of the hand, the band
 across the knuckles and the joints each take). To look at the hands on every robot (open,

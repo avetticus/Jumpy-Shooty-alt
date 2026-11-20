@@ -26,7 +26,7 @@ if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
 COMMON=(--scripted-input --scripted-fire --sync-log --sound-log --auto-return --switch-character --switch-weapon --quit-after=150)
 CHARACTERS=(needle vanguard)
-GUNS=(pistol shotgun rifle sniper)
+GUNS=(pistol shotgun rifle lever_action)
 
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --character=needle --weapon=pistol --autostart="$PLAYERS" \
   --rules=kills:4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &
@@ -85,7 +85,7 @@ print("by gun: " + ", ".join(f"{g} {h}/{n}" for g, (h, n) in sorted(per_gun.item
 # The automatic guns' wobble (and their long bursts while the target moves) makes
 # them miss more by design, so the rewind check looks at the other guns. Any pellet
 # counts for the shotgun.
-SPRAY = {"rifle", "burst_rifle", "smg", "lmg", "machine_pistol"}
+SPRAY = {"rifle", "burst_rifle", "lmg", "machine_pistol"}
 if per_gun:
     aimed = [v for g, v in per_gun.items() if g not in SPRAY]
     hits_aimed, shots_aimed = sum(h for h, _ in aimed), sum(n for _, n in aimed)

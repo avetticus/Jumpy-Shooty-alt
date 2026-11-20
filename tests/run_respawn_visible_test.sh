@@ -17,7 +17,7 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/respawn_*.log
 PORT=$((25600 + RANDOM % 200))
-COMMON=(--map=testing_grounds --scripted-input --scripted-fire --sync-log --weapon=sniper)
+COMMON=(--map=testing_grounds --scripted-input --scripted-fire --sync-log --weapon=lever_action)
 fail=0
 
 timeout 110 "$GODOT" --headless --path . -- --host --name=P1 --autostart=3 --port="$PORT" --kill-target=999 --time-limit=120 \

@@ -37,7 +37,7 @@ timeout 120 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=25 --quit-afte
 wait || true
 # Online (real time): a host and a client who move and shoot on their own; first to 4.
 COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP" --quit-after=150)
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=Host --weapon=sniper --autostart=2 --rules=kills:4 \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=Host --weapon=lever_action --autostart=2 --rules=kills:4 \
   --time-limit=80 "${COMMON[@]}" > "$OUT/killcam_host.log" 2>&1 &
 sleep 1
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=Client --weapon=revolver --net-sim=80,20,2 "${COMMON[@]}" \

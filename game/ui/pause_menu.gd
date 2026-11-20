@@ -68,19 +68,19 @@ func _show_main() -> void:
 func _show_loadout() -> void:
 	var me := Net.my_id()
 	var race := Race.active
-	var deathmatch := Net.is_deathmatch() or GunGame.active() or KillcamMode.active()   # weapons come off the map, from the ladder, or it is snipers only
+	var deathmatch := Net.is_deathmatch() or GunGame.active() or KillcamMode.active()   # weapons come off the map, from the ladder, or it is anti-materiel rifles only
 	var only := LobbySettings.only_weapon()
 	var with_weapons := not race and not deathmatch and only == ""
 	_frame.clear(1040 if with_weapons else 520)
 	var note := "Your robot changes straight away." if race else "Changes apply the next time you respawn."
 	if deathmatch:
-		note += "  Weapons are found on the map." if Net.is_deathmatch() else ("  Killcam is snipers only." if KillcamMode.active() else "  Gun Game hands out the weapons.")
+		note += "  Weapons are found on the map." if Net.is_deathmatch() else ("  Killcam is anti-materiel rifles only." if KillcamMode.active() else "  Gun Game hands out the weapons.")
 	var dead := not race and not Match.is_alive(me)
 	if dead:
 		note = "Changes apply when you respawn."
 	if only != "" and not race and not deathmatch:
 		note += "  Everyone has the %s this match." % WeaponData.name_of(only)
-	_frame.title("Loadout", "Paused  /  robot, weapon and mobility")
+	_frame.title("Loadout", "Paused  /  robot and weapon")
 	UiKit.label(_frame.header, note, true, 15)
 	var picked := {"character": Net.pending_character(), "weapon": Net.pending_weapon(), "mobility": Net.pending_mobility()}
 	var gun: String = picked.weapon if with_weapons or (only != "" and not race and not deathmatch) else "none"
@@ -91,10 +91,6 @@ func _show_loadout() -> void:
 	robots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(robots)
 	robots.picked.connect(func(id: String): picked.character = id)
-	var moves := MobilityPicker.new(picked.mobility, LobbySettings.allowed_mobility())
-	moves.picked.connect(func(id: String): picked.mobility = id)
-	moves.visible = not race   # a race always has the grapple
-	robots.add_child(moves)
 	if with_weapons:
 		robots.size_flags_horizontal = Control.SIZE_FILL
 		var weapons := WeaponPicker.new(picked.weapon, LobbySettings.allowed_weapons())
@@ -108,7 +104,6 @@ func _show_loadout() -> void:
 		Settings.character = picked.character
 		if with_weapons:   # otherwise your saved pick stays for matches that let you choose
 			Settings.weapon = picked.weapon
-		Settings.mobility = picked.mobility
 		Settings.save_settings()
 		Net.set_loadout(picked.character, picked.weapon if with_weapons else "", picked.mobility)
 		if dead:

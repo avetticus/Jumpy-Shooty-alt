@@ -18,13 +18,13 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FAMILIES = [
     ("Sidearms", [("pistol", "Pistol"), ("revolver", "Revolver"), ("golden_gun", "Golden Gun"), ("machine_pistol", "Machine Pistol"),
-                  ("akimbo", "Akimbo Pistols"), ("derringer", "Derringer")]),
+                  ("akimbo", "Dual Pistols"), ("dual_revolver", "Dual Revolvers"), ("dual_machine_pistol", "Dual Machine Pistols")]),
     ("Shotguns", [("shotgun", "Shotgun"), ("break_action", "Break-Action Shotgun"), ("air_cannon", "Air Cannon")]),
-    ("Automatics", [("smg", "Submachine Gun"), ("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
-                    ("lmg", "Light Machine Gun"), ("minigun", "Minigun"), ("laser_rifle", "Laser Rifle"), ("nail_gun", "Nail Gun")]),
-    ("Precision", [("lever_action", "Lever-Action Rifle"), ("bolt_action", "Bolt-Action Rifle"), ("sniper", "Sniper Rifle"),
-                   ("anti_materiel", "Anti-Materiel Rifle"), ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
-    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher"), ("plasma_cannon", "Plasma Cannon")]),
+    ("Automatics", [("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
+                    ("lmg", "Light Machine Gun"), ("minigun", "Minigun")]),
+    ("Precision", [("lever_action", "Lever-Action Rifle"), ("anti_materiel", "Anti-Materiel Rifle"),
+                   ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
+    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher")]),
 ]
 CELL = (640, 280)
 HEAD = 64

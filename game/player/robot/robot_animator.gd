@@ -11,6 +11,7 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
+##  7. The pistols turned on their side while alt fire is held (tilt_gun), over all of it.
 ## On the grappling hook's rope, once it has pulled tight, the body hangs from that arm
 ## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
 ## behind, the gun loose at the side until you shoot. It is laid over the steps above.
@@ -104,6 +105,22 @@ const ROPE_VIEW := 0.55         ## your own body in first person leans this much
 const ZIP_AIM_UP := 12.0        ## ...this fast (a second)
 const ZIP_CHEST := 0.55         ## zipping along the rope (dived into it), a shot brings the chest this much of the way back up to aim from
 const DRAG_TURN := 10.0         ## dragged along the floor on your belly by the rope, the body turns to face the hook this fast
+## Alt fire "tilt" (the Pistol and the Dual Pistols turned on their side while it is held:
+## Player.alt_held, bit 22 of the animation flags). The gun rolls this far about its
+## barrel (radians), the top of each gun turning in toward the body's middle, laid over
+## whatever the arms are doing (see tilt_gun). It turns over and back this fast (1/seconds:
+## about a tenth of a second), only while the gun is up (not in a reload, a flip, sprinting
+## with the arms pumping or hanging at your side on the rope: holding alt fire keeps the gun
+## up out of a sprint), and the forearm takes this much of the roll, the wrist the rest, so
+## the arm turns with the gun and the fist stays round the grip. One pistol lets go of its
+## left hand and is held out in the right (the hold of the grapple clip, AIM_R_ONE), the
+## left arm bent at the side (the sprint clip's, as its arms pass). Two guns turned in
+## would almost touch, so each arm swings out this far (radians, about the shoulder) and
+## the gun is turned back to point where it did.
+const TILT_ROLL := PI * 0.5
+const TILT_RATE := 10.0
+const TILT_FOREARM := 0.5
+const TILT_SPREAD := 0.1
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
@@ -149,8 +166,11 @@ var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
 var _recoil := 0.0
-var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the right's)
-var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
+var _recoil_l := 0.0      # two guns: the left gun's own kick (_recoil is the right's)
+var _akimbo := false      # a gun in each hand (WeaponData.is_akimbo): each arm kicks on its own shots
+var _tilts := false       # alt fire turns the gun on its side (WeaponData.alt_is_hold: the pistols)
+var _tilt := 0.0          # how far over it is, 0..1
+var _one: RobotPose       # one pistol, tilted: held out in the right hand, the left let go
 var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_rate := 1.0   # clip seconds a second: the reload clip plays out over the gun's reload_time
@@ -231,6 +251,7 @@ func _init(robot: RobotModel) -> void:
 		if not (i in _arm_r or i in _arm_l):
 			_not_arms.append(i)
 	_carry_pose = rig.new_pose()
+	_one = rig.new_pose()
 	set_weapon(robot.weapon if robot.weapon != "" else "pistol")
 
 
@@ -242,6 +263,13 @@ func set_weapon(id: String) -> void:
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
 	_akimbo = data.is_akimbo()
+	_tilts = data.alt_is_hold()
+	_tilt = 0.0
+	if _tilts and not _akimbo and rig.has_clip("grapple") and rig.has_clip("sprint"):
+		rig.sample(_tmp, "grapple", 0.0)
+		_one.blend_bones(_tmp, 1.0, _arm_r)
+		rig.sample(_tmp, "sprint", rig.length("sprint") * 0.25)   # (the arms passing the body)
+		_one.blend_bones(_tmp, 1.0, _arm_l)
 	if _melee:
 		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
@@ -289,7 +317,7 @@ func _bones(names: Array) -> PackedInt32Array:
 	return out
 
 
-## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
+## A shot was fired: kick the gun (two guns: the one in the left hand when `left`).
 func fire(left: bool = false) -> void:
 	if _akimbo and left:
 		_recoil_l = _kick
@@ -510,7 +538,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var want: Array = AIM_WEIGHTS.get(key, [0.0, 0.0, 0.0])
 	var want_r: float = want[0]
 	var want_l: float = want[1] if not _melee else 0.0   # a melee weapon is held in one hand
-	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0 and _end_t < 0.0
+	var tilt_on := _tilts and RobotAnimInput.alt_of(inp.flags) and inp.alive and not inp.reloading() and _reload_t < 0.0 and _end_t < 0.0
+	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0 and _end_t < 0.0 \
+		and not tilt_on   # (holding the pistols on their side keeps them up)
 	if sprinting:
 		want_r = 0.0   # sprinting: arms pump (a long gun is carried across the chest), until you shoot
 		want_l = 0.0
@@ -539,6 +569,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_pose.blend_bones(_carry_pose, _carry, _arm_l)
 	_pose.blend_bones(_aim, _aim_r, _arm_r)
 	_pose.blend_bones(_aim, _aim_l, _arm_l)
+	# Alt fire "tilt": one pistol is let go of by the left hand and held out in the right
+	# (the roll itself is laid on last, over everything: see tilt_gun).
+	_tilt = move_toward(_tilt, 1.0 if tilt_on else 0.0, delta * TILT_RATE)
+	var tilted := smoothstep(0.0, 1.0, _tilt)
+	var one := tilted if _tilts and not _akimbo else 0.0
+	if one > 0.0:
+		_pose.blend_bones(_one, one * _aim_r, _arm_r)
+		_pose.blend_bones(_one, one * _aim_l, _arm_l)
 
 	var reloading := inp.reloading() and inp.alive
 	var rclip := clip("reload")
@@ -676,13 +714,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
 	var w_r := maxf(_aim_r, _reload_w)
-	var w_l := maxf(_aim_l, _reload_w)
+	var w_l := maxf(_aim_l * (1.0 - one), _reload_w)   # (a let-go left arm hangs at the side, whatever the aim)
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
 	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide") and (weapon == "pistol" or _akimbo):
+	if _b.has("pistol_slide") and WeaponData.slide_kicks(weapon):
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
-	if _akimbo and _b.has("pistol_l_slide"):
+	if _akimbo and _b.has("pistol_l_slide") and WeaponData.slide_kicks(weapon):
 		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
@@ -758,6 +796,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
+	if tilted > 0.0:   # alt fire "tilt": each gun that is up rolls onto its side
+		var spread := TILT_SPREAD if _akimbo else 0.0
+		tilt_gun(_pose, _b, false, tilted * _aim_r * (1.0 - _reload_w), spread)
+		if _akimbo:
+			tilt_gun(_pose, _b, true, tilted * _aim_l * (1.0 - _reload_w), spread)
 	_plant_feet(delta, inp, key, speed)
 	_pose.apply(model.skeleton)
 	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
@@ -766,6 +809,44 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+
+
+## How far the gun is turned over on its side by alt fire, 0..1 (tests, the sync log).
+func tilt() -> float:
+	return _tilt
+
+
+## Alt fire "tilt": rolls the gun in one hand (`left`: the left hand's, on the "pistol_l"
+## bones) `amount` (0..1) of the way onto its side about its barrel, its top turning in
+## toward the body's middle (TILT_ROLL). The wrist turns, so the fist and fingers stay
+## round the grip: the hand rolls about the barrel's line through the wrist, and the forearm
+## takes TILT_FOREARM of it about its own length (which leaves the wrist where it is).
+## `spread` (radians) swings the arm out about the shoulder as it turns, the gun still
+## pointing where it did (two guns: see TILT_SPREAD). For RobotAnimator's body and
+## ViewModel's arms alike; `bones` is the rig's name -> index.
+static func tilt_gun(pose: RobotPose, bones: Dictionary, left: bool, amount: float, spread: float = 0.0) -> void:
+	if amount <= 0.0:
+		return
+	amount = clampf(amount, 0.0, 1.0)
+	var gun: int = bones["pistol_l" if left else "pistol"]
+	var hand: int = bones["hand_l" if left else "hand_r"]
+	var fore: int = bones["forearm_l" if left else "forearm_r"]
+	if spread != 0.0:
+		var upper: int = bones["upper_arm_l" if left else "upper_arm_r"]
+		var arm: Quaternion = pose.rot[upper] * pose.rot[fore]
+		var out := Quaternion(Vector3.UP, spread * amount * (1.0 if left else -1.0))   # (about the chest's up)
+		pose.rot[upper] = out * pose.rot[upper]
+		pose.rot[hand] = arm.inverse() * out.inverse() * arm * pose.rot[hand]
+	var angle := TILT_ROLL * amount * (-1.0 if left else 1.0)
+	# Back along the barrel, in the hand's space: the gun's bone holds it barrel down its
+	# -Y (tools/robot/rig.py, GUN_REST), so +Y is back and +90 degrees about it turns the
+	# sights to the gun's left.
+	var barrel: Vector3 = (pose.rot[gun] * Vector3.UP).normalized()
+	var length: Vector3 = pose.pos[hand].normalized()   # elbow to wrist, in the forearm's space
+	var along := signf((pose.rot[hand] * barrel).dot(length))   # (the forearm turns the same way as the gun)
+	var twist := Quaternion(length, angle * TILT_FOREARM * (along if along != 0.0 else 1.0))
+	pose.rot[fore] = pose.rot[fore] * twist
+	pose.rot[hand] = twist.inverse() * pose.rot[hand] * Quaternion(barrel, angle)
 
 
 ## The left arm reaches for the grappling hook (its launcher is on that wrist), from
@@ -941,6 +1022,8 @@ func _seen(clip: String) -> String:
 func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: float, delta: float) -> void:
 	var direction := -1.0 if _reverse else 1.0
 	_view_clip = false
+	if first_person and key in FLIPS:
+		key = "air"   # your own flip, seen from the eyes: just the plain jump (the others still see you flip)
 	match key:
 		"loco":
 			var wr := clampf(speed / RUN_SPEED, 0.0, 1.0)

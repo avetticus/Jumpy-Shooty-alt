@@ -3,14 +3,15 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/weapon_test.gd
 ##
 ## Every gun in the pickers exists and is sane; the shotgun kills in one shot up close
-## and not far away; the sniper kills with one headshot and two body shots; the railgun
+## and not far away; the lever-action kills with a headshot out to where its falloff
+## starts; the railgun
 ## kills anyone in one hit and reloads after every shot (tests/railgun_test.gd shoots
 ## it through a wall); the rifle
 ## and pistol need several hits; magazines reload, and the shotgun's shell-by-shell
 ## reload can be cut short by firing. Melee weapons: never run dry, have reach and
 ## an arc; every swing is charged (a tap is weak and cannot slam anyone into a wall, a
 ## full wind-up hits harder and shoves far harder, but never kills outright: the
-## hammer and the bat kill by the wall they send you into); all but the dagger and
+## hammer and the bat kill by the wall they send you into); all but the energy sword and
 ## the knuckles are two-handed, and the left hand stays on the handle through the
 ## whole wind-up and swing; the swing always comes back to the ready pose.
 
@@ -19,7 +20,7 @@ const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## The blades held in one hand (the rest take both).
-const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "karate"]
+const ONE_HANDED := ["brass_knuckles", "energy_sword"]
 
 var _ok := true
 
@@ -53,6 +54,7 @@ func _init() -> void:
 		_check(w.damage_at(0.0) == w.damage, "%s: full damage point blank" % id)
 		_check(w.damage_at(1000.0) <= w.damage, "%s: no more damage far away" % id)
 	_check(WeaponData.valid("bazooka") == "pistol", "unknown guns fall back to the pistol")
+	_check(not WeaponData.has("bolt_action") and WeaponData.valid("bolt_action") == "pistol", "a cut gun (an old saved bolt-action) falls back to the pistol")
 	# The Golden Gun (Golden Gun mode): a real weapon nobody can pick.
 	var golden := WeaponData.by_id("golden_gun")
 	_check(golden.id == "golden_gun" and WeaponData.has("golden_gun") and WeaponData.valid("golden_gun") == "golden_gun",
@@ -71,11 +73,6 @@ func _init() -> void:
 	_check(shotgun.damage_at(15.0) < shotgun.damage_at(9.0) and shotgun.damage_at(15.0) > shotgun.damage_at(22.0),
 		"shotgun: damage falls off between 9 and 22 m")
 
-	var sniper := WeaponData.by_id("sniper")
-	_check(sniper.damage * sniper.headshot_multiplier >= 100.0, "sniper: a headshot kills")
-	_check(sniper.damage < 100.0 and sniper.damage * 2.0 >= 100.0, "sniper: two body shots kill, one does not")
-	_check(sniper.spread_degrees == 0.0, "sniper: no wobble")
-
 	# The railgun: a hit kills anyone (even overhealed, at any range), the slug goes
 	# through everything, and it reloads after every shot. (Match is an autoload: its
 	# health limits are read from its source.)
@@ -93,6 +90,12 @@ func _init() -> void:
 	_check(not rs.can_fire(), "railgun: not ready before the reload is done")
 	_step(rs, 0.1)
 	_check(rs.can_fire() and rs.ammo == 1, "railgun: ready again %.1f s after the shot" % rail.reload_time)
+
+	# The lever-action: a headshot kills a full-health player out to falloff_start; a body shot does not.
+	var lever := WeaponData.by_id("lever_action")
+	var full := _const_in(match_src, "MAX_HEALTH")
+	_check(lever.damage < full and lever.damage_at(lever.falloff_start) * lever.headshot_multiplier >= full,
+		"lever-action: a headshot kills out to %.0f m, a body shot does not" % lever.falloff_start)
 
 	var rifle := WeaponData.by_id("rifle")
 	_check(rifle.automatic and rifle.magazine == 30, "rifle: automatic, 30 rounds")
@@ -142,8 +145,6 @@ func _init() -> void:
 	for id in WeaponData.MELEE:
 		if WeaponData.by_id(id).two_handed:
 			_check(WeaponData.by_id(id).charge_knockback > SLAM_SPEED, "%s: a full swing can slam someone into a wall" % id)
-	var dagger := WeaponData.by_id("dagger")
-	_check(dagger.backstab_multiplier > 1.0, "dagger: a stab in the back does more")
 	s = WeaponState.new(sword)
 	var swings := 0
 	for i in 200:
@@ -154,11 +155,53 @@ func _init() -> void:
 	s.start_reload()
 	_check(not s.is_reloading(), "sword: nothing to reload")
 	_melee_animation()
-	_karate()
 	_melee_in_the_air()
+	_tilt()
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
 	quit(0 if _ok else 1)
+
+
+## Alt fire "tilt" (the Pistol and the Dual Pistols on their side): about 40% less time
+## between shots and three times the spread, still one shot per click; nothing for any
+## other weapon; and the host's fire-rate check lets the tilted pace through.
+func _tilt() -> void:
+	for id in WeaponData.IDS:
+		var w := WeaponData.by_id(id)
+		var tilts: bool = id in ["pistol", "akimbo"]
+		_check(w.alt_is_hold() == tilts, "%s: %s" % [id, "tilts on alt fire" if tilts else "no tilt"])
+		if tilts:
+			_check(is_equal_approx(w.interval_at(0.0, true), w.fire_interval * 0.6) and is_equal_approx(w.interval_at(0.0), w.fire_interval),
+				"%s tilted: %.3f s between shots, not %.3f" % [id, w.interval_at(0.0, true), w.fire_interval])
+			_check(is_equal_approx(w.spread_scale(true), 3.0) and w.spread_scale(false) == 1.0, "%s tilted: three times the spread" % id)
+			_check(not w.automatic, "%s tilted: still one shot per click" % id)
+		else:
+			_check(w.interval_at(1.0, true) == w.interval_at(1.0) and w.spread_scale(true) == 1.0, "%s: alt fire held changes neither pace nor spread" % id)
+		# The host turns away shots closer together than 0.7 of shot_gap (Match._host_shot).
+		var quickest := w.interval_at(1.0, tilts) if w.burst <= 1 else minf(w.burst_gap, w.fire_interval)
+		_check(w.shot_gap() * 0.7 < quickest * 0.95, "%s: the host takes shots as quick as it can fire" % id)
+	var pistol := WeaponData.by_id("pistol")
+	for tilted in [false, true]:
+		var ws := WeaponState.new(pistol)
+		ws.tilted = tilted
+		var shots := 0
+		for i in 60:   # one second, the trigger pulled every frame
+			if ws.fire():
+				shots += 1
+			ws.update(1.0 / 60.0)
+		var want := ceili(1.0 / pistol.interval_at(0.0, tilted) - 0.01)
+		_check(absi(shots - want) <= 1, "pistol %s: %d shots in a second (about %d)" % ["tilted" if tilted else "upright", shots, want])
+	var s := WeaponState.new(pistol)
+	s.tilted = true
+	s.fire()
+	_step(s, pistol.fire_interval * 0.6 + 0.01)
+	_check(s.can_fire(), "pistol tilted: ready again after %.2f s" % (pistol.fire_interval * 0.6))
+	s.tilted = false
+	s.fire()
+	_step(s, pistol.fire_interval * 0.6 + 0.01)
+	_check(not s.can_fire(), "pistol upright: not yet")
+	s.reset()
+	_check(not s.tilted, "a reset gun is upright")
 
 
 ## The wind-up and swing of every melee weapon, on a real robot skeleton: the body
@@ -171,7 +214,7 @@ func _melee_animation() -> void:
 	for id in WeaponData.MELEE:
 		var w := WeaponData.by_id(id)
 		var moves := MeleeSwing.moves(id)
-		_check((moves.taps as Array).size() == (6 if id == "karate" else 2) and moves.has("heavy") and MeleeSwing.PACE.has(id), "%s: has its own taps and heavy blow" % id)
+		_check((moves.taps as Array).size() == 2 and moves.has("heavy") and MeleeSwing.PACE.has(id), "%s: has its own taps and heavy blow" % id)
 		_check(MeleeSwing.impact_time(id) < 0.2, "%s: the blow lands straight after letting go" % id)
 		for first_person in [false, true]:
 			for blow in [[0.0, 0], [0.0, 1], [1.0, 0], [1.0, 1]]:
@@ -233,7 +276,7 @@ func _melee_animation() -> void:
 		_check(moves.heavy.wound != a.wound and moves.heavy.wound != b.wound, "%s: its heavy blow winds up its own way" % id)
 	# Brass knuckles: a weapon on each fist. The left hooks, then the right; the uppercut is the right's.
 	var fists := MeleeSwing.new("brass_knuckles")
-	_check(fists.both_fists and not MeleeSwing.new("dagger").both_fists, "brass knuckles: both fists strike (the dagger's free hand does not)")
+	_check(fists.both_fists and not MeleeSwing.new("energy_sword").both_fists, "brass knuckles: both fists strike (the energy sword's free hand does not)")
 	fists.swing(0.0, 0)
 	_check(fists.left_fist() and fists.travel().x > 0.5, "brass knuckles: the first tap is a left hook")
 	var struck := 0.0
@@ -384,51 +427,6 @@ func _step(s: WeaponState, seconds: float) -> void:
 	while t < seconds:
 		s.update(1.0 / 60.0)
 		t += 1.0 / 60.0
-
-
-## Karate: a combo of six blows that runs on, kicks that pose the legs (in first person
-## too), spinning blows that come right round as they land and take longer to, and the
-## blow's place in the combo travels in the animation flags (online, spectators, killcams).
-func _karate() -> void:
-	var dt := 1.0 / 60.0
-	_check(MeleeSwing.combo_length("karate") == 6 and MeleeSwing.combo_length("sword") == 2, "karate: a combo of six (the others: two)")
-	_check(MeleeSwing.impact_time("karate", 5) > MeleeSwing.impact_time("karate", 0) * 2.5, "karate: the spinning kick takes longer to land than the jab")
-	_check(MeleeSwing.impact_time("karate", 5) < 0.3 and MeleeSwing.impact_time("karate", 0, 1.0) < 0.3, "karate: still lands soon after letting go")
-	_check(MeleeSwing.impact_time("sword", 1) == MeleeSwing.impact_time("sword", 0), "sword: every blow takes the same time")
-	_check(MeleeSwing.hop_of("karate", 0, 1.0) > 0.0 and MeleeSwing.hop_of("karate", 0, 1.0, true) == 0.0, "karate: the tornado kick hops (not in mid-air)")
-	for step in 6:
-		var f := RobotAnimInput.make_flags(false, false, false, 0, 0, 3, 0, false, 0, true, true, step)
-		_check(RobotAnimInput.step_of(f) == step and RobotAnimInput.swings_of(f) == 3 and RobotAnimInput.winding_of(f) and RobotAnimInput.jetpack_of(f),
-			"karate: blow %d travels in the flags" % step)
-		_check(float(f) == float(int(float(f))) and int(float(f)) == f, "karate: the flags survive a snapshot's float (%d)" % step)
-	for first_person in [false, true]:
-		for step in 6:
-			var anim := MeleeSwing.new("karate", first_person)
-			anim.wind(0.0, step)
-			anim.sample(dt)
-			anim.swing(0.0, step)
-			var blow := MeleeSwing.blow_of("karate", step)
-			var kick := not (blow.get("legs", []) as Array).is_empty()
-			var legs_out := 0.0
-			var turned := 0.0
-			var t := 0.0
-			var spin_at_hit := 99.0
-			while t < anim.length() + 0.3:
-				var before := anim.spin()
-				anim.sample(dt)
-				t += dt
-				turned += absf(angle_difference(before, anim.spin()))
-				if not anim.legs().is_empty():
-					legs_out = maxf(legs_out, float(anim.legs()[0]) * float(anim.legs()[4]))
-				if absf(t - dt - MeleeSwing.impact_time("karate", step)) < dt * 0.6:   # (sample() poses where the clock was, then moves it on)
-					spin_at_hit = absf(angle_difference(0.0, anim.spin()))
-			var what := "karate%s blow %d" % [" (first person)" if first_person else "", step]
-			_check(not anim.active() and anim.legs().is_empty() and is_zero_approx(anim.spin()), "%s: ends back at ready, legs let go" % what)
-			_check((legs_out > 1.5) == kick, "%s: %s" % [what, "the leg comes up high" if kick else "the legs are left alone"])
-			if float(blow.get("turns", 0.0)) != 0.0 and not first_person:
-				_check(absf(turned - TAU) < 0.3 and spin_at_hit < 0.35, "%s: one whole turn, facing front as it lands (%.2f turns, %.2f off)" % [what, turned / TAU, spin_at_hit])
-			elif first_person:
-				_check(turned < 0.01, "%s: your own view does not spin" % what)
 
 
 func _check(cond: bool, what: String) -> void:

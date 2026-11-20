@@ -17,10 +17,8 @@ func run() -> void:
 	_me = arena.local_player
 	var me := _me
 	_check(Mobility.name_of(Mobility.GRAPPLE) == "Grappling Hook" and Mobility.default_id() == Mobility.GRAPPLE, "the Grappling Hook is a mobility tool, and the default")
-	_check(Mobility.IDS == [Mobility.GRAPPLE, Mobility.BLINK], "there is only one grappling hook")
+	_check(Mobility.IDS == [Mobility.GRAPPLE], "there is only one grappling hook (and no other tool)")
 	_check(not Mobility.has("grapple2") and Mobility.valid("grapple2") == Mobility.GRAPPLE, "a saved choice of the old Grappling Hook 2 id is the Grappling Hook")
-	_check(LobbySettings.normalized_mobility(["grapple2"]) == [Mobility.GRAPPLE], "a lobby's saved list of allowed tools keeps it, as the Grappling Hook")
-	_check(LobbySettings.normalized_mobility(["grapple", "grapple2", "blink"]) == [], "...and a list of every tool is still every tool")
 	_check(me.mobility == Mobility.GRAPPLE, "you have the grappling hook you picked")
 	_check(Net.player_mobility(Net.my_id()) == Mobility.GRAPPLE, "the lobby has it on record")
 	var g := me.motor.grapple

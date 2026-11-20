@@ -5,7 +5,8 @@ extends RefCounted
 ## (WeaponData.reload_per_round) and can fire between shells, which stops the reload.
 ## Energy weapons (WeaponData.recharge) never reload: the battery refills itself a
 ## moment after the last shot, and emptying it overheats the gun (a reload, of sorts).
-## The minigun (WeaponData.spin_up) fires slower until its barrels are spun up.
+## The minigun (WeaponData.spin_up) fires slower until its barrels are spun up. The
+## pistols fire faster while tilted on their side (WeaponData.tilt_interval).
 ## Blades and blasts (the air cannon) never run dry: only the time between swings or
 ## blasts holds them back.
 
@@ -16,6 +17,7 @@ var _reload_left := 0.0
 var _since_fire := 99.0   # seconds since the last shot (energy weapons start refilling after a moment)
 var _refill := 0.0        # part of a round the battery has refilled
 var spin := 0.0           ## the minigun: how spun up the barrels are, 0..1 (Player spins them)
+var tilted := false       ## the pistols: held on their side (alt fire: Player sets it from alt_held)
 
 
 func _init(d: WeaponData) -> void:
@@ -92,7 +94,7 @@ func fire() -> bool:
 		return true
 	_reload_left = 0.0   # a shell-by-shell reload stops for the shot
 	ammo -= 1
-	_cooldown = data.interval_at(spin)
+	_cooldown = data.interval_at(spin, tilted)
 	_since_fire = 0.0
 	if ammo <= 0:
 		start_reload()
@@ -112,3 +114,4 @@ func reset() -> void:
 	_since_fire = 99.0
 	_refill = 0.0
 	spin = 0.0
+	tilted = false

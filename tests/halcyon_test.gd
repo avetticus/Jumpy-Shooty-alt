@@ -158,7 +158,7 @@ func _pickups() -> void:
 	_expect(map.weapon_spawns.size() >= 14 and map.weapon_spawns.size() <= 18, "about 16 pickups (%d)" % map.weapon_spawns.size())
 	_expect(kinds.size() >= 10, "10 or more different weapons (%d)" % kinds.size())
 	_expect(in_hub.is_empty(), "none in the Control Room %s" % [in_hub])
-	for heavy in ["rocket_launcher", "railgun", "sniper", "grenade_launcher"]:
+	for heavy in ["rocket_launcher", "railgun", "lever_action", "grenade_launcher"]:
 		_expect(high.has(heavy), "the %s is up high (grapple only)" % heavy.replace("_", " "))
 
 

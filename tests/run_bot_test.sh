@@ -14,12 +14,12 @@
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
 #  - a melee bot (sword) rushes in winding its swing up, lands blows and knocks you back
-#  - a blink bot blinks; bots fly the jetpack (Space held in mid-air) now and then
+#  - with the lobby's jetpack on, an Expert bot flies it (Space held in mid-air) now and then
 #  - sounds: your gun, steps, jumps and hit markers play in your head; the bot's shots,
 #    impacts and steps play placed in the world
 #  - there are no script errors
 # The 1v1 bots carry the rifle (and the grapple) so their accuracy can be compared;
-# the free-for-all bots take any weapon and mobility tool at random.
+# the free-for-all bots take any weapon at random.
 # Usage: [MAP=map_id] tests/run_bot_test.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -51,9 +51,9 @@ timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill
 # A sword bot (Hard) against a player who moves on its own.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --bot-mobility=grapple --time-limit=40 --quit-after=45 \
   > "$OUT/bot_melee.log" 2>&1 &
-# An Expert bot with blink.
-timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility=blink --time-limit=40 --quit-after=45 \
-  > "$OUT/bot_blink.log" 2>&1 &
+# An Expert bot with the jetpack turned on (the lobby setting: off by default).
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility=grapple --jetpack --time-limit=40 --quit-after=45 \
+  > "$OUT/bot_jet.log" 2>&1 &
 wait || true
 
 python3 - "$OUT" <<'EOF'
@@ -187,19 +187,16 @@ if landed == 0 or knocks == 0:
 if wound == 0:
     print("  FAIL: the sword bot should wind its swings up"); fail = True
 
-log = read("blink")
-blinks = re.findall(r"^BLINK 9001 ([\d.]+)", log, re.M)
-print(f"Blink   blinks {len(blinks)}  shots {len(re.findall(r'^SHOT 9001 ', log, re.M))}  errors {log.count('SCRIPT ERROR')}")
+log = read("jet")
+print(f"Jetpack shots {len(re.findall(r'^SHOT 9001 ', log, re.M))}  errors {log.count('SCRIPT ERROR')}")
 if log.count("SCRIPT ERROR"):
     print("  FAIL: script errors"); fail = True
-if not blinks:
-    print("  FAIL: the blink bot never blinked"); fail = True
-if re.search(r"^GRAPPLE|^ROPE SELF 9001 on", log, re.M):
-    print("  FAIL: the blink bot used a grapple"); fail = True
-
-# Every bot has the jetpack (Space held in mid-air): it flies it now and then.
-jets = sum(len(re.findall(r"^JETPACK 9001", read(n), re.M)) for n in ("blink", "fight", "3"))
-print(f"Jetpack bursts {jets} (Expert bots: blink, fight, level 3)")
+# With the jetpack on (Space held in mid-air) the bot flies it now and then; without
+# it (every other run here) no bot has one.
+jets = len(re.findall(r"^JETPACK 9001", log, re.M))
+print(f"Jetpack bursts {jets} (Expert bot, jetpack on)")
+if any(re.search(r"^JETPACK 9001", read(n), re.M) for n in ("fight", "3")):
+    print("  FAIL: a bot flew the jetpack with it off"); fail = True
 if not jets:
     print("  note: no Expert bot flew the jetpack this time (it needs higher ground to reach, a far target in sight, or a hit to dodge)")
 

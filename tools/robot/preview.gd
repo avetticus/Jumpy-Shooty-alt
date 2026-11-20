@@ -11,7 +11,7 @@ extends SceneTree
 ## An item can instead be driven by the game's own animator, to check blending and
 ## aiming: {"puppet": {"state": 0, "velocity": [x,y,z], "pitch": 20, "flags": 0,
 ##   "crouched": false, "grapple": [x,y,z], "alive": true, "seconds": 1.0,
-##   "fire_at": 0.9, "fire_left_at": 0.9 (akimbo), "wind": 0.5, "side": 0 (a melee swing wound up for 0.5 s then
+##   "fire_at": 0.9, "fire_left_at": 0.9 (a gun in each hand), "wind": 0.5, "side": 0 (a melee swing wound up for 0.5 s then
 ##   let go, a tap from the right), "feet": [0.15, 0.0] (the ground under the left and right foot, above the floor: see
 ##   RobotAnimInput.feet), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
 ## A shot can also draw plain boxes, for steps and ledges: "blocks": [{"pos": [x, y, z], "size": [x, y, z]}].

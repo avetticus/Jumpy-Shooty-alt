@@ -63,7 +63,7 @@ var skeleton: Skeleton3D
 var mesh: MeshInstance3D
 var view_mesh: MeshInstance3D     ## the same body without head and arms (first person only)
 var chest_front := 0.12           ## how far the chest sticks out in front of the neck (set by add_view_mesh)
-var melee: Node3D                 ## the sword, hammer or dagger in the fist (see MeleeModel), if any
+var melee: Node3D                 ## the sword, hammer or spear in the fist (see MeleeModel), if any
 var melee_left: Node3D            ## the left fist's brass knuckles, if any
 
 var _glow_materials: Array = []   # [material, is_shader]

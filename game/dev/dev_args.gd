@@ -12,10 +12,10 @@ extends Node
 ##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
 ## --color=N           Your colour in a free-for-all: a number in Net.PLAYER_COLORS (0 red, 1 blue, 2 green...).
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
-## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
+## --weapon=ID          Take this gun (pistol, shotgun, rifle, railgun) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
-## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
+## --jetpack           Host / Practice / Vs Bots: everyone has the jetpack (the lobby setting; off by default).
 ## --lobby-size=N       Host: the lobby takes at most N players (2 to 16).
 ## --fake-version=vX.Y.Z Pretend this copy is that release (the version check when joining; tests).
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
@@ -23,7 +23,7 @@ extends Node
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
 ## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
 ## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
-## --mobility=ID        Take this mobility tool (grapple, blink) without changing the saved choice.
+## --mobility=ID        Take this mobility tool (grapple) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (b; see MovementTuning.VARIANTS).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -101,7 +101,7 @@ var switch_character := false
 var weapon := ""
 var bot_weapon := ""
 var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
-var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
+var jetpack := false              ## --jetpack (see LobbySettings.jetpack)
 var lobby_size := 0               ## --lobby-size
 var fake_version := ""            ## --fake-version
 var ready_at := -1.0              ## --ready-at
@@ -229,13 +229,7 @@ func _ready() -> void:
 			"--play-at":
 				for t in value.split(",", false):
 					play_at.append(float(t))
-			"--allowed-mobility":
-				for m in value.split(",", false):
-					m = Mobility.canonical(m)
-					if Mobility.has(m):
-						allowed_mobility.append(m)
-					else:
-						push_warning("Unknown mobility: %s (mobility: %s)" % [m, ", ".join(Mobility.IDS)])
+			"--jetpack": jetpack = true
 			"--switch-weapon": switch_weapon = true
 			"--swap-on-death": swap_on_death = true
 			"--map":

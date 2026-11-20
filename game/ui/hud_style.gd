@@ -229,10 +229,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(34, 0), Vector2(34, 2.5), Vector2(28, 3), Vector2(28, 5),
 				Vector2(18, 5), Vector2(17, 11), Vector2(14, 11), Vector2(14, 5), Vector2(11, 5), Vector2(10, 9),
 				Vector2(7, 9), Vector2(8, 5), Vector2(0, 6)]]
-		"sniper":
-			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(26, 1), Vector2(44, 1.5), Vector2(44, 3), Vector2(26, 3.5),
-				Vector2(24, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6)],
-				[Vector2(11, -3), Vector2(23, -3), Vector2(23, 0), Vector2(11, 0)]]
 		"sword":   # blade to the right, the guard's wings swept toward the point
 			shapes = [[Vector2(0, 3), Vector2(9, 3), Vector2(9, 5), Vector2(0, 5)],
 				[Vector2(-2, 2.4), Vector2(0, 2.4), Vector2(0, 5.6), Vector2(-2, 5.6)],
@@ -245,17 +241,22 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 				[Vector2(23, -1), Vector2(31, -1), Vector2(31, 9), Vector2(23, 9)],
 				[Vector2(22, -4.5), Vector2(32, -4.5), Vector2(32, -1.8), Vector2(22, -1.8)],
 				[Vector2(22, 9.8), Vector2(32, 9.8), Vector2(32, 12.5), Vector2(22, 12.5)]]
-		"dagger":   # a wide clipped blade, the edge and the knuckle bow underneath
-			shapes = [[Vector2(0, 3), Vector2(7, 3), Vector2(7, 5), Vector2(0, 5)],
-				[Vector2(-1.5, 2.4), Vector2(0, 2.4), Vector2(0, 5.6), Vector2(-1.5, 5.6)],
-				[Vector2(7, 1.5), Vector2(8.5, 1.5), Vector2(8.5, 7.5), Vector2(7, 9), Vector2(1, 9), Vector2(1, 7.6), Vector2(6.4, 7.6), Vector2(7, 7)],
-				[Vector2(8.5, 1.5), Vector2(20, 1.2), Vector2(26.5, 6.6), Vector2(20, 7.6), Vector2(8.5, 7)]]
 		"revolver":
 			shapes = [[Vector2(0, 1), Vector2(26, 1), Vector2(26, 3.5), Vector2(11, 3.5), Vector2(10, 5),
 				Vector2(5, 10), Vector2(1, 10), Vector2(3, 4), Vector2(0, 4)], [Vector2(6, 0), Vector2(12, 0), Vector2(12, 5), Vector2(6, 5)]]
 		"machine_pistol":
 			shapes = [[Vector2(0, 0), Vector2(21, 0), Vector2(21, 4), Vector2(9, 4), Vector2(8, 15), Vector2(5, 15),
 				Vector2(5, 4), Vector2(0, 4)], [Vector2(15, 4), Vector2(17, 4), Vector2(17, 8), Vector2(15, 8)]]
+		"dual_revolver":   # two revolvers, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 1) + off, Vector2(26, 1) + off, Vector2(26, 3.5) + off, Vector2(11, 3.5) + off,
+					Vector2(10, 5) + off, Vector2(5, 10) + off, Vector2(1, 10) + off, Vector2(3, 4) + off, Vector2(0, 4) + off])
+				shapes.append([Vector2(6, 0) + off, Vector2(12, 0) + off, Vector2(12, 5) + off, Vector2(6, 5) + off])
+		"dual_machine_pistol":   # two machine pistols, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 0) + off, Vector2(21, 0) + off, Vector2(21, 4) + off, Vector2(9, 4) + off, Vector2(8, 15) + off,
+					Vector2(5, 15) + off, Vector2(5, 4) + off, Vector2(0, 4) + off])
+				shapes.append([Vector2(15, 4) + off, Vector2(17, 4) + off, Vector2(17, 8) + off, Vector2(15, 8) + off])
 		"akimbo":   # two pistols, one behind and above the other
 			for off in [Vector2(6, -5), Vector2(0, 0)]:
 				shapes.append([Vector2(0, 0) + off, Vector2(18, 0) + off, Vector2(18, 4) + off, Vector2(9.5, 4) + off,
@@ -263,10 +264,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"break_action":
 			shapes = [[Vector2(0, 2), Vector2(10, 1), Vector2(40, 0), Vector2(40, 3.5), Vector2(14, 4), Vector2(12, 9),
 				Vector2(9, 9), Vector2(10, 4.5), Vector2(0, 7)], [Vector2(15, 3.5), Vector2(28, 3.5), Vector2(28, 6), Vector2(15, 6)]]
-		"smg":
-			shapes = [[Vector2(0, 2), Vector2(6, 1), Vector2(28, 1), Vector2(28, 3.5), Vector2(22, 4), Vector2(22, 8),
-				Vector2(20, 8), Vector2(20, 4.5), Vector2(15, 4.5), Vector2(15, 12), Vector2(12, 12), Vector2(12, 4.5),
-				Vector2(9, 4.5), Vector2(8, 8), Vector2(6, 8), Vector2(6, 4.5), Vector2(0, 5)]]
 		"burst_rifle":
 			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(36, 0), Vector2(38, 2), Vector2(36, 4.5), Vector2(19, 5),
 				Vector2(18, 10), Vector2(15, 10), Vector2(15, 5), Vector2(11, 5), Vector2(10, 9), Vector2(7, 9),
@@ -278,10 +275,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"lever_action":
 			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(42, 0.5), Vector2(42, 2.5), Vector2(14, 3.5), Vector2(12, 5),
 				Vector2(0, 6.5)], [Vector2(9, 4.5), Vector2(15, 4.5), Vector2(15, 9), Vector2(9, 9)], [Vector2(16, 3), Vector2(30, 3), Vector2(30, 5), Vector2(16, 5)]]
-		"bolt_action":
-			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(26, 1), Vector2(44, 1.2), Vector2(44, 3), Vector2(36, 3.5),
-				Vector2(36, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6.5)],
-				[Vector2(14, -1.5), Vector2(16, -1.5), Vector2(16, 1), Vector2(14, 1)]]
 		"railgun":
 			shapes = [[Vector2(0, 1), Vector2(10, -1), Vector2(44, -1), Vector2(44, 1), Vector2(18, 1), Vector2(18, 3),
 				Vector2(44, 3), Vector2(44, 5), Vector2(15, 5), Vector2(14, 10), Vector2(11, 10), Vector2(11, 5), Vector2(0, 6)]]
@@ -302,20 +295,11 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 				[Vector2(41.5, 3.2), Vector2(37, 1.8), Vector2(32.5, -1), Vector2(36, 0), Vector2(40, 2)],
 				[Vector2(41.5, 4.8), Vector2(40, 6), Vector2(36, 8), Vector2(32.5, 9), Vector2(37, 6.2)],
 				[Vector2(41, 3), Vector2(45, 0.8), Vector2(47.5, 1.2), Vector2(54, 4), Vector2(47.5, 6.8), Vector2(45, 7.2), Vector2(41, 5)]]
-		"axe":   # a crescent blade above, a spike on the back
-			shapes = [[Vector2(0, 3), Vector2(31, 3), Vector2(31, 5), Vector2(0, 5)],
-				[Vector2(31, 2.8), Vector2(34, 4), Vector2(31, 5.2)],
-				[Vector2(24, 3), Vector2(23, -1), Vector2(20, -5.5), Vector2(24.5, -7.5), Vector2(29, -7.5), Vector2(33.5, -5.5),
-					Vector2(30.5, -1), Vector2(29.5, 3)],
-				[Vector2(25, 5), Vector2(28.5, 5), Vector2(26.75, 9.5)]]
 		"bat":
 			shapes = [[Vector2(0, 3), Vector2(10, 3), Vector2(34, 1.5), Vector2(38, 2.5), Vector2(38, 5.5), Vector2(34, 6.5),
 				Vector2(10, 5), Vector2(0, 5)], [Vector2(-1.5, 2), Vector2(0.5, 2), Vector2(0.5, 6), Vector2(-1.5, 6)]]
 
 		# The third batch
-		"derringer":   # two short barrels over a bird's-head grip
-			shapes = [[Vector2(0, 0), Vector2(15, 0), Vector2(15, 5.5), Vector2(6, 5.5), Vector2(4, 9), Vector2(0.5, 9),
-				Vector2(2, 5), Vector2(0, 5)], [Vector2(5, -1.5), Vector2(15, -1.5), Vector2(15, -0.5), Vector2(5, -0.5)]]
 		"air_cannon":   # a wide barrel flaring into a bell, the tank underneath
 			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(30, -1), Vector2(36, -4), Vector2(36, 8), Vector2(30, 5),
 				Vector2(12, 5), Vector2(11, 10), Vector2(8, 10), Vector2(9, 5), Vector2(0, 6)],
@@ -329,14 +313,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(40, 0), Vector2(40, 2.5), Vector2(30, 3), Vector2(30, 5),
 				Vector2(17, 5), Vector2(17, 11), Vector2(14, 11), Vector2(14, 5), Vector2(11, 5), Vector2(10, 9),
 				Vector2(7, 9), Vector2(8, 5), Vector2(0, 6)], [Vector2(11, -3.5), Vector2(21, -3.5), Vector2(21, -0.5), Vector2(11, -0.5)]]
-		"laser_rifle":   # a smooth shell, the emitter at the front
-			shapes = [[Vector2(0, 1), Vector2(6, -1), Vector2(30, -1), Vector2(36, 1), Vector2(36, 4), Vector2(30, 5),
-				Vector2(12, 5), Vector2(11, 10), Vector2(8, 10), Vector2(9, 5), Vector2(0, 6)],
-				[Vector2(36, 1.5), Vector2(41, 1.5), Vector2(41, 3.5), Vector2(36, 3.5)]]
-		"nail_gun":   # a boxy body, a tank on top, the nail strip slanting under
-			shapes = [[Vector2(0, 2), Vector2(6, 1), Vector2(22, 1), Vector2(28, 2), Vector2(28, 4), Vector2(22, 5),
-				Vector2(21, 9), Vector2(19, 9), Vector2(19, 5), Vector2(9, 5), Vector2(8, 10), Vector2(5, 10), Vector2(6, 5), Vector2(0, 5)],
-				[Vector2(7, -2), Vector2(18, -2), Vector2(18, 1), Vector2(7, 1)], [Vector2(10, 5), Vector2(24, 8), Vector2(24, 9.5), Vector2(10, 6.5)]]
 		"crossbow":   # the stock, and the bow seen across the front
 			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(34, 1), Vector2(34, 4), Vector2(12, 4), Vector2(11, 9),
 				Vector2(8, 9), Vector2(9, 4), Vector2(0, 7)], [Vector2(31, -6), Vector2(34, -6), Vector2(36, 2.5), Vector2(34, 11),
@@ -346,35 +322,11 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 				Vector2(54, 4.5), Vector2(50, 4.5), Vector2(50, 3), Vector2(28, 3.5), Vector2(26, 5), Vector2(19, 5),
 				Vector2(19, 10), Vector2(15, 10), Vector2(15, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 7)],
 				[Vector2(10, -4), Vector2(25, -4), Vector2(25, 0), Vector2(10, 0)]]
-		"plasma_cannon":   # a bulky body round a round chamber, rings down the barrel
-			shapes = [[Vector2(0, 1), Vector2(8, -1), Vector2(22, -1), Vector2(22, 6), Vector2(12, 6), Vector2(11, 11),
-				Vector2(8, 11), Vector2(9, 6), Vector2(0, 6)], [Vector2(22, 1), Vector2(38, 1), Vector2(38, 4), Vector2(22, 4)],
-				[Vector2(26, -0.5), Vector2(28, -0.5), Vector2(28, 5.5), Vector2(26, 5.5)], [Vector2(32, -0.5), Vector2(34, -0.5), Vector2(34, 5.5), Vector2(32, 5.5)]]
-		"scythe":   # a long haft and the blade hooked forward and down
-			shapes = [[Vector2(0, 3.2), Vector2(40, 3.2), Vector2(40, 4.8), Vector2(0, 4.8)],
-				[Vector2(38, 3), Vector2(41, 1), Vector2(44, 4), Vector2(45, 10), Vector2(43, 15), Vector2(42, 9), Vector2(39, 5)]]
-		"mace":   # a short haft, a flanged head
-			shapes = [[Vector2(0, 3), Vector2(20, 3), Vector2(20, 5), Vector2(0, 5)],
-				[Vector2(19, 0), Vector2(29, 0), Vector2(29, 8), Vector2(19, 8)],
-				[Vector2(21, -3), Vector2(27, -3), Vector2(26, 0), Vector2(22, 0)], [Vector2(22, 8), Vector2(26, 8), Vector2(27, 11), Vector2(21, 11)],
-				[Vector2(29, 2), Vector2(32, 3), Vector2(32, 5), Vector2(29, 6)]]
-		"machete":   # a broad blade, wider toward the tip
-			shapes = [[Vector2(0, 2.5), Vector2(8, 2.5), Vector2(8, 5.5), Vector2(0, 5.5)],
-				[Vector2(8, 1), Vector2(9.5, 1), Vector2(9.5, 7), Vector2(8, 7)],
-				[Vector2(9.5, 2), Vector2(26, 1.5), Vector2(30, 3), Vector2(29, 8), Vector2(9.5, 6)]]
-		"wrench":   # a long handle and an open jaw
-			shapes = [[Vector2(0, 2.5), Vector2(22, 2.5), Vector2(22, 5.5), Vector2(0, 5.5)],
-				[Vector2(21, -1), Vector2(28, -2), Vector2(31, 0), Vector2(26, 2), Vector2(26, 6), Vector2(31, 8), Vector2(28, 10), Vector2(21, 9)]]
 		"energy_sword":   # a hilt and a long, even blade of light
 			shapes = [[Vector2(0, 2.5), Vector2(10, 2.5), Vector2(10, 5.5), Vector2(0, 5.5)],
 				[Vector2(10, 1.5), Vector2(12, 1.5), Vector2(12, 6.5), Vector2(10, 6.5)],
 				[Vector2(12, 2.6), Vector2(39, 2.6), Vector2(42, 4), Vector2(39, 5.4), Vector2(12, 5.4)]]
 
-		"karate":   # a fist, knuckles up, with its wrap
-			shapes = [[Vector2(2, 0), Vector2(16, 0), Vector2(19, 2), Vector2(19, 9), Vector2(16, 11), Vector2(2, 11)],
-				[Vector2(4, -3.5), Vector2(7, -3.5), Vector2(7, -0.8), Vector2(4, -0.8)], [Vector2(8, -3.5), Vector2(11, -3.5), Vector2(11, -0.8), Vector2(8, -0.8)],
-				[Vector2(12, -3.5), Vector2(15, -3.5), Vector2(15, -0.8), Vector2(12, -0.8)], [Vector2(-3, 2), Vector2(1, 2), Vector2(1, 9), Vector2(-3, 9)],
-				[Vector2(20, 3.5), Vector2(25, 3.5), Vector2(25, 7.5), Vector2(20, 7.5)]]
 		"none":   # a boot (Deathmatch: killed with a kick, or a crash, before finding a weapon)
 			shapes = [[Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]]
 		_:
@@ -393,13 +345,13 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 ## How wide a weapon's icon is at size 1 (to centre it).
 static func weapon_width(id: String) -> float:
 	id = WeaponData.look_of(id)
-	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 26.5,
-		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
-		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
-		"brass_knuckles": 18.0, "spear": 54.0, "axe": 34.0, "bat": 38.0,
-		"derringer": 15.0, "air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "laser_rifle": 41.0, "nail_gun": 28.0, "crossbow": 40.0,
-		"anti_materiel": 54.0, "plasma_cannon": 38.0, "scythe": 45.0,
-		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "karate": 25.0}.get(id, 22.0)
+	return {"shotgun": 40.0, "rifle": 38.0, "sword": 40.0, "hammer": 32.0,
+		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "dual_revolver": 32.0, "dual_machine_pistol": 27.0,
+		"break_action": 40.0, "burst_rifle": 38.0, "lmg": 46.0,
+		"lever_action": 42.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
+		"brass_knuckles": 18.0, "spear": 54.0, "bat": 38.0,
+		"air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "crossbow": 40.0,
+		"anti_materiel": 54.0, "energy_sword": 42.0}.get(id, 22.0)
 
 
 ## Widths at size 1 of the icons below.
@@ -511,7 +463,7 @@ static func health_color(hp: float) -> Color:
 
 ## The crosshair at `c`, as the player set it (see HudConfig). `kind` is the weapon's
 ## own (WeaponData.crosshair: "spread" brackets on the shotgun's cone, a launcher's
-## "ring", the sniper's "dot" with ticks round it, otherwise a cross), used unless the
+## "ring", the marksman rifles' "dot" with ticks round it, otherwise a cross), used unless the
 ## options pick one shape for every weapon. `spread_px`: how far the gun's spread
 ## reaches on screen. At the defaults each weapon's crosshair is drawn as it always was.
 static func crosshair(ci: CanvasItem, c: Vector2, kind: String, spread_px: float, cfg: HudConfig) -> void:
@@ -535,7 +487,7 @@ static func crosshair(ci: CanvasItem, c: Vector2, kind: String, spread_px: float
 				arc(ci, c, r, 110.0, 430.0, Color(0, 0, 0, 0.5), t + 2.0)
 			arc(ci, c, r, 110.0, 430.0, col, t)
 			ci.draw_line(c + Vector2(0, r + 3.0 * k), c + Vector2(0, r + 11.0 * k), col, t)
-		"dot":      # the sniper: short ticks well clear of a precise dot
+		"dot":      # the marksman rifles: short ticks well clear of a precise dot
 			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
 				if dark:
 					ci.draw_line(c + d * (9.0 + shift), c + d * (9.0 + shift + 6.0 * k), Color(0, 0, 0, 0.55), t + 2.0)
@@ -561,7 +513,7 @@ static func crosshair(ci: CanvasItem, c: Vector2, kind: String, spread_px: float
 			ci.draw_circle(c, r + 1.0, Color(0, 0, 0, 0.5))
 		ci.draw_circle(c, r, col)
 	elif cfg.crosshair_dot:
-		if style == "dot":   # the sniper's dot sits on a dark disc
+		if style == "dot":   # the marksman dot sits on a dark disc
 			if dark:
 				ci.draw_circle(c, t, Color(0, 0, 0, 0.5))
 			ci.draw_circle(c, 0.7 * t, col)

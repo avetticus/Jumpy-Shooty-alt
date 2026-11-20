@@ -20,21 +20,21 @@ const STANDARD_HEIGHT := 1.8   ## how tall the shots are written for (a robot); 
 ## [character id, the weapon in its hands]. Robots and whole creatures, in turn.
 const CAST := [
 	["templar", "shotgun"],
-	["custom:n=Goblin|l=goblin|t=goblin|h=goblin", "axe"],
+	["custom:n=Goblin|l=goblin|t=goblin|h=goblin", "hammer"],
 	["needle", "pistol"],
 	["custom:n=Frog|l=frog|t=frog|h=frog", "pistol"],
 	["vanguard", "rifle"],
 	["custom:n=Dude|l=human|t=human|h=human|hat=cap", "shotgun"],
 	["kestrel", "revolver"],
-	["custom:n=Bones|l=skeleton|t=skeleton|h=skeleton", "scythe"],
+	["custom:n=Bones|l=skeleton|t=skeleton|h=skeleton", "spear"],
 	["bulwark", "lmg"],
-	["custom:n=Wizard|l=wizard|t=wizard|h=wizard|hat=wizard", "derringer"],
+	["custom:n=Wizard|l=wizard|t=wizard|h=wizard|hat=wizard", "energy_sword"],
 	["rivet", "machine_pistol"],
 	["custom:n=Whiskers|l=cat|t=cat|h=cat", "revolver"],
 	["specter", "crossbow"],
-	["custom:n=Cosmo|l=astronaut|t=astronaut|h=astronaut", "laser_rifle"],
+	["custom:n=Cosmo|l=astronaut|t=astronaut|h=astronaut", "minigun"],
 	["orbit", "akimbo"],
-	["custom:n=Ninja|l=ninja|t=ninja|h=ninja", "dagger"],
+	["custom:n=Ninja|l=ninja|t=ninja|h=ninja", "sword"],
 ]
 
 ## The camera moves. Heights are shares of the character's height; `dist` is metres

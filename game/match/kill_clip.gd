@@ -244,7 +244,8 @@ class PropTrack:
 
 ## Player id -> Track.
 var tracks: Dictionary = {}
-## What happened, oldest first: {t, kind ("shot", "projectile", "boom", "melee"), who, ...}.
+## What happened, oldest first: {t, kind ("shot", "projectile", "boom", "melee", and for
+## sticky grenades "stick", "armed", "gone"), who, ...}.
 var events: Array = []
 ## What deaths left (Wreck), oldest first: any still lying about during the clip.
 var wrecks: Array = []
@@ -293,10 +294,21 @@ func cut(margin: float = 0.6) -> KillClip:
 		var part: Track = (tracks[id] as Track).slice(start + off - margin, end + off + margin)
 		if not part.is_empty():
 			out.tracks[id] = part
+	var stuck := {}   # sticky grenade id -> its latest "stick" before the clip, if it is still there when it starts
 	for e in events:
 		var et := event_time(e)
-		if et >= start - margin and et <= end + margin:
+		if et < start - margin:
+			match str(e.get("kind", "")):
+				"stick":
+					stuck[int(e.id)] = e
+				"armed":
+					if stuck.has(int(e.id)):
+						stuck[int(e.id)] = (stuck[int(e.id)] as Dictionary).merged({"armed": true}, true)
+				"boom", "gone":
+					stuck.erase(int(e.id))
+		elif et <= end + margin:
 			out.events.append(e)
+	out.events = stuck.values() + out.events
 	for w: Wreck in wrecks:   # any lying about during the clip (each holds its last frame once it has settled)
 		var off := float(offsets.get(w.who, 0.0))
 		if w.first_time() <= end + off + margin and w.first_time() + Remains.LIFETIME >= start + off - margin:

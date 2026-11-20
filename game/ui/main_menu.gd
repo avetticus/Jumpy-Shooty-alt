@@ -16,7 +16,7 @@ const NO_WEAPON_NOTES := {
 	"race": "A race has no weapons: it is you, the course and the clock.",
 	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
 	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
-	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
+	"killcam": "Killcam is anti-materiel rifles only: every kill scores its killcam points.",
 }
 
 ## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT
@@ -334,12 +334,7 @@ func _three_columns() -> Array:
 	right.add_child(none)
 	UiKit.section(none, "Weapon")
 	var note := UiKit.label(UiKit.inset(none), "", true, 17)
-	var moves := MobilityPicker.new(Game.local_mobility())
-	pick.add_child(moves)   # under the robot: that column has the room
-	moves.picked.connect(func(id: String):
-		Settings.mobility = id
-		Settings.save_settings())
-	var set_mode := func(mode: String, allowed: Array = [], allowed_mobility: Array = []):
+	var set_mode := func(mode: String, allowed: Array = []):
 		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" or mode in Teams.MODES else [])
 		var uses_pick := not NO_WEAPON_NOTES.has(mode) and guns.size() > 1
 		gun.set_allowed(guns)
@@ -349,10 +344,6 @@ func _three_columns() -> Array:
 		gun.visible = uses_pick
 		none.visible = not uses_pick
 		note.text = NO_WEAPON_NOTES.get(mode, "One gun for everyone: the %s." % WeaponData.name_of(guns[0]))
-		moves.visible = mode != "race"   # a race always has the grapple
-		var tools := LobbySettings.mobility_from(allowed_mobility if mode != "race" else [])
-		moves.set_allowed(tools)
-		moves.select(Game.local_mobility() if Game.local_mobility() in tools else str(tools[0]))
 	return [left, set_mode]
 
 

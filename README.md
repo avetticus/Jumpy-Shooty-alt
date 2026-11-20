@@ -31,9 +31,9 @@ More detail, including how to play with a friend and run several copies on one P
 | Move | W A S D |
 | Sprint | Shift |
 | Glide (hold in mid-air: you fly on along a locked track at the speed you had, free to turn and shoot, and guns scatter less; you can hold it as long as you like but it weakens into a fall; let go to stop, with a backflip) | Alt |
-| Jump (again in mid-air: a flip, once per jump; hold in mid-air: the **jetpack**, see below) | Space |
-| Mobility tool: grappling hook or blink (while waiting to respawn: switch to the other) | Middle mouse |
-| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo; air cannon: hold to charge, let go to blast everyone in front of you away) | Left mouse |
+| Jump (again in mid-air: a flip, a small lift up with no push along, once per jump; held in mid-air, when the host turned it on: the **jetpack**, see below) | Space |
+| Grappling hook | Middle mouse |
+| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; air cannon: hold to charge, let go to blast everyone in front of you away) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
@@ -46,14 +46,13 @@ More detail, including how to play with a friend and run several copies on one P
 | Debug menu (Practice and Vs Bots only) | F1 |
 | Spectate (fly a noclip camera nobody can see) | Esc > Spectate, or **Join as spectator**; then W A S D fly, Space up, Ctrl / C down, Shift fast |
 
-Middle mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
-by pressing middle mouse while you wait to respawn: the **grappling hook**
+Middle mouse is the **grappling hook**
 (the hook is a projectile: it flies out with slack in the rope, bites, the winch takes the slack in and
 the rope snaps tight with a yank, then it reels you in and you swing; lead a moving target, and let go to call it back; while you hold the
-button, a hook on its way back catches the first surface in its way) or
-**blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land). A race always has the grapple.
+button, a hook on its way back catches the first surface in its way). A race always has it.
 
-Everyone also has the **jetpack**: hold Space in mid-air, after a jump or in a fall, and it
+When the host turns on **Jetpack** in the lobby (it is off by default), everyone also has the
+**jetpack**: hold Space in mid-air, after a jump or in a fall, and it
 lifts you and you steer with WASD, on fuel that refills when you let go (fastest on the
 ground; the gauge under the crosshair shows it while it is not full). It lights once Space
 has been held for a quarter of a second in the air, counted from the press (or from the

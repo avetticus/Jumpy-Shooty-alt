@@ -109,11 +109,11 @@ func run() -> void:
 
 	# Robot and gun.
 	var spot := me.global_position
-	menu._set_loadout("weapon", "sniper")
+	menu._set_loadout("weapon", "lever_action")
 	menu._set_loadout("character", "orbit")
 	await _frames(5)
 	me = arena.local_player
-	_check(me.weapon.data.id == "sniper" and net.player_character(net.my_id()) == "orbit", "robot and gun changed")
+	_check(me.weapon.data.id == "lever_action" and net.player_character(net.my_id()) == "orbit", "robot and gun changed")
 	_check(me.global_position.distance_to(spot) < 0.5, "you stay where you were")
 
 	# Melee swings are charged: a tap is weak, holding the button winds the swing up
