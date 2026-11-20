@@ -7,8 +7,6 @@ const TIER := 30.5
 var _ok := true
 var arena: Node
 var me: Player
-var surge: PortalSurgeEvent
-var terminal: MapTerminal
 
 
 static func at(r: float, deg: float, y: float) -> Vector3:
@@ -21,13 +19,11 @@ func run() -> void:
 	arena = Net.arena
 	_check(arena != null and arena.layout != null and arena.layout.name == "Level", "practice starts on Empyrean Tower")
 	me = arena.local_player
-	surge = arena.layout.get_node("PortalSurge") as PortalSurgeEvent
-	terminal = get_tree().get_nodes_in_group(MapTerminal.GROUP)[0] as MapTerminal
 	_check(not arena.layout.bounds.has_area() and WorldGravity.zones.size() >= 1 and is_equal_approx(WorldGravity.outside, 0.4), "no bounds; gravity zones set, 0.4 outside")
 	await _gravity()
 	await _lift()
 	await _magic()
-	await _surge()
+	await _gates()
 	await _deaths()
 	print("PASS" if _ok else "FAILED")
 	get_tree().quit(0 if _ok else 1)
@@ -145,146 +141,21 @@ func _magic() -> void:
 	_check(not field.in_sight(at(wall_r - 2.0, 200.0, y), at(wall_r + 2.5, 200.0, y)), "through the stone beside it: not")
 
 
-func _hold(on: bool) -> void:
-	Net.terminal_hold(terminal.index(), on, me.peer_id)
-
-
-func _surge() -> void:
-	print("portal surge")
-	var gates := surge.gates()
-	var engine_gate: MapRingGate
-	var far_gate: MapRingGate
-	for g in gates:
-		if (g as MapRingGate).pair == 1:
-			if (g as MapRingGate).global_position.y < 10.0:
-				engine_gate = g
-			else:
-				far_gate = g
-	_check(gates.size() == 8 and engine_gate != null and far_gate != null, "eight ring gates; pair 1 joins the Engine and the Observatory")
-	# Dormant: walking through the ring is walking through a ring.
-	var front := engine_gate.global_transform.basis.z
-	await _settle(engine_gate.global_position + front * 2.0 - Vector3(0, 1.6, 0), 0.0, 20)
+## The ring gates are scenery: walking at one walks through the ring and out the back.
+func _gates() -> void:
+	print("the ring gates")
+	var ring := arena.layout.get_node_or_null("Gates/GateEngine") as Node3D
+	_check(ring != null and arena.layout.get_node("Gates").get_child_count() == 8, "eight ring gates stand, the Engine's among them")
+	if ring == null:
+		return
+	var middle := ring.global_position + Vector3(0, 1.87, 0)   # (the middle of the ring's opening)
+	var front := ring.global_transform.basis.z
+	await _settle(middle + front * 2.0 - Vector3(0, 1.6, 0), 0.0, 20)
 	for i in 110:
 		me.velocity = Vector3(-front.x * 6.0, me.velocity.y, -front.z * 6.0)
 		await get_tree().physics_frame
-	_check(me.global_position.y < 10.0 and (me.global_position - engine_gate.global_position).dot(front) < -1.0 and not engine_gate.open,
-		"a dormant gate does not teleport: you walk through the ring and out the back")
-	# The altar: letting go early cancels.
-	var beside := terminal.global_position + Vector3(1.3, 0.1, 0)
-	await _settle(beside)
-	_check(terminal.reaches(me.global_position) and terminal.ready_to_use(), "beside the altar, in range, and it is ready")
-	_hold(true)
-	await _wait(1.0)
-	_check(terminal.phase == MapTerminal.Phase.CHANNEL and terminal.progress > 0.3 and not surge.running, "holding interact: the channel fills (%.2f after 1 s)" % terminal.progress)
-	_hold(false)
-	await _wait(0.2)
-	_check(terminal.phase == MapTerminal.Phase.READY and not surge.running, "letting go early cancels it")
-	# Leaving the range cancels.
-	_hold(true)
-	await _wait(1.0)
-	me.teleport(terminal.global_position + Vector3(4.5, 0.1, 0), 0.0)
-	await _wait(0.2)
-	_check(terminal.phase == MapTerminal.Phase.READY and not surge.running, "leaving the range (knocked away) cancels it")
-	_hold(false)
-	await _settle(beside, 0.0, 10)
-	# Damage does not cancel; 2 s completes it.
-	_hold(true)
-	await _wait(1.0)
-	Match._host_damage(9001, me.peer_id, 20.0)
-	await _wait(0.2)
-	_check(terminal.phase == MapTerminal.Phase.CHANNEL, "taking damage does not cancel it")
-	_check(not surge.running, "(not yet started at 1.2 s)")
-	await _wait(1.1)
-	_hold(false)
-	_check(surge.running and terminal.phase == MapTerminal.Phase.BUSY, "a 2 s hold starts the Portal Surge")
-	_check(not surge.passable() and gates.all(func(g): return not (g as MapRingGate).open), "the gates take time to power up: nothing teleports yet")
-	await _wait(2.3)
-	_check(surge.passable() and gates.all(func(g): return (g as MapRingGate).open and (g as MapRingGate).power > 0.99), "2 s later all four pairs are open")
-	var magic: MapMagicField = null
-	for n in arena.layout.find_children("*", "Node", true, false):
-		if n is MapMagicField:
-			magic = n
-	await _frames(3)
-	_check(magic != null and magic.surge > 0.99 and magic.streams.all(func(s): return (s as MapMagicStream).surge > 0.99), "and the magic is at full strength (%.2f)" % (magic.surge if magic else -1.0))
-	_check(arena.portals.map_pairs().size() >= 4, "the arena's Portals node has the map's pairs (%d)" % arena.portals.map_pairs().size())
-	# It cannot be used again while it runs.
-	_hold(true)
-	await _wait(0.5)
-	_check(terminal.phase == MapTerminal.Phase.BUSY and not terminal.ready_to_use(), "the altar cannot be used while the surge runs")
-	_hold(false)
-	# Through the Engine's gate: out of the Observatory's, speed carried, facing out of it.
-	await _settle(engine_gate.global_position + front * 2.5 - Vector3(0, 1.6, 0), atan2(front.x, front.z), 10)   # (looking into the gate)
-	var went := false
-	for i in 90:
-		me.velocity = Vector3(-front.x * 9.0, me.velocity.y, -front.z * 9.0)
-		await get_tree().physics_frame
-		if me.global_position.y > 100.0:
-			went = true
-			break
-	var out_dir := far_gate.global_transform.basis.z
-	_check(went and me.global_position.distance_to(far_gate.global_position) < 4.0, "walking into the Engine's gate brings you out of the Observatory's")
-	var along := Vector3(me.velocity.x, 0, me.velocity.z).dot(out_dir)
-	_check(along > 7.5 and along < 10.5, "your speed is carried through, pointing out of that gate (%.1f m/s of 9)" % along)
-	var facing := Basis.from_euler(Vector3(0, me.input.yaw, 0)) * Vector3.FORWARD
-	_check(facing.dot(out_dir) > 0.9, "you come out facing the way the gate faces (%.2f)" % facing.dot(out_dir))
-	_check(me.alive, "(and alive)")
-	# ...and back the other way (two-way).
-	await _frames(40)
-	await _settle(far_gate.global_position + out_dir * 2.5 - Vector3(0, 1.6, 0), 0.0, 10)
-	went = false
-	for i in 90:
-		me.velocity = Vector3(-out_dir.x * 9.0, me.velocity.y, -out_dir.z * 9.0)
-		await get_tree().physics_frame
-		if me.global_position.y < 20.0:
-			went = true
-			break
-	_check(went and me.global_position.distance_to(engine_gate.global_position) < 4.0, "and back: the Observatory's gate brings you out of the Engine's")
-	# A rocket through an open gate: straight on, out the back of the same gate.
-	var from := engine_gate.global_position + front * 6.0
-	var rocket := Projectile.make(990, WeaponData.by_id("rocket_launcher"), from, -front, Vector3.INF, Color.WHITE)
-	arena.add_child(rocket)
-	rocket.set_physics_process(false)
-	for i in 14:
-		rocket._physics_process(1.0 / 60.0)
-	var flown: Vector3 = rocket.global_position - from
-	_check(flown.dot(-front) > 6.5 and rocket.global_position.y < 10.0 and absf(flown.dot(front.cross(Vector3.UP))) < 0.2,
-		"a rocket fired through the open gate flies straight on and out its back (%.1f m, still in the Engine)" % flown.dot(-front))
-	rocket.queue_free()
-	# The portal gun's portals work beside the map's, and neither touches the other.
-	arena.portals.place(me.peer_id, 0, at(20.0, 60.0, 2.0), Vector3(-1, 0, 0), Vector3.UP)
-	arena.portals.place(me.peer_id, 1, at(20.0, 60.0, TIER * 4 + 2.0), Vector3(-1, 0, 0), Vector3.UP)
-	_check(arena.portals.get_portal(me.peer_id, 0) == null and arena.portals.get_portal(me.peer_id, 1) != null,
-		"the portal gun's own rules still hold during the surge (a second portal 122 m off closes the first)")
-	arena.portals.place(me.peer_id, 0, at(20.0, 60.0, 2.0), Vector3(-1, 0, 0), Vector3.UP)
-	arena.portals.place(me.peer_id, 1, at(20.0, 90.0, 2.0), Vector3(-1, 0, 0), Vector3.UP)
-	_check(arena.portals.get_portal(me.peer_id, 0) != null and arena.portals.get_portal(me.peer_id, 1) != null and arena.portals.map_pairs().size() >= 4,
-		"a player's pair goes up while the gates are open, and the gates stay open")
-	arena.portals.clear(me.peer_id)
-	_check(arena.portals.map_pairs().size() >= 4 and surge.passable(), "closing the player's pair leaves the map's alone (they are exempt from the gun's rules: 150 m apart and still joined)")
-	# 30 s: the host's clock, stepped by hand so the test need not wait.
-	surge.set_physics_process(false)
-	var left := surge.open_time + surge.duration - surge.elapsed - 0.5
-	while left > 0.0:
-		surge._physics_process(minf(0.1, left))
-		left -= 0.1
-	_check(surge.passable(), "just before 30 s: still open")
-	for i in 12:
-		surge._physics_process(0.1)
-	_check(not surge.passable() and surge.running and arena.portals.map_pairs().is_empty() and gates.all(func(g): return not (g as MapRingGate).open),
-		"after 30 s they collapse: nothing teleports any more")
-	await _settle(engine_gate.global_position + front * 2.0 - Vector3(0, 1.6, 0), 0.0, 10)
-	for i in 60:
-		me.velocity = Vector3(-front.x * 6.0, me.velocity.y, -front.z * 6.0)
-		await get_tree().physics_frame
-	_check(me.global_position.y < 10.0, "(walking into the Engine's gate again goes nowhere)")
-	for i in 30:
-		surge._physics_process(0.1)
-	_check(surge.running and surge.level == 0.0 and not terminal.ready_to_use(), "then the cooldown: the altar stays locked")
-	for i in 590:
-		surge._physics_process(0.1)
-	surge.set_physics_process(true)
-	await _wait(0.3)
-	_check(not surge.running and terminal.ready_to_use(), "60 s after they closed it is ready again")
+	_check(me.global_position.y < 10.0 and (me.global_position - middle).dot(front) < -1.0,
+		"walking into the Engine's ring gate takes you through the ring and out the back")
 
 
 func _deaths() -> void:

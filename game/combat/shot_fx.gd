@@ -4,9 +4,8 @@ class_name ShotFx
 
 
 ## One shot: a tracer and an impact for each pellet (`ends`, `hits`: one per pellet),
-## and a muzzle flash sized for the gun. `vias`: per pellet, where it went into and came
-## out of portals ([in, out, ...]; see Portals.path_bends): its tracer goes through them.
-static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits: Array, weapon: String = "pistol", vias: Array = []) -> void:
+## and a muzzle flash sized for the gun.
+static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits: Array, weapon: String = "pistol") -> void:
 	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
 		return
 	weapon = WeaponData.look_of(weapon)
@@ -32,12 +31,7 @@ static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits:
 	_flash(parent, muzzle, Color(1.0, 0.8, 0.4), flash, 0.05)
 	for i in ends.size():
 		var hit: bool = hits[i] if i < hits.size() else false
-		var via: PackedVector3Array = vias[i] if i < vias.size() else PackedVector3Array()
-		var from := muzzle
-		for k in range(0, via.size() - 1, 2):
-			_tracer(parent, from, via[k], width, color, life)
-			from = via[k + 1]
-		_tracer(parent, from, ends[i], width, color, life)
+		_tracer(parent, muzzle, ends[i], width, color, life)
 		_flash(parent, ends[i], Color(1.0, 0.3, 0.2) if hit else Color(0.9, 0.9, 0.8), 0.15 if ends.size() == 1 else 0.07, 0.12)
 
 

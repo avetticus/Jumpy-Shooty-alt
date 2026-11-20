@@ -79,7 +79,7 @@ func _ready() -> void:
 	Match.kill_scored.connect(_on_kill_scored)
 	Match.shot_aimed.connect(func(shooter: int, eye: Vector3, aim: Vector3):
 		_event({"kind": "aim", "who": shooter, "eye": eye, "aim": aim}))
-	Match.shot_fired.connect(func(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array, _vias: Array):
+	Match.shot_fired.connect(func(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array):
 		_event({"kind": "shot", "who": shooter, "muzzle": muzzle, "ends": ends, "hits": hits, "weapon": Net.player_weapon(shooter)}))
 	Match.projectile_fired.connect(func(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3):
 		_rocket_owner[id] = shooter

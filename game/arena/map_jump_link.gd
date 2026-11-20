@@ -11,11 +11,6 @@ extends Marker3D
 ## (as the lift's child, say) with Landing on the floor to get off at; one link for
 ## each floor. Bots take a lift when where they are going is well above them.
 ##
-## A link set to Gate is a way through a MapRingGate (a PortalSurgeEvent's portal): put
-## it on the floor in front of the gate, Hook the gate itself, Landing the floor in
-## front of the other gate of its pair. It can only be used while the gate is open, and
-## bots take it when it saves them a long walk.
-##
 ## Put one on the floor where the crossing starts, a little back from the edge.
 ## Inside a MapIsland it rides the island, like its hook and landing if they are
 ## inside one too. Bots only use a link when walking will not get them where they
@@ -28,7 +23,6 @@ enum How {
 	HOP,       ## sprint at Landing and jump at the edge (a gap a running jump clears; a step up it climbs)
 	BOOST,     ## sprint at Landing, jump at the edge, fire the rocket boots and glide on (a gap too wide to jump)
 	LIFT,      ## walk into the tractor beam here (a MapLiftWell), ride it up, steer out to Landing
-	GATE,      ## walk into the ring gate Hook names (a MapRingGate) while it is open; you come out at Landing
 }
 
 const GROUP := "map_jump_links"
@@ -76,10 +70,6 @@ func island() -> MapIsland:
 ## Can it be used right now? Not while the map is moving; not when its island is down
 ## or on its way; and when its island is about to go down, only if it leads off it.
 func usable() -> bool:
-	if how == How.GATE:
-		var gate := get_node_or_null(hook) as MapRingGate
-		if gate == null or not gate.open:
-			return false   # dormant: only a ring
 	var map := MapRoot.of(self)
 	if map == null:
 		return true

@@ -2,7 +2,7 @@ class_name FollowCamera
 extends Camera3D
 ## Search and Destroy: once you are out for the round, you watch a player still in it
 ## from behind them, in third person (see Arena._update_round_spectate). Fire moves on
-## to the next player, Mobility (right mouse) back to the one before; teammates come first.
+## to the next player, Mobility (middle mouse) back to the one before; teammates come first.
 ## The camera stays out of walls: it comes in closer when one is behind the player.
 
 const DISTANCE := 3.4    ## metres behind the player

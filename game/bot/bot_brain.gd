@@ -22,9 +22,10 @@ extends RefCounted
 ##    higher difficulties.
 ##  - Uses the movement set: sprints, slides and bunny-hops while chasing, dives to
 ##    close distance, flips to dodge when hit, grapples toward high ground.
-##  - Uses whatever is on its mobility button (see Mobility): the grapple as above;
-##    blink to close in on you, to reach higher ground and to dodge when hit; the
-##    portal gun to put one portal by you and one at its own feet and step through.
+##  - Uses whatever is on its mobility button (see Mobility): the grapple as above, or
+##    blink to close in on you, to reach higher ground and to dodge when hit. Like
+##    everyone it has the jetpack (Space held in mid-air): short bursts up to higher
+##    ground, over cover as it closes in, and a hop out of the way when hit.
 ##  - Kicks anyone right in front of it, hooks you with the grapple to reel you in
 ##    and finishes with a flying kick, and fires its rocket boots to close in, to
 ##    dodge when hit and to whip round faster on a grapple swing.
@@ -91,8 +92,6 @@ const NO_LINK_WAIT := 1.5           ## seconds before a bot that found no crossi
 const ROAM_TRIES := 4            ## random places it tries, with nobody to go after, for one it can walk to (indoors)
 const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
 const LIFT_WORTH := 12.0         ## a goal this far above it (metres) is worth a tractor-beam lift, if one is near
-const GATE_WORTH := 25.0         ## an open ring gate is worth stepping through if it brings the goal this much nearer (metres)
-const GATE_NEAR := 30.0          ## ...and stands no further off than this, on its own floor
 const LIFT_NEAR := 45.0          ## ...whose foot is no further off than this, on its own floor
 const LINK_SHORT_UP := 4.0       ## ...nor one that ends this far above or below it: time to look for a MapJumpLink
 const LINK_GIVE_UP := 6.0        ## seconds a crossing may take before it stops trying
@@ -168,9 +167,7 @@ var _open_map := -1              # 1: a map of islands over a drop (see _open())
 var _ground_map := -1            # 1: many moving parts, routes worked out part by part (see _by_ground()), 0: not, -1: not looked yet
 var _link_places := {}           # a crossing's instance id -> [the part it sets off from, the part it comes down on]
 var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
-var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
-var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
-var _portal_step := 0            # 0: shoot the far portal, 1: the near one, 2: walk into it
+var _jet_time := 0.0             # seconds left of a jetpack burst it is holding (Space, in mid-air)
 var _guarding := false           # team modes: inside the radius of the spot it is guarding
 var _wander := Vector3.INF       # ...and the spot near it it is strolling to
 var _wander_time := 0.0
@@ -181,10 +178,9 @@ var _sense_every := 1            # it looks and listens on every this-many-th st
 
 ## Guns that wait for a clean shot (see _fire).
 const STEADY_GUNS := ["sniper", "bolt_action", "railgun"]
-## How often it thinks of using each mobility tool, a second (Easy to Expert).
+## How often it thinks of using blink and the jetpack, a second (Easy to Expert).
 const BLINK_RATE := [0.15, 0.5, 1.0, 1.4]
 const JETPACK_RATE := [0.2, 0.5, 0.9, 1.2]
-const PORTAL_RATE := [0.1, 0.35, 0.7, 1.0]
 
 
 func _init(player: Player, level: int) -> void:
@@ -314,6 +310,7 @@ func update(delta: float) -> void:
 		_boost_side = 0.0
 		_blink_side = 0.0
 		_jet_time = 0.0
+		input.jump_held = false
 		_link = null
 		_repath = 0.0
 	elif _terminal != null or _link != null:
@@ -322,12 +319,10 @@ func update(delta: float) -> void:
 		world_dir = _mind_the_edge(world_dir)
 	elif me.mobility == Mobility.BLINK:
 		_blink(delta, visible)
-	elif me.mobility == Mobility.JETPACK:
-		_jetpack(delta, visible)
-	elif me.mobility == Mobility.PORTAL:
-		_portal(delta, visible)
 	else:
 		_grapple(delta, visible)
+	if not hold:
+		_jetpack(delta, visible, not _open())   # (over a drop: only its hop out of the way when hit)
 	_dodge(delta)
 	_set_move(world_dir)
 	if not _hook_frame:
@@ -374,9 +369,8 @@ func _reset() -> void:
 	_link_flying = false
 	_blink_side = 0.0
 	input.glide = false
-	_portal_plan = 0.0
-	_portal_step = 0
 	_jet_time = 0.0
+	input.jump_held = false
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +422,7 @@ func _hear(id: int, where: Vector3, force: bool) -> void:
 	_known[id] = [_time, where + miss * off]
 
 
-func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array, _vias: Array) -> void:
+func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array) -> void:
 	if shooter == me.peer_id or not me.alive:
 		return
 	var eye := me.eye_position()
@@ -810,8 +804,6 @@ func _follow_path(goal_at: Vector3, delta: float) -> Vector3:
 			_link = _pick_link(world_pos, goal_at) if _stops_short(goal) else null
 			if _link == null:
 				_link = _pick_lift(world_pos, goal_at)   # well above it: a tractor beam is quicker than the stairs
-			if _link == null:
-				_link = _pick_gate(world_pos, goal_at)   # an open ring gate close by that saves a long walk
 		if _link != null:
 			# Walking does not get there: walk to the crossing instead.
 			_path = _nav_path(pos, _to_nav(_link.takeoff()))
@@ -1106,9 +1098,9 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 		return _route_link(pos, goal, links)
 	if _no_link > 0.0:
 		return null   # (it looked a moment ago and there was none: every look costs path searches)
-	# Lifts and ring gates are short cuts, never the only way: _pick_lift and _pick_gate
-	# choose those, cheaply. Here they would only be more searches.
-	links = links.filter(func(l): return l.how != MapJumpLink.How.LIFT and l.how != MapJumpLink.How.GATE)
+	# Lifts are short cuts, never the only way: _pick_lift chooses those, cheaply. Here
+	# they would only be more searches.
+	links = links.filter(func(l): return l.how != MapJumpLink.How.LIFT)
 	# Each question below is a path worked out by the navigation server, the dear part of
 	# this, so each is asked once: where a crossing comes down, and whether walking on
 	# from there gets to the goal, are the same whether it is taken first or second.
@@ -1180,33 +1172,6 @@ func _pick_lift(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	if best == null or NavigationServer3D.map_get_iteration_id(me.get_world_3d().navigation_map) == 0:
 		return null
 	return best if _walkable(pos, best.takeoff()) else null
-
-
-## The open ring gate (a MapJumpLink set to Gate) worth stepping through on the way to
-## `goal`, or null: one close by, on its own floor, whose far side is much nearer the
-## goal than it is now and from where walking gets there.
-func _pick_gate(pos: Vector3, goal: Vector3) -> MapJumpLink:
-	if _link_wait > 0.0:
-		return null
-	var best: MapJumpLink = null
-	var best_saved := GATE_WORTH
-	for l in _links():
-		var link := l as MapJumpLink
-		if link.how != MapJumpLink.How.GATE:
-			continue
-		var front := link.takeoff()
-		if absf(front.y - pos.y) > 3.0 or _flat(pos, front) > GATE_NEAR:
-			continue
-		var saved := pos.distance_to(goal) - link.landing_point().distance_to(goal) - pos.distance_to(front)
-		if saved > best_saved:
-			best = link
-			best_saved = saved
-	var nav := me.get_world_3d().navigation_map
-	if best == null or NavigationServer3D.map_get_iteration_id(nav) == 0:
-		return null
-	if not _walkable(pos, best.takeoff()) or not _gets_to(NavigationServer3D.map_get_closest_point(nav, best.landing_point()), goal):
-		return null
-	return best
 
 
 ## The crossings it could take right now.
@@ -1330,9 +1295,6 @@ func _start_link() -> void:
 		# A tractor beam: it has it as soon as it walks in (and lifts it off the floor).
 		if _flat(me.global_position, _link.takeoff()) > 1.2 or absf(me.global_position.y - _link.takeoff().y) > 2.5:
 			return
-	elif _link.how == MapJumpLink.How.GATE:
-		if _flat(me.global_position, _link.takeoff()) > 1.5 or absf(me.global_position.y - _link.takeoff().y) > 2.0:
-			return
 	elif not me.is_on_floor() or _flat(me.global_position, _link.takeoff()) > 0.9 or absf(me.global_position.y - _link.takeoff().y) > 1.5:
 		return
 	if _link.how == MapJumpLink.How.GRAPPLE and not me.motor.grapple.ready_to_fire():
@@ -1357,9 +1319,6 @@ func _fly_link(delta: float) -> void:
 	_link_time += delta
 	if is_instance_valid(_link) and _link.how == MapJumpLink.How.LIFT:
 		_ride_lift()
-		return
-	if is_instance_valid(_link) and _link.how == MapJumpLink.How.GATE:
-		_walk_through_gate()
 		return
 	if not is_instance_valid(_link) or _link_time > LINK_GIVE_UP:
 		_end_link(false)
@@ -1483,26 +1442,6 @@ func _ride_lift() -> void:
 	_set_move(dir)
 
 
-## One frame of stepping through an open ring gate: walk straight at the middle of
-## the ring until it is suddenly somewhere else (the far gate), then carry on.
-func _walk_through_gate() -> void:
-	var pos := me.global_position
-	if pos.distance_to(_link.landing_point()) < 6.0:
-		_end_link(true)   # through
-		return
-	if _link_time > 4.0 or not _link.usable():
-		_end_link(false)  # it closed, or something is in the way
-		return
-	var to := _link.hook_point() - pos
-	to.y = 0.0
-	input.grapple = false
-	input.sprint = false
-	if to.length() > 0.2:
-		input.yaw = atan2(-to.x, -to.z)
-		input.pitch = 0.0
-	_set_move(to.normalized() if to.length() > 0.05 else Vector3.FORWARD.rotated(Vector3.UP, input.yaw))
-
-
 func _end_link(made_it: bool) -> void:
 	if DevArgs.sync_log:
 		print("BOT_LINK %d %s" % [me.peer_id, "landed" if made_it else "failed"])
@@ -1541,7 +1480,7 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 			if not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0):
 				return
 		if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
-			_jet_time = 0.35
+			_start_jet(0.35)
 			return
 		if _rng.randf() < d.dodge_chance and _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 8.0):
 			_dodge_side = side
@@ -1550,7 +1489,7 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 				input.jump_pressed = true
 		return
 	if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
-		_jet_time = 0.35   # hop up out of the line of fire
+		_start_jet(0.35)   # hop up out of the line of fire
 	if me.blink and me.blink.ready() and _rng.randf() < d.dodge_chance * 0.7:
 		_blink_side = side   # a sideways blink
 		return
@@ -1671,19 +1610,26 @@ func _blink(delta: float, visible: bool) -> void:
 	input.grapple_pressed = true
 
 
-## Jetpack: short bursts to reach higher ground, to close in on someone far off,
-## and to hop out of the way when hit. It keeps some fuel back.
-func _jetpack(delta: float, visible: bool) -> void:
+## Jetpack (everyone has one: Space held in mid-air): short bursts to reach higher
+## ground, to hop over whatever is in the way as it closes in on someone far off, and to
+## hop out of the way when hit. Like a player it jumps first if it is on the floor and
+## keeps Space down: the jetpack lights a moment into the air (see
+## MovementController.space_jet). It keeps some fuel back. `plan`: it may think of a
+## burst of its own (over a drop it only takes the hop out of the way, see _dodge).
+func _jetpack(delta: float, visible: bool, plan: bool) -> void:
 	var jet := me.jetpack
-	if jet == null:
-		input.grapple = false
+	if jet == null or _link != null or _terminal != null:
+		if _jet_time > 0.0:
+			input.jump_held = false   # (a crossing or a terminal takes over: let go)
+		_jet_time = 0.0
 		return
 	if _jet_time > 0.0:
 		_jet_time -= delta
-		input.grapple = jet.fuel > 0.1
+		input.jump_held = _jet_time > 0.0 and jet.fuel > 0.1
+		if not input.jump_held:
+			_jet_time = 0.0
 		return
-	input.grapple = false
-	if jet.fuel < 0.6:
+	if not plan or jet.fuel < 0.6:
 		return
 	var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 	if spot == Vector3.INF:
@@ -1694,61 +1640,20 @@ func _jetpack(delta: float, visible: bool) -> void:
 	var to := spot - me.global_position
 	var dist := Vector2(to.x, to.z).length()
 	if to.y > 2.5 and dist < 25.0:
-		_jet_time = clampf(to.y / 6.0 + 0.3, 0.4, 1.4)   # up to their level
+		_start_jet(clampf(to.y / 6.0 + 0.3, 0.4, 1.4))   # up to their level
 	elif visible and dist > FAR + 6.0 and not _light():
-		_jet_time = 0.5   # a hop over whatever is in the way as it closes in
+		_start_jet(0.5)   # a hop over whatever is in the way as it closes in
 
 
-## Portal gun: with its target far off and in sight, shoot a portal onto the floor
-## by them, then one onto the floor just ahead of its own feet, toward them, and walk
-## into it. It comes out of the floor beside them and keeps fighting.
-func _portal(delta: float, visible: bool) -> void:
-	input.grapple = false
-	var gun := me.portal_gun
-	if gun == null or Net.arena == null or Net.arena.portals == null:
+## Fly the jetpack for `seconds`: Space down (and a jump first, from the floor), held for
+## as long as it takes the jetpack to light as well.
+func _start_jet(seconds: float) -> void:
+	if me.jetpack == null:
 		return
-	if _portal_plan > 0.0:
-		_portal_plan -= delta
-		if _portal_step == 2:
-			var near: Portal = Net.arena.portals.get_portal(me.peer_id, 1)
-			if near == null or me.portal_skip != null:
-				_portal_plan = 0.0   # went through (or it is gone)
-			return
-		if not gun.ready():
-			return
-		var spot := Vector3.INF
-		if _portal_step == 0:
-			if _target == null or not visible:
-				_portal_plan = 0.0
-				return
-			spot = _target.global_position + _target.velocity * 0.3
-		else:
-			var to := (_target.global_position if _target else me.global_position - Vector3.FORWARD.rotated(Vector3.UP, input.yaw)) - me.global_position
-			to.y = 0.0
-			spot = me.global_position + to.normalized() * 2.2
-		var eye := me.eye_position()
-		var dir := (spot + Vector3(0, -0.3, 0) - eye).normalized()
-		var found := PortalGun.find_spot(me, eye, dir)
-		var floor_needed := _portal_step == 1   # its own one goes on the floor, to walk into
-		if not found.has("at") or (floor_needed and (found.normal as Vector3).y < 0.7) or (found.at as Vector3).distance_to(spot) > (6.0 if _portal_step == 0 else 3.5):
-			if DevArgs.sync_log:
-				print("BOT_PORTAL_SKIP %d step %d %s" % [me.peer_id, _portal_step, "none" if not found.has("at") else "%.2f %.1f" % [(found.normal as Vector3).y, (found.at as Vector3).distance_to(spot)]])
-			_portal_plan = 0.0   # no floor there to take a portal
-			return
-		gun.next_slot = _portal_step   # far one blue, near one orange
-		input.mobility_dir = dir
-		input.grapple_pressed = true
-		_portal_step += 1
-		return
-	if not visible or _target == null or not gun.ready() or not me.is_on_floor():
-		return
-	var dist := me.global_position.distance_to(_target.global_position)
-	if dist < maxf(FAR - 4.0, 14.0) or dist > Portals.MAX_SPAN - 8.0:   # both its portals must be in reach of each other
-		return
-	if _rng.randf() > delta * PORTAL_RATE[d.level]:
-		return
-	_portal_plan = 3.0
-	_portal_step = 0
+	_jet_time = seconds + me.motor.tuning.space_hold_time + 0.05
+	input.jump_held = true
+	if me.is_on_floor():
+		input.jump_pressed = true
 
 
 ## Hook the target it is fighting, now and then, to reel them in for a flying kick.

@@ -31,12 +31,13 @@ More detail, including how to play with a friend and run several copies on one P
 | Move | W A S D |
 | Sprint | Shift |
 | Glide (hold in mid-air: you fly on along a locked track at the speed you had, free to turn and shoot, and guns scatter less; you can hold it as long as you like but it weakens into a fall; let go to stop, with a backflip) | Alt |
-| Jump | Space |
+| Jump (again in mid-air: a flip, once per jump; hold in mid-air: the **jetpack**, see below) | Space |
+| Mobility tool: grappling hook or blink (while waiting to respawn: switch to the other) | Middle mouse |
 | Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
-| Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while gliding, turns the glide that way) | E |
+| Rocket boots (a burst toward WASD as you look; hold Space to tip it up, except while the jetpack flies; while gliding, turns the glide that way) | E |
 | Interact (press at the terminal in Halcyon's Control Room: low gravity; at the lever in the Construction Site's crane cab: the crane moves its load; Search and Destroy: hold to plant or defuse the bomb) | G |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
@@ -45,18 +46,24 @@ More detail, including how to play with a friend and run several copies on one P
 | Debug menu (Practice and Vs Bots only) | F1 |
 | Spectate (fly a noclip camera nobody can see) | Esc > Spectate, or **Join as spectator**; then W A S D fly, Space up, Ctrl / C down, Shift fast |
 
-Right mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
-by pressing right mouse while you wait to respawn: the **grappling hook**
+Middle mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
+by pressing middle mouse while you wait to respawn: the **grappling hook**
 (the hook is a projectile: it flies out with slack in the rope, bites, the winch takes the slack in and
 the rope snaps tight with a yank, then it reels you in and you swing; lead a moving target, and let go to call it back; while you hold the
-button, a hook on its way back catches the first surface in its way), the **portal gun**
-(each press puts up your next portal, blue then orange, up to 45 m apart, fitted to the surface you shoot: moved off edges and obstacles and stood clear of ribs, beams and signs; walk into one and come out of the other
-at the same spot, with your speed and the way you look carried through, and see and shoot through each to the other side (bullets, rockets and grenades go through too); portals on moving parts of a map ride them; anyone can use anyone's portals, and yours go when you die) or
-**blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land) or the **jetpack** (hold to fly and steer with WASD, on fuel that refills when you let go, fastest on the ground). A race always has the grapple.
-Grapple is right mouse; Ctrl (or Q, or C) crouches, dives when moving forward and slides on your back when moving back. Every key except Esc can be
+button, a hook on its way back catches the first surface in its way) or
+**blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land). A race always has the grapple.
+
+Everyone also has the **jetpack**: hold Space in mid-air, after a jump or in a fall, and it
+lifts you and you steer with WASD, on fuel that refills when you let go (fastest on the
+ground; the gauge under the crosshair shows it while it is not full). It lights once Space
+has been held for a quarter of a second in the air, counted from the press (or from the
+jump it made), so a normal jump, wall jump or flip burns no fuel. There is no jetpack in a race.
+
+Ctrl (or Q, or C) crouches, dives when moving forward and slides on your back when moving back. Every key except Esc can be
 rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key
 you give to one action is taken off any other that had it, and **Reset controls to defaults**
-puts them all back.
+puts them all back. (The mobility tool used to be on right mouse: controls saved by an
+older version move it to middle mouse, unless you had given middle mouse to something else.)
 
 ## Project layout
 

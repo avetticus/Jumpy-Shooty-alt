@@ -13,6 +13,7 @@ const RECHARGE := 2.4     ## seconds per charge
 const GAP := 0.22         ## seconds between two blinks
 const MIN_DISTANCE := 1.2 ## a blink that would go less far than this (a wall in your face) is refused
 const BLINK_PUSH := 6.0   ## at least this much speed along the blink afterwards
+const COLOR := Color(0.25, 0.7, 1.0)   ## its flash, its trail and its HUD marks
 
 var charges := CHARGES
 var _recharge := 0.0
@@ -104,3 +105,84 @@ static func carry(vel: Vector3, dir: Vector3) -> Vector3:
 	if along < BLINK_PUSH:
 		vel += dir * (BLINK_PUSH - along)
 	return vel
+
+
+## A quick burst of light where someone blinked from, and where they arrived (visual only).
+static func flash(parent: Node, at: Vector3) -> void:
+	if parent == null:
+		return
+	var m := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.7
+	sphere.height = 1.8
+	sphere.radial_segments = 12
+	sphere.rings = 6
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.albedo_color = Color(COLOR, 0.7)
+	sphere.material = mat
+	m.mesh = sphere
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.top_level = true
+	parent.add_child(m)
+	m.global_position = at
+	var tw := m.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(m, "scale", Vector3(0.15, 1.4, 0.15), 0.28)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.28)
+	tw.chain().tween_callback(m.queue_free)
+
+
+## A stream of sparks that flies from where you set off to where you land, leaving a
+## fading trail along the way (visual only).
+static func trail(parent: Node, from: Vector3, to: Vector3) -> void:
+	if parent == null:
+		return
+	const TRAVEL := 0.16   # seconds for the sparks to reach where you land
+	var fx := CPUParticles3D.new()
+	fx.name = "BlinkTrail"
+	fx.top_level = true
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.06
+	mesh.height = 0.12
+	mesh.radial_segments = 6
+	mesh.rings = 3
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.vertex_color_use_as_albedo = true
+	mesh.material = mat
+	fx.mesh = mesh
+	fx.amount = 90
+	fx.lifetime = 0.45
+	fx.explosiveness = 0.0
+	fx.local_coords = false   # sparks stay where they were dropped as the emitter flies on
+	fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	fx.emission_sphere_radius = 0.35
+	fx.direction = Vector3.UP
+	fx.spread = 180.0
+	fx.gravity = Vector3.ZERO
+	fx.initial_velocity_min = 0.3
+	fx.initial_velocity_max = 1.2
+	fx.damping_min = 1.0
+	fx.damping_max = 2.0
+	fx.scale_amount_min = 0.6
+	fx.scale_amount_max = 1.3
+	var fade := Gradient.new()
+	fade.set_color(0, Color(COLOR.lightened(0.6), 1.0))
+	fade.set_color(1, Color(COLOR, 0.0))
+	fx.color_ramp = fade
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(1, 0))
+	fx.scale_amount_curve = shrink
+	parent.add_child(fx)
+	fx.global_position = from
+	fx.emitting = true
+	var tw := fx.create_tween()
+	tw.tween_property(fx, "global_position", to, TRAVEL).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(func(): fx.emitting = false)
+	tw.tween_interval(fx.lifetime + 0.1)
+	tw.tween_callback(fx.queue_free)
