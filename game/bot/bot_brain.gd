@@ -53,16 +53,15 @@ const ENGAGE_RANGE := 45.0
 ## Melee weapons run straight in, winding the swing up on the way (harder bots wind
 ## up further), and let go once in reach and facing you.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
-	"sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
+	"sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3],
 	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "akimbo": [4.0, 11.0, 40.0], "break_action": [2.0, 6.0, 16.0],
-	"smg": [3.5, 11.0, 40.0], "burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
+	"burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
 	"lever_action": [10.0, 26.0, 999.0], "bolt_action": [14.0, 32.0, 999.0], "railgun": [14.0, 34.0, 999.0],
 	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],
-	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "axe": [0.0, 1.7, 3.0], "bat": [0.0, 1.7, 3.0],
+	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "bat": [0.0, 1.7, 3.0],
 	"air_cannon": [3.0, 8.0, 15.0],
 	"minigun": [6.0, 18.0, 60.0], "battle_rifle": [10.0, 26.0, 999.0],
-	"nail_gun": [5.0, 14.0, 45.0], "crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
-	"plasma_cannon": [7.0, 15.0, 40.0],
+	"crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
 	"energy_sword": [0.0, 1.7, 3.0]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
@@ -196,7 +195,7 @@ func _init(player: Player, level: int) -> void:
 ## Fight the way the weapon in its hands likes (Gun Game swaps it mid-match; a
 ## Deathmatch pickup or switch too). Empty hands fight like a blade: run in and kick.
 func weapon_changed() -> void:
-	var r: Array = RANGES.get(WeaponData.look_of(me.weapon.data.id) if me.weapon else "dagger", RANGES.pistol)
+	var r: Array = RANGES.get(WeaponData.look_of(me.weapon.data.id) if me.weapon else "brass_knuckles", RANGES.pistol)
 	NEAR = r[0]
 	FAR = r[1]
 	_reach = r[2]

@@ -8,9 +8,9 @@ extends RefCounted
 ## The host keeps each player's place on the ladder in Match.scores ("level") and
 ## hands out the weapons (Net.host_set_weapon), so it works the same online and with bots.
 
-const LADDER := ["minigun", "smg", "rifle", "burst_rifle", "battle_rifle", "lmg",
+const LADDER := ["minigun", "rifle", "burst_rifle", "battle_rifle", "lmg",
 	"shotgun", "break_action", "lever_action", "crossbow", "bolt_action",
-	"anti_materiel", "railgun", "rocket_launcher", "plasma_cannon", "grenade_launcher", "nail_gun",
+	"anti_materiel", "railgun", "rocket_launcher", "grenade_launcher",
 	"machine_pistol", "akimbo", "revolver", "pistol", "brass_knuckles"]
 const TIME_LIMIT := 20.0 * 60.0   ## seconds; if nobody finishes, the furthest along wins
 

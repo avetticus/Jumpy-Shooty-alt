@@ -32,10 +32,8 @@ const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon r
 const MELEE_REST_VIEW := {
 	"sword": Vector3(0.14, -0.04, 0.02),
 	"hammer": Vector3(0.14, -0.04, 0.02),
-	"axe": Vector3(0.14, -0.04, 0.02),
 	"bat": Vector3(0.14, -0.04, 0.02),
 	"spear": Vector3(0.04, -0.03, 0.0),
-	"dagger": Vector3(0.085, -0.14, -0.09),
 	"brass_knuckles": Vector3(0.0, -0.04, 0.0),
 	"energy_sword": Vector3(0.12, -0.06, 0.0),
 }

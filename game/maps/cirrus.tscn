@@ -43432,10 +43432,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.4, 0, 5)
 script = ExtResource("4_weapon")
 weapon = "sword"
 
-[node name="Smg" type="Marker3D" parent="Library/WeaponSpawns"]
+[node name="Rifle" type="Marker3D" parent="Library/WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8.4)
 script = ExtResource("4_weapon")
-weapon = "smg"
+weapon = "rifle"
 
 [node name="BoltAction" type="Marker3D" parent="Library/WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 11, 11.4)

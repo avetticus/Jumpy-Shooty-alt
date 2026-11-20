@@ -250,9 +250,6 @@ GUNS = {
     "break_action": dict(crack=(1050, 0.55, 0.024), blast=(1500, 0.055, 1.45), boom=(0.2, 0.65),
                          thump=(90, 38, 0.1, 0.75), mech=([620, 1050, 1700], 0.012), slide_at=None,
                          tail=(1.4, 0.65, 1700), drive=3.4),
-    "smg": dict(crack=(2000, 0.75, 0.009), blast=(2700, 0.018, 0.95), boom=(0.05, 0.6),
-                thump=(135, 52, 0.04, 0.6), mech=([980, 1600, 2500], 0.008), slide_at=0.02,
-                tail=(0.6, 0.38, 2200), drive=2.8),
     "burst_rifle": dict(crack=(1850, 0.7, 0.011), blast=(2500, 0.022, 1.05), boom=(0.07, 0.75),
                         thump=(118, 44, 0.05, 0.8), mech=([900, 1500, 2300], 0.009), slide_at=0.022,
                         tail=(0.7, 0.42, 2100), drive=3.0),
@@ -282,11 +279,11 @@ GUNS = {
 }
 # The order the equip sounds were made in (each gun's seed is its place in it): new guns go on the end.
 # None: the place of a weapon since taken out of the game, kept so every other gun keeps its seed.
-EQUIP_ORDER = ["pistol", "rifle", "shotgun", None, "revolver", "machine_pistol", "break_action", "smg",
+EQUIP_ORDER = ["pistol", "rifle", "shotgun", None, "revolver", "machine_pistol", "break_action", None,
                "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
                "akimbo", None, None, None, "minigun", "battle_rifle", "anti_materiel",
-               None, None, "air_cannon", None, "nail_gun", "crossbow", None,
-               None, "plasma_cannon"]
+               None, None, "air_cannon", None, None, "crossbow", None,
+               None, None]
 
 
 def gun_dry(rng, g):
@@ -409,16 +406,6 @@ def air_fire(stereo=False, seed=0):
     return _stereo(dry, _room(dry, 1.0, 1800, 0.35), 5450 + seed)(stereo)
 
 
-def nail_fire(stereo=False, seed=0):
-    """The nail gun: a sharp pneumatic chunk and a puff of air."""
-    rng = np.random.default_rng(5500 + seed)
-    chunk = mix(metal_clack(rng, 1.3, 0.5, 0.5), (metal_clack(rng, 0.9, 0.6, 0.6) * 0.6, 0.012))
-    puff = hp(noise(rng, 0.12), 1800) * env(0.12, 0.02, 0.0004) * 0.7
-    thump = sine_sweep(0.15, 220, 90, 0.01) * env(0.15, 0.025) * 0.7
-    dry = mix(click(rng, 0.006, 0.0004, 3000) * 0.6, chunk, puff, thump)
-    return _stereo(dry, _room(dry, 0.5, 2600, 0.25), 5550 + seed)(stereo)
-
-
 def crossbow_fire(stereo=False, seed=0):
     """The crossbow: the latch, the string's deep twang and the limbs' thrum."""
     rng = np.random.default_rng(5600 + seed)
@@ -429,24 +416,12 @@ def crossbow_fire(stereo=False, seed=0):
     return _stereo(dry, _room(dry, 0.8, 2200, 0.3), 5650 + seed)(stereo)
 
 
-def plasma_cannon_fire(stereo=False, seed=0):
-    """The plasma cannon: a deep, wobbling "wub" and a rising crackle."""
-    rng = np.random.default_rng(5900 + seed)
-    t = np.arange(n(0.5)) / SR
-    wub = sat(np.sin(2 * np.pi * (90 * t + 40 * np.sin(2 * np.pi * 14 * t) / (2 * np.pi * 14))) * env(0.5, 0.12, 0.003) * 1.3, 2.0)
-    zap = sine_sweep(0.5, 600, 1800, 0.08) * bell_env(0.5, 0.1, 1.5) * 0.3
-    sparks = bp(noise(rng, 0.5), 3800, 1.2) * (rng.uniform(0, 1, n(0.5)) > 0.85) * bell_env(0.5, 0.15, 1.2) * 0.5
-    dry = lp(mix(wub, zap, sparks), 9000)
-    return _stereo(dry, _room(dry, 1.0, 2500, 0.35), 5950 + seed)(stereo)
-
-
 SPECIAL_FIRE = {"railgun": railgun_fire, "rocket_launcher": rocket_fire, "grenade_launcher": grenade_fire,
                 # The third batch
-                "air_cannon": air_fire, "nail_gun": nail_fire, "crossbow": crossbow_fire,
-                "plasma_cannon": plasma_cannon_fire}
+                "air_cannon": air_fire, "crossbow": crossbow_fire}
 # Each far sound's seed is its gun's place in this (None: a weapon since taken out of the game).
-FAR_SEEDS = ["railgun", "rocket_launcher", "grenade_launcher", None, None, "air_cannon", None, "nail_gun",
-             "crossbow", None, None, "plasma_cannon"]
+FAR_SEEDS = ["railgun", "rocket_launcher", "grenade_launcher", None, None, "air_cannon", None, None,
+             "crossbow", None, None, None]
 
 
 def special_far(name):
@@ -586,15 +561,13 @@ def equip(name):
                   (metal_slide(rng, 0.05, 2500, 1.5) * 0.7, 0.36), (metal_clack(rng, 0.95, 1.1, 1.0), 0.41)]
     elif name in ("revolver",):
         parts += [(metal_clack(rng, 1.4, 0.5, 0.2) * 0.8, 0.24), (metal_clack(rng, 1.1, 0.8, 0.5), 0.3)]
-    elif name in ("machine_pistol", "smg", "burst_rifle", "lmg", "battle_rifle", "nail_gun"):
+    elif name in ("machine_pistol", "burst_rifle", "lmg", "battle_rifle"):
         parts += [(metal_slide(rng, 0.07, 2000, 1.6) * 0.7, 0.25), (metal_clack(rng, 0.8, 1.3, 1.3), 0.33)]
     elif name == "break_action":
         parts += [(metal_clack(rng, 0.65, 1.8, 1.8), 0.28)]
     elif name == "lever_action":
         parts += [(metal_slide(rng, 0.07, 1500, 1.5), 0.24), (metal_slide(rng, 0.06, 1900, 0.8) * 0.8, 0.36),
                   (metal_clack(rng, 0.8, 1.3, 1.2), 0.41)]
-    elif name == "plasma_cannon":
-        parts += [(glide(0.4, 400, 2200) * bell_env(0.4, 0.85) * 0.25, 0.18), (metal_clack(rng, 1.1, 0.7, 0.5), 0.22)]
     elif name == "minigun":
         parts += [(glide(0.5, 120, 520, "saw") * bell_env(0.5, 0.5) * 0.2, 0.18), (metal_clack(rng, 0.6, 1.6, 1.6), 0.24)]
     elif name == "railgun":
@@ -971,9 +944,9 @@ def match_end():
 # ---------------------------------------------------------------------------
 # Melee: swings, blows, crashing into walls
 
-MELEE = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat", "energy_sword"]
+MELEE = ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
 # Each blade's seed is its place in this (None: a weapon since taken out of the game).
-MELEE_SEEDS = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
+MELEE_SEEDS = ["sword", "hammer", None, "brass_knuckles", "spear", None, "bat",
                None, None, None, None, None, "energy_sword", None, None]
 
 
@@ -987,9 +960,6 @@ def swing(name):
         return finish(mix(whoosh(rng, 0.3, 700, 3200, 1.6, 0.5) * 0.8, hum, glide(0.3, 900, 1400) * bell_env(0.3, 0.5, 1.5) * 0.12))
     if name == "spear":
         return finish(mix(whoosh(rng, 0.22, 700, 3800, 2.2, 0.55) * 1.1, servo(rng, 0.14, 420, 900, 0.15)))
-    if name == "axe":
-        w = whoosh(rng, 0.36, 260, 2000, 1.2, 0.6) * 1.1
-        return finish(mix(servo(rng, 0.24, 260, 640, 0.2), w, lp(noise(rng, 0.36), 600) * bell_env(0.36, 0.6, 1.4) * 0.4))
     if name == "bat":
         w = whoosh(rng, 0.34, 220, 1700, 1.0, 0.62) * 1.2
         return finish(mix(servo(rng, 0.22, 240, 600, 0.2), w, lp(noise(rng, 0.34), 450) * bell_env(0.34, 0.6, 1.4) * 0.6))
@@ -997,8 +967,6 @@ def swing(name):
         w = whoosh(rng, 0.42, 160, 1300, 1.0, 0.65) * 1.2
         body = lp(noise(rng, 0.42), 380) * bell_env(0.42, 0.6, 1.4) * 0.7
         return finish(mix(servo(rng, 0.3, 200, 520, 0.22), w, body))
-    if name == "dagger":
-        return finish(mix(whoosh(rng, 0.16, 900, 4200, 1.8, 0.45), servo(rng, 0.1, 500, 900, 0.12)))
     ring = modal(rng, 0.3, [2950, 4400], [0.05, 0.03], [0.05, 0.03])
     return finish(mix(whoosh(rng, 0.26, 500, 3600, 1.5, 0.5) * 1.1, servo(rng, 0.16, 360, 800, 0.15), (ring, 0.05)))
 
@@ -1132,9 +1100,9 @@ def equip_melee(name):
     if name == "brass_knuckles":
         return finish(mix(metal_clack(rng, 1.2, 0.6, 0.3), (metal_clack(rng, 1.25, 0.6, 0.3) * 0.8, 0.07),
                           (servo(rng, 0.15, 500, 900, 0.15), 0.0)))
-    if name in ("axe", "bat"):
+    if name == "bat":
         w = sweep_bp(noise(rng, 0.22), 400, 1800, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
-        return finish(mix(w, (metal_clack(rng, 0.55 if name == "axe" else 0.45, 1.5, 1.4) * 0.9, 0.18)))
+        return finish(mix(w, (metal_clack(rng, 0.45, 1.5, 1.4) * 0.9, 0.18)))
     draw = metal_slide(rng, 0.28 if name == "sword" else 0.16, 3200, 1.6) * 0.8
     w = sweep_bp(noise(rng, 0.22), 500, 2200, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
     if name == "hammer":
@@ -1743,8 +1711,8 @@ def main():
     args = [a for a in sys.argv[1:] if a != "--new"]
     only = args[0] if args else ""
     new = "--new" in sys.argv
-    batch = ("air_cannon", "minigun", "battle_rifle", "nail_gun", "crossbow",
-             "anti_materiel", "plasma_cannon", "energy_sword")
+    batch = ("air_cannon", "minigun", "battle_rifle", "crossbow",
+             "anti_materiel", "energy_sword")
     for name, make in recipes().items():
         if not name.startswith(only):
             continue

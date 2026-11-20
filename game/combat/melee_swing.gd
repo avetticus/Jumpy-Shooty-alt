@@ -146,43 +146,6 @@ const MOVES := {
 			"turns": 1.0,
 		},
 	},
-	"axe": {
-		# Diagonal chops, down from the right shoulder and then down from the left; the heavy blow comes from
-		# high behind the head and is driven down past the hip.
-		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.17],
-		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.17],
-		"taps": [
-			{
-				"wound": [Vector3(0.13, 0.04, -0.18), Vector3(0.55, 0.55, 0.63), Vector3(-0.3, -0.5, -0.8), -0.8, -0.1, -0.17],
-				"fp_wound": [Vector3(0.1, -0.1, -0.36), Vector3(0.5, 0.85, 0.1), Vector3(0.35, 0.0, -0.94), -0.6, -0.05, -0.17],
-				"hit": [Vector3(0.0, -0.2, -0.42), Vector3(0.2, 0.25, -0.95), Vector3(-0.7, -0.7, 0.0), 0.18, 0.28, -0.17],
-				"end": [Vector3(-0.14, -0.32, -0.24), Vector3(-0.75, -0.55, -0.36), Vector3(-0.3, -0.4, 0.86), 0.8, 0.3, -0.17],
-			},
-			{
-				"wound": [Vector3(-0.13, 0.04, -0.18), Vector3(-0.55, 0.55, 0.63), Vector3(0.3, -0.5, -0.8), 0.8, -0.1, -0.17],
-				"fp_wound": [Vector3(-0.4, -0.24, -0.32), Vector3(-0.7, 0.68, 0.2), Vector3(0.35, 0.0, 0.94), 0.55, -0.05, -0.17],
-				"hit": [Vector3(0.0, -0.2, -0.42), Vector3(-0.2, 0.25, -0.95), Vector3(0.7, -0.7, 0.0), -0.18, 0.28, -0.17],
-				"end": [Vector3(0.14, -0.32, -0.24), Vector3(0.75, -0.55, -0.36), Vector3(0.3, -0.4, 0.86), -0.8, 0.3, -0.17],
-			},
-		],
-		"heavy": {
-			"wound": [Vector3(0.12, 0.16, -0.1), Vector3(0.35, 0.45, 0.82), Vector3(-0.2, 0.8, -0.55), -1.1, -0.25, -0.17],
-			"fp_wound": [Vector3(0.06, -0.02, -0.4), Vector3(0.42, 0.88, 0.22), Vector3(-0.3, -0.3, -0.9), -0.85, -0.12, -0.17],
-			"hit": [Vector3(0.0, -0.22, -0.42), Vector3(0.15, 0.15, -0.98), Vector3(-0.55, -0.83, 0.0), 0.25, 0.42, -0.17],
-			"end": [Vector3(-0.1, -0.38, -0.22), Vector3(-0.6, -0.75, -0.28), Vector3(-0.3, -0.3, 0.9), 1.05, 0.5, -0.17],
-		},
-		# In mid-air: one cartwheel with the axe held high over the head, into a big chop straight down in front.
-		"air": {
-			"wound": [Vector3(0.04, 0.16, -0.08), Vector3(0.05, 0.6, 0.8), Vector3(0.0, 0.8, -0.6), -0.2, -0.35, -0.17],
-			"fp_wound": [Vector3(0.12, 0.0, -0.34), Vector3(0.15, 0.95, 0.25), Vector3(0.0, 0.25, -0.97), -0.2, -0.1, -0.17],
-			"lead": [Vector3(0.04, 0.16, -0.28), Vector3(0.05, 0.95, -0.3), Vector3(0.0, -0.3, -0.95), -0.05, 0.0, -0.17],
-			"hit": [Vector3(0.0, -0.2, -0.44), Vector3(0.05, -0.15, -0.99), Vector3(0.0, -0.99, 0.15), 0.1, 0.5, -0.17],
-			"end": [Vector3(0.0, -0.38, -0.26), Vector3(0.0, -0.8, -0.6), Vector3(0.0, -0.6, 0.8), 0.15, 0.55, -0.17],
-			"axis": Vector3(0.0, 0.0, 1.0),
-			"turns": 1.0,
-			"wind": 0.9,
-		},
-	},
 	"bat": {
 		# Hands together at the knob. A flat swing and a backhand; the heavy blow is a home run, cocked high
 		# behind the right shoulder and finished all the way round over the left.
@@ -261,43 +224,6 @@ const MOVES := {
 			"fp_end": [Vector3(0.05, -0.17, -0.35), Vector3(-0.12, -0.32, -0.94), Vector3(0.99, 0.0, -0.12), 0.46, 0.65, 0.04],
 		},
 	},
-	"dagger": {
-		# One hand, the other fist up in a guard. A forehand slash and a backhand; the heavy blow is a stab,
-		# drawn back to the ribs and lunged straight out.
-		"ready": [Vector3(0.2, -0.3, -0.2), Vector3(-0.2, 0.45, -0.87), Vector3(-0.5, -0.5, -0.7), -0.2, 0.0, 0.0],
-		"fp_ready": [Vector3(0.2, -0.2, -0.3), Vector3(-0.1, 0.62, -0.78), Vector3(-0.6, -0.2, -0.6), -0.08, 0.0, 0.0],
-		"taps": [
-			{
-				"wound": [Vector3(0.34, -0.08, -0.1), Vector3(0.62, 0.3, -0.72), Vector3(0.75, 0.0, 0.66), -0.75, -0.05, 0.0],
-				"hit": [Vector3(0.04, -0.14, -0.44), Vector3(-0.5, 0.1, -0.86), Vector3(-0.86, 0.0, 0.5), 0.25, 0.2, 0.0],
-				"end": [Vector3(-0.12, -0.15, -0.3), Vector3(-0.95, 0.0, -0.3), Vector3(-0.3, 0.0, 0.95), 0.7, 0.15, 0.0],
-			},
-			{
-				"wound": [Vector3(-0.14, -0.1, -0.24), Vector3(-0.75, 0.3, 0.1), Vector3(-0.1, 0.0, -1.0), 0.7, -0.05, 0.0],
-				"hit": [Vector3(0.06, -0.14, -0.44), Vector3(0.35, 0.1, -0.93), Vector3(0.93, 0.0, 0.35), -0.2, 0.2, 0.0],
-				"end": [Vector3(0.32, -0.16, -0.2), Vector3(0.95, 0.0, -0.3), Vector3(0.3, 0.0, 0.95), -0.7, 0.15, 0.0],
-			},
-		],
-		"heavy": {
-			"wound": [Vector3(0.3, -0.16, 0.04), Vector3(-0.25, 0.05, -0.97), Vector3(0.0, -1.0, 0.0), -0.9, -0.1, 0.0],
-			"hit": [Vector3(0.02, -0.12, -0.5), Vector3(0.6, 0.0, -0.8), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
-			"fp_hit": [Vector3(0.1, -0.14, -0.46), Vector3(-0.2, 0.0, -0.98), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
-			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
-			"fp_end": [Vector3(0.1, -0.14, -0.48), Vector3(-0.2, -0.02, -0.98), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
-		},
-		# In mid-air: a dive. The body arches back, the dagger drawn back to the ribs, then throws itself
-		# forward and down head first behind a stab at full stretch.
-		"air": {
-			"wound": [Vector3(0.3, -0.14, 0.08), Vector3(-0.25, 0.15, -0.96), Vector3(0.0, -1.0, 0.0), -0.7, -0.3, 0.0],
-			"fp_wound": [Vector3(0.28, -0.22, -0.2), Vector3(-0.1, 0.1, -0.99), Vector3(0.0, -1.0, 0.0), -0.4, -0.05, 0.0],
-			"hit": [Vector3(0.04, 0.3, -0.44), Vector3(0.5, 0.5, -0.7), Vector3(0.0, -1.0, 0.0), 0.4, 0.2, 0.0],
-			"fp_hit": [Vector3(0.1, -0.16, -0.46), Vector3(-0.2, -0.2, -0.96), Vector3(0.0, -1.0, 0.0), 0.4, 0.5, 0.0],
-			"end": [Vector3(0.03, 0.3, -0.46), Vector3(0.52, 0.48, -0.7), Vector3(0.0, -1.0, 0.0), 0.45, 0.22, 0.0],
-			"fp_end": [Vector3(0.1, -0.17, -0.48), Vector3(-0.2, -0.22, -0.95), Vector3(0.0, -1.0, 0.0), 0.45, 0.52, 0.0],
-			"axis": Vector3(-1.0, 0.0, 0.0),
-			"dive": Vector2(0.3, 0.8),
-		},
-	},
 	"brass_knuckles": {
 		# Both fists, held loose. Hooks that take turns, the left then the right (a blow marked "left" is the
 		# left fist's, its keys as if it were the right); the heavy blow is a right uppercut from down by the hip.
@@ -341,7 +267,7 @@ const MOVES := {
 	},
 }
 ## How long the blow, follow-through and recovery take, against the sword's.
-const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6, "brass_knuckles": 0.55, "spear": 0.85, "axe": 1.15, "bat": 1.1,
+const PACE := {"sword": 1.0, "hammer": 1.3, "brass_knuckles": 0.55, "spear": 0.85, "bat": 1.1,
 	"energy_sword": 0.85}
 ## The newer blades swing like one of the first seven: the energy sword cuts like the
 ## longsword.

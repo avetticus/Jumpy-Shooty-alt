@@ -28,8 +28,8 @@ const LOW_ANGLE := 0.72        ## radians a gun is lowered in the low hold
 const SHELLS := 2              ## a gun loaded a round at a time: this many go in before its last flourish
 
 ## The big guns and the long-handled weapons: too much to dangle from one hand.
-const SHOULDER_GUNS := ["rocket_launcher", "grenade_launcher", "plasma_cannon", "lmg", "minigun", "anti_materiel", "railgun"]
-const SHOULDER_MELEE := ["hammer", "axe", "bat", "spear"]
+const SHOULDER_GUNS := ["rocket_launcher", "grenade_launcher", "lmg", "minigun", "anti_materiel", "railgun"]
+const SHOULDER_MELEE := ["hammer", "bat", "spear"]
 
 ## Where the right hand's grip goes and how the weapon lies, in the chest's own frame at
 ## shoulder height (x right, y up, -z forward): [grip, where the barrel or blade points,

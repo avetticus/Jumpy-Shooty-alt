@@ -1,6 +1,6 @@
 class_name MeleeModel
 extends RefCounted
-## The melee weapons' looks (longsword, hammer, dagger, brass knuckles, spear, axe, bat):
+## The melee weapons' looks (longsword, hammer, brass knuckles, spear, bat):
 ## made in the same factory as the robots. Gunmetal bodies, armour-plate panels, solid
 ## steel blades and heads, and glowing parts in the player's trim colour (set_glow
 ## dims or brightens them). Built here from MeleeKit's faceted shapes, so they need
@@ -26,8 +26,8 @@ const HOLD := TO_BONE * Basis(Vector3.RIGHT, READY_TILT)
 ## Weapons shown lying flat (a pickup, a preview) are turned this far about their length, to show their broad side.
 const SHOW_TURN := {"sword": PI * 0.5}
 ## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
-const EDGES := {"sword": [0.36, 1.48], "hammer": [0.62, 0.92], "dagger": [0.12, 0.56],
-	"brass_knuckles": [0.0, 0.1], "spear": [1.3, 2.04], "axe": [0.47, 0.93], "bat": [0.4, 1.0],
+const EDGES := {"sword": [0.36, 1.48], "hammer": [0.62, 0.92],
+	"brass_knuckles": [0.0, 0.1], "spear": [1.3, 2.04], "bat": [0.4, 1.0],
 	"energy_sword": [0.16, 1.06]}
 ## Worn on both fists (the left one on the akimbo pistol's grip bone, see attach_left).
 const BOTH_FISTS := ["brass_knuckles"]
@@ -154,14 +154,10 @@ static func parts(id: String) -> Array:
 	match id:
 		"hammer":
 			return _hammer()
-		"axe":
-			return _axe()
 		"bat":
 			return _bat()
 		"spear":
 			return _spear()
-		"dagger":
-			return _dagger()
 		"brass_knuckles":
 			return _knuckles()
 		"energy_sword":
@@ -251,43 +247,6 @@ static func _hammer() -> Array:
 	return k.parts()
 
 
-## Axe: a big crescent blade with a glowing cutting edge, held in a mechanical collar,
-## with a spike on the back to balance it.
-static func _axe() -> Array:
-	var k := MeleeKit.new()
-	var side := MeleeKit.SIDE
-	k.bar("dark", [[-0.3, 0.023], [0.87, 0.023]])
-	k.bar("grip", [[-0.27, 0.026], [0.07, 0.026]])
-	k.bar("detail", [[-0.088, 0.027], [-0.08, 0.031], [-0.072, 0.027]])
-	k.bar("dark", [[-0.36, 0.018], [-0.34, 0.036], [-0.31, 0.036], [-0.295, 0.027]], 6)
-	k.bar("edge", [[-0.332, 0.039], [-0.32, 0.039]], 6)
-	k.bar("dark", [[0.56, 0.03], [0.585, 0.05], [0.815, 0.05], [0.84, 0.03]], 8, Vector2(0.8, 1.1))
-	for y in [0.61, 0.79]:
-		k.bar("detail", [[y - 0.01, 0.054], [y + 0.01, 0.054]], 8, Vector2(0.8, 1.1))
-	k.bar("steel", [[0.86, 0.027], [0.885, 0.027], [0.96, 0.0]], 6)
-	# The blade, in side view: the cutting edge is part of a circle, with a horn at each end.
-	var body := PackedVector2Array()
-	var outer := PackedVector2Array()
-	var inner := PackedVector2Array()
-	for i in 9:
-		var a := deg_to_rad(66.0 - 16.5 * i)
-		var dir := Vector2(cos(a), sin(a))
-		body.append(Vector2(0.04, 0.7) + dir * 0.25)
-		outer.append(Vector2(0.04, 0.7) + dir * 0.264)
-		inner.append(Vector2(0.04, 0.7) + dir * 0.234)
-	body.append_array([Vector2(0.115, 0.585), Vector2(0.03, 0.61), Vector2(0.03, 0.79), Vector2(0.115, 0.815)])
-	k.plate("steel", body, -0.011, 0.011, side)
-	inner.reverse()
-	outer.append_array(inner)
-	k.plate("edge", outer, -0.005, 0.005, side)
-	for x in [-1.0, 1.0]:
-		k.plate("plate", PackedVector2Array([Vector2(0.045, 0.63), Vector2(0.115, 0.625), Vector2(0.185, 0.7), Vector2(0.115, 0.775),
-			Vector2(0.045, 0.77)]), 0.009 * x, 0.018 * x, side)
-	k.plate("steel", PackedVector2Array([Vector2(-0.03, 0.765), Vector2(-0.085, 0.735), Vector2(-0.175, 0.7),
-		Vector2(-0.085, 0.665), Vector2(-0.03, 0.635)]), -0.012, 0.012, side)
-	return k.parts()
-
-
 ## Bat: a bat in metal, its fat barrel wrapped in three glowing bands, rails between them.
 static func _bat() -> Array:
 	var k := MeleeKit.new()
@@ -343,33 +302,6 @@ static func _spear() -> Array:
 	k.plate_pair("steel", PackedVector2Array([Vector2(0.03, 1.51), Vector2(0.13, 1.4), Vector2(0.165, 1.27), Vector2(0.085, 1.39),
 		Vector2(0.03, 1.42)]), -0.01, 0.01)
 	k.plate_pair("edge", PackedVector2Array([Vector2(0.125, 1.385), Vector2(0.168, 1.26), Vector2(0.11, 1.365)]), -0.012, 0.012)
-	return k.parts()
-
-
-## Dagger: a short, wide, angular blade with one glowing edge (toward the knuckles),
-## and a guard that wraps round the front of the fist.
-static func _dagger() -> Array:
-	var k := MeleeKit.new()
-	var side := MeleeKit.SIDE
-	k.bar("grip", [[-0.075, 0.021], [0.07, 0.021]], 8, Vector2(0.85, 1.0))
-	k.bar("dark", [[-0.122, 0.014], [-0.106, 0.03], [-0.086, 0.03], [-0.075, 0.022]], 6)
-	k.bar("edge", [[-0.101, 0.033], [-0.092, 0.033]], 6)
-	# The guard and the bow down the front of the fingers, in side view.
-	k.plate("dark", PackedVector2Array([Vector2(-0.05, 0.095), Vector2(0.07, 0.095), Vector2(0.098, 0.06), Vector2(0.098, -0.055),
-		Vector2(0.07, -0.1), Vector2(0.015, -0.112), Vector2(0.015, -0.094), Vector2(0.062, -0.085), Vector2(0.08, -0.05),
-		Vector2(0.08, 0.05), Vector2(0.066, 0.068), Vector2(-0.05, 0.068)]), -0.013, 0.013, side)
-	k.plate("plate", PackedVector2Array([Vector2(0.09, 0.045), Vector2(0.105, 0.04), Vector2(0.105, -0.04), Vector2(0.09, -0.045)]),
-		-0.017, 0.017, side)
-	# The blade: a straight back, a clipped point, and the edge.
-	k.plate("steel", PackedVector2Array([Vector2(-0.036, 0.095), Vector2(-0.04, 0.38), Vector2(0.034, 0.56), Vector2(0.064, 0.4),
-		Vector2(0.056, 0.095)]), -0.008, 0.008, side)
-	k.plate("edge", PackedVector2Array([Vector2(0.048, 0.1), Vector2(0.068, 0.1), Vector2(0.077, 0.402), Vector2(0.037, 0.57),
-		Vector2(0.029, 0.552), Vector2(0.055, 0.4)]), -0.0035, 0.0035, side)
-	k.plate("dark", PackedVector2Array([Vector2(-0.046, 0.095), Vector2(-0.028, 0.095), Vector2(-0.031, 0.375), Vector2(-0.048, 0.385)]),
-		-0.012, 0.012, side)
-	for x in [-1.0, 1.0]:
-		k.plate("plate", PackedVector2Array([Vector2(-0.028, 0.1), Vector2(0.044, 0.1), Vector2(0.048, 0.16), Vector2(-0.028, 0.21)]),
-			0.006 * x, 0.012 * x, side)
 	return k.parts()
 
 

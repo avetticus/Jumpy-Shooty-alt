@@ -1985,8 +1985,8 @@ SPAWNS = [
 ]
 PICKUPS = [
     ((2.2, G, 3.4), "shotgun"), ((-2.2, G, 4.2), "akimbo"), ((-7.0, G, 7.6), "revolver"), ((6.4, G, 4.0), "machine_pistol"),
-    ((-13.2, G, -6.0), "smg"), ((13.4, G, -2.0), "shotgun"), ((-2.8, G, -4.4), "sword"), ((-7.2, U, 5.0), "break_action"),
-    ((9.5, U, 9.8), "axe"), ((-8.0, U, -6.0), "dagger"), ((12.8, U, -7.4), "burst_rifle"), ((0.0, U, -3.6), "revolver"),
+    ((-13.2, G, -6.0), "rifle"), ((13.4, G, -2.0), "shotgun"), ((-2.8, G, -4.4), "sword"), ((-7.2, U, 5.0), "break_action"),
+    ((9.5, U, 9.8), "hammer"), ((-8.0, U, -6.0), "sword"), ((12.8, U, -7.4), "burst_rifle"), ((0.0, U, -3.6), "revolver"),
     ((0.0, U, 10.0), "lever_action"),
 ]
 

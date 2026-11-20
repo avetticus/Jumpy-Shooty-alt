@@ -406,12 +406,12 @@ func spawns() -> void:
 	# The weapon pickups, moved to the new places.
 	var at := {
 		"Akimbo": turn(Vector3(10, 0, -14), 0), "Pistol": turn(Vector3(10, 0, -14), 1),
-		"Shotgun": turn(Vector3(10, 0, -14), 2), "SMG": turn(Vector3(10, 0, -14), 3),
+		"Shotgun": turn(Vector3(10, 0, -14), 2), "Rifle2": turn(Vector3(10, 0, -14), 3),
 		"Revolver": turn(Vector3(-10, WALK, -INNER - 1.1), 0), "BurstRifle": turn(Vector3(-10, WALK, -INNER - 1.1), 1),
 		"Spear": turn(Vector3(-10, WALK, -INNER - 1.1), 2), "BoltAction": turn(Vector3(-10, WALK, -INNER - 1.1), 3),
-		"Sword": Vector3(0, 0, 2), "Axe": turn(Vector3(3.1, 4.2, -22.5), 1), "Hammer": turn(Vector3(3.1, 4.2, -22.5), 3),
+		"Sword": Vector3(0, 0, 2), "Hammer2": turn(Vector3(3.1, 4.2, -22.5), 1), "Hammer": turn(Vector3(3.1, 4.2, -22.5), 3),
 		"MachinePistol": Vector3(2, WALK, 6.5), "Rifle": Vector3(-2, WALK, -6.5),
-		"Sniper": Vector3(7, KEEP_TOP, 3), "GrenadeLauncher": Vector3(-5, KEEP_TOP, -6.5),
+		"BoltAction2": Vector3(7, KEEP_TOP, 3), "GrenadeLauncher": Vector3(-5, KEEP_TOP, -6.5),
 		"Railgun": turn(Vector3(BASTION + 0.5, WALK, -BASTION - 0.5), 3),
 		"RocketLauncher": turn(Vector3(BASTION + 0.5, WALK, -BASTION - 0.5), 1),
 	}

@@ -50703,10 +50703,10 @@ bob = 1.6
 phase = 0.6
 lamp = Color(0.88, 0.92, 1, 1)
 
-[node name="PlasmaCannon" type="Marker3D" parent="Exterior/DockingRing/Pad/Starship"]
+[node name="RocketLauncher" type="Marker3D" parent="Exterior/DockingRing/Pad/Starship"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = ExtResource("4_weapon")
-weapon = "plasma_cannon"
+weapon = "rocket_launcher"
 
 [node name="Spawn1" type="Marker3D" parent="Spawns"]
 transform = Transform3D(-0.9517, 0, 0.3071, 0, 1, 0, -0.3071, 0, -0.9517, -1.2202, 0.1, -13.9467)
@@ -50813,10 +50813,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.3867, 0.1, 4.6587)
 script = ExtResource("4_weapon")
 weapon = "shotgun"
 
-[node name="Smg6" type="Marker3D" parent="WeaponSpawns"]
+[node name="Rifle" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.4117, 6.45, -8.1572)
 script = ExtResource("4_weapon")
-weapon = "smg"
+weapon = "rifle"
 
 [node name="Revolver7" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.3923, 19.1, 6)
@@ -50848,10 +50848,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3363, 73.8, 20.1564)
 script = ExtResource("4_weapon")
 weapon = "pistol"
 
-[node name="NailGun13" type="Marker3D" parent="WeaponSpawns"]
+[node name="BurstRifle" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8093, 67.45, 12.8735)
 script = ExtResource("4_weapon")
-weapon = "nail_gun"
+weapon = "burst_rifle"
 
 [node name="Lmg14" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.1366, 91.6, 3.5199)

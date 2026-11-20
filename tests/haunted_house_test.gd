@@ -111,7 +111,7 @@ func _rules() -> void:
 	for w in map.weapon_spawns:
 		kinds[w[1]] = true
 	_expect(map.weapon_spawns.size() >= 10 and kinds.size() >= 10, "10 or more weapon pickups of 10 or more kinds (%d, %d kinds)" % [map.weapon_spawns.size(), kinds.size()])
-	_expect(kinds.has("shotgun") and (kinds.has("sword") or kinds.has("axe") or kinds.has("dagger")), "close quarters weapons: shotguns and blades")
+	_expect(kinds.has("shotgun") and (kinds.has("sword") or kinds.has("hammer")), "close quarters weapons: shotguns and blades")
 
 
 # ---------------------------------------------------------------------------

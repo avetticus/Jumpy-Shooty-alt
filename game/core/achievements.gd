@@ -86,7 +86,7 @@ const LIST := [
 	{"id": "marksman_50", "name": "Sharpshooter", "group": "combat", "stat": "marksman_kills", "goal": 50, "what": "Get 50 kills with marksman weapons", "rewards": ["shoulder:servo_skull", "card:arctic", "icon:reticle"]},
 	{"id": "explosive_50", "name": "Demolition", "group": "combat", "stat": "explosive_kills", "goal": 50, "what": "Get 50 kills with explosives", "rewards": ["shoulder:missile_pod", "hat:hard_hat", "card:magma", "icon:grenade"]},
 	{"id": "weapons_15", "name": "Gunsmith", "group": "combat", "stat": "weapons_used", "goal": 15, "what": "Get a kill with 15 different weapons", "rewards": ["card:blueprint"]},
-	{"id": "weapons_30", "name": "Arsenal", "group": "combat", "stat": "weapons_used", "goal": 30, "what": "Get a kill with 30 different weapons", "rewards": ["card:chrome"]},
+	{"id": "weapons_30", "name": "Arsenal", "group": "combat", "stat": "weapons_used", "goal": 25, "what": "Get a kill with 25 different weapons", "rewards": ["card:chrome"]},
 	{"id": "streak_5", "name": "On a Roll", "group": "combat", "stat": "streaks_5", "goal": 1, "what": "Get 5 kills without dying", "rewards": ["icon:flame"]},
 	{"id": "streak_10", "name": "Unstoppable", "group": "combat", "stat": "streaks_10", "goal": 1, "what": "Get 10 kills without dying", "rewards": ["hat:cog_halo", "card:inferno"]},
 	{"id": "quad_1", "name": "Four of a Kind", "group": "combat", "stat": "quads", "goal": 1, "what": "Get a quad kill (four in a row, each within 4 seconds)", "rewards": ["hat:void_crest", "icon:ace"]},

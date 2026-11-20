@@ -142,7 +142,7 @@ func _death_pick() -> void:
 	_expect(LobbySettings.death_pick("pistol", 5, 0) == "", "a key past the classes shown does nothing")
 	_expect(LobbySettings.death_pick("bolt_action", -1, 1) == "pistol", "scrolling on from the last allowed weapon goes back to the first")
 	_expect(LobbySettings.death_pick("pistol", -1, -1) == "bolt_action", "scrolling back goes through the allowed weapons only")
-	_expect(LobbySettings.death_pick("smg", -1, 1) == "pistol", "from a weapon that is not allowed, scrolling gives the first allowed one")
+	_expect(LobbySettings.death_pick("lmg", -1, 1) == "pistol", "from a weapon that is not allowed, scrolling gives the first allowed one")
 	_settings(["bolt_action"])
 	_expect(LobbySettings.death_pick("bolt_action", 0, 0) == "" and LobbySettings.death_pick("bolt_action", -1, 1) == "",
 		"one gun: the keys and the wheel pick nothing")
@@ -163,8 +163,8 @@ func _host_control() -> void:
 	c._set_single(false)
 	c._on_chip("rifle")
 	_expect(c.value() == ["rifle"], "the last allowed weapon cannot be unticked")
-	c._on_chip("smg")
-	_expect(c.value() == ["smg", "rifle"], "Any mix: ticking adds a weapon")
+	c._on_chip("machine_pistol")
+	_expect(c.value() == ["machine_pistol", "rifle"], "Any mix: ticking adds a weapon")
 	c._all.pressed.emit()
 	_expect(c.value() == [] and got.size() == 5, "Allow all goes back to any weapon; every change was reported (%d)" % got.size())
 	c.free()
@@ -275,7 +275,7 @@ func _ready_and_size() -> void:
 		"the lobby size stays between 2 and 16")
 	Net.start_offline("Host", "needle", "pistol")
 	Net.players[2] = {"name": "Client", "color": 1, "character": "orbit", "weapon": "rifle", "mobility": "grapple"}
-	Net.players[3] = {"name": "Other", "color": 2, "character": "rivet", "weapon": "smg", "mobility": "grapple"}
+	Net.players[3] = {"name": "Other", "color": 2, "character": "rivet", "weapon": "lmg", "mobility": "grapple"}
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")

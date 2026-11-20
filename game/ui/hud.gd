@@ -58,7 +58,7 @@ class View:
 	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide, rocket boots, kick
 	var moves: Array = []
 	var race := false           ## a race: no health or ammo to show
-	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
+	var melee := false          ## a sword, hammer or spear: no ammo, a swing that recharges
 	var swing := 1.0            ## melee: 0..1, ready to swing again at 1 (the air cannon: ready to charge)
 	var blast := false          ## the air cannon: no ammo, a charge instead
 	var charge := -1.0          ## the air cannon: how charged, 0..1 (-1: not charging)
