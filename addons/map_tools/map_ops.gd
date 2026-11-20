@@ -466,6 +466,78 @@ static func ray_hull(origin: Vector3, dir: Vector3, points: PackedVector3Array) 
 	return best
 
 
+## Cuts a block along a plane (in the map). [behind, in front]: the part on the side
+## the plane faces away from, and the part on the side it faces, each a copy of the
+## block with every setting kept, or null if the plane leaves nothing that side.
+## A box cut square to its own sides gives boxes (as clip() does); anything else gives
+## hull blocks. [] if the plane misses the block or it cannot be cut that way (a
+## shape of several lumps, such as a tube or an arch, or one whose parts would have
+## too many corners).
+static func clip_plane(block: MapBlock, plane: Plane) -> Array:
+	var xf := global_of(block)
+	# The plane in the block's own frame: n . (B p + o) = d  ->  (Bt n) . p = d - n . o
+	var n := xf.basis.transposed() * plane.normal
+	var d := plane.d - plane.normal.dot(xf.origin)
+	var length := n.length()
+	if length < 1e-9:
+		return []
+	n /= length
+	d /= length
+	if block.shape == MapBlock.Shape.BOX:
+		for axis in 3:
+			if absf(n[axis]) > 0.9999:
+				var halves := clip(block, axis, d / n[axis])
+				if halves.size() != 2:
+					return []
+				return [halves[0], halves[1]] if n[axis] > 0.0 else [halves[1], halves[0]]
+	var lumps := editable_lumps(block)
+	if lumps.size() != 1:
+		return []
+	var pts: PackedVector3Array = lumps[0]
+	var ahead := false
+	var behind := false
+	for p in pts:
+		var s := n.dot(p) - d
+		ahead = ahead or s > SLIVER
+		behind = behind or s < -SLIVER
+	if not (ahead and behind):
+		return []
+	var planes := MapMesher.hull_planes(pts)
+	var out := []
+	var children_kept := false   # what stood under the block goes with the first part, once
+	for side: Plane in [Plane(n, d), Plane(-n, -d)]:
+		var cut: Array[Plane] = planes.duplicate()
+		cut.append(side)
+		var raw := Geometry3D.compute_convex_mesh_points(cut)
+		for i in raw.size():
+			raw[i] = raw[i].snappedf(0.0001)
+		var corners := MapMesher.hull_corners(raw)
+		if corners.size() > MapMesher.MAX_HULL_CORNERS:
+			return []
+		if MapMesher.hull_planes(corners).size() < 4:
+			out.append(null)
+			continue
+		var part := _hull_copy(block, corners)
+		var middle := MapBlock.points_bounds(corners).get_center()
+		part.position = block.position + block.transform.basis * middle
+		for c in part.get_children():
+			if children_kept:
+				part.remove_child(c)
+				c.free()
+			elif c is Node3D:
+				(c as Node3D).position -= middle
+		children_kept = true
+		part.name = String(block.name) if out.is_empty() else String(block.name) + "B"
+		out.append(part)
+	return out
+
+
+## Where a block not yet in the scene would be in the map, if it stood beside
+## `beside` (under the same parent).
+static func global_beside(node: Node3D, beside: Node) -> Transform3D:
+	return parent_global(beside) * node.transform
+
+
 # ---------------------------------------------------------------------------
 # Mirror and array
 

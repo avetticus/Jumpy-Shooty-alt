@@ -4,8 +4,8 @@ What it would take for the Godot map tools (`addons/map_tools/`, `MapBlock`) to 
 everything a level designer reaches for in TrenchBroom, without leaving Godot and
 without changing how maps are stored or played.
 
-Status: **P1 (the hull shape), P2 (the vertex tool) and P3 (edges, faces, push/pull)
-are built.** P4 onward are plans.
+Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull) and
+P4 (clipping at any angle) are built.** P5 onward are plans.
 
 ## Ground rules
 
@@ -254,7 +254,29 @@ The original plan:
   the corners again as three-plane intersections. This also gives hulls resize handles
   on any face, slanted or not.
 
-### P4. Clip at any angle (M)
+### P4. Clip at any angle (M) — done
+Built into the Clip tool alongside the straight cut it had: a click still makes the
+straight cut; a drag draws the line of an angled one.
+- In a top, front or side view the cut runs through the line, straight into the view.
+  In 3D the line is drawn across a selected block's face and the cut is square to that
+  face; a click on any block adds a third point and tilts the cut through all three
+  (TrenchBroom's 3-point clip, with the first two points from the drag).
+- `MapOps.clip_plane()` cuts any one-lump shape (a box, a wedge, a bevelled box, a
+  cylinder or cone of up to 16 sides, a hull) with Godot's
+  `Geometry3D.compute_convex_mesh_points`; a box cut square to its sides goes through
+  the old `clip()` and stays boxes.
+- `X` (the existing "next cut direction" key) cycles keep both / front / back while a
+  cut waits; Enter applies it.
+- The straight cut now happens on release rather than on press, so a press can start
+  a drag.
+- Not done: cutting tubes, arches and hollow domes at an angle (several lumps each;
+  Make Editable them first, then cut the parts).
+- **To refine:** tried in the editor, angled cutting works but is awkward to use. Worth
+  a pass on the interaction later (for example: clearer feedback while dragging, the
+  third point snapping onto the surface clicked, an obvious way to flip which side is
+  "front").
+
+The original plan:
 - Two clicks in a 2D view (the cut runs through them, square to the view) or three in
   3D, all snapped to the grid. Enter cuts; a key cycles keep front / back / both.
 - An axis-aligned cut of a box still gives boxes (what Clip does now); any other cut

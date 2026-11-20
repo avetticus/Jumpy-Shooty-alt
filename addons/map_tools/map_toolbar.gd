@@ -15,7 +15,7 @@ signal command(what: String)
 
 const TOOLS := [
 	["Draw", "Drag out a new block. In the 3D view: drag its footprint on a face or the ground, let go, pull it out and click. In a top, front or side view: drag a rectangle."],
-	["Clip", "Cut the selected blocks in two where you click."],
+	["Clip", "Cut the selected blocks in two where you click. Drag a line to cut at an angle (in 3D, across a face; click a third point to tilt it), then Enter; X chooses which parts to keep."],
 	["Vertex", "Move the corners of the selected hull blocks: click or drag a box to pick corners, drag them (Shift: up and down), arrow keys to nudge, Delete to remove, double-click an edge or face to add one."],
 ]
 const MENU := [

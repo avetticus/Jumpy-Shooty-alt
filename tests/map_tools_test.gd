@@ -15,7 +15,11 @@ extends SceneTree
 ##  - the tools, driven by made-up mouse events through a camera: Draw (on the ground,
 ##    on a block, in a top view), Clip and Place; the handles on stairs and rows;
 ##  - the Vertex tool: pick, drag (level and up/down), refuse a dent, nudge, delete,
-##    box-select, move corners two blocks share, add a corner, click to select;
+##    box-select, move corners two blocks share, add a corner, click to select; edges
+##    and faces; pushing a face, and a hull's face handles;
+##  - clipping at an angle: a box cut square stays boxes, any other cut makes hulls; a
+##    line dragged in a top view, or across a face in 3D (with a third point), what is
+##    kept, giving up;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -50,6 +54,7 @@ func _run() -> void:
 	_check_prefab()
 	_check_tools()
 	_check_vertex_tool()
+	_check_angled_clip()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -817,6 +822,119 @@ func _check_vertex_tool() -> void:
 	top_cam.free()
 
 
+## The parts the last commit selected that are blocks.
+func _picked_blocks() -> Array:
+	return _picked.filter(func(n: Node) -> bool: return n is MapBlock)
+
+
+func _check_angled_clip() -> void:
+	print("  clip at an angle")
+	var map := MapRoot.new()
+	root.add_child(map)
+
+	# MapOps.clip_plane: a 4 x 2 x 4 m box standing on the ground.
+	var box := _block(map, Vector3(0, 1, 0), Vector3(4, 2, 4))
+	var straight := MapOps.clip_plane(box, Plane(Vector3.RIGHT, 1.0))
+	_expect(straight.size() == 2 and straight.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.BOX)
+		and is_equal_approx(straight[0].size.x, 3.0) and is_equal_approx(straight[1].size.x, 1.0),
+		"a box cut square to its sides is two boxes, the one behind the cut first (3 m and 1 m)")
+	for p in straight:
+		p.free()
+	var diag := MapOps.clip_plane(box, Plane(Vector3(1, 0, -1).normalized(), 0.0))   # upright, through the diagonal x = z
+	_expect(diag.size() == 2 and diag.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.HULL and p.points.size() == 6),
+		"cut along its diagonal, it is two three-sided hulls")
+	if diag.size() == 2:
+		_expect(_has_point(_corners(diag[0]), Vector3(-2, 0, 2)) and _has_point(_corners(diag[1]), Vector3(2, 2, -2))
+			and _has_point(_corners(diag[0]), Vector3(2, 0, 2)) and _has_point(_corners(diag[1]), Vector3(2, 0, 2)),
+			"each on its side of the cut, meeting along it")
+		for p in diag:
+			p.free()
+	_expect(MapOps.clip_plane(box, Plane(Vector3.UP, 5.0)).is_empty(), "a cut that misses the block does nothing")
+	box.shape = MapBlock.Shape.WEDGE
+	var wedge_parts := MapOps.clip_plane(box, Plane(Vector3(1, 0, 1).normalized(), 0.0))
+	_expect(wedge_parts.size() == 2 and wedge_parts.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.HULL), "a wedge cut at an angle is two hulls")
+	for p in wedge_parts:
+		p.free()
+	box.shape = MapBlock.Shape.TUBE
+	box.inner = 2.0
+	_expect(MapOps.clip_plane(box, Plane(Vector3(1, 0, 1).normalized(), 0.0)).is_empty(), "a tube is not cut at an angle")
+	box.free()
+
+	var ctx := _context(map)
+	var clip := ToolClip.new()
+	clip.ctx = ctx
+	var top_cam := Camera3D.new()
+	root.add_child(top_cam)
+	top_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	top_cam.size = 60.0
+	top_cam.position = Vector3(0, 50, 0)
+	top_cam.rotation_degrees = Vector3(-90, 0, 0)
+	var top := MapView.new(top_cam)
+	var enter := _key_event(KEY_ENTER)
+
+	# A top view: drag a diagonal across a slab, then Enter.
+	var slab := _block(map, Vector3(10, 0.5, 10), Vector3(4, 1, 4), "wood")   # x and z 8..12
+	_picked = [slab]
+	_drag_with(clip, top, Vector3(7.9, 0, 7.9), Vector3(12.1, 0, 12.1))
+	_expect(clip.phase == ToolClip.Phase.PENDING and clip._pending.size() == 1, "Clip: a line dragged in a top view waits to cut the selection")
+	_expect(clip.input(top, enter) and not slab.is_inside_tree() and _picked_blocks().size() == 2, "Enter cuts it in two, both selected")
+	var halves := _picked_blocks()
+	_expect(halves.size() == 2 and halves.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.HULL and p.kind == "wood" and p.owner == map),
+		"two hull blocks of the slab's kind, saved with the map")
+	if halves.size() == 2:
+		_expect((_has_point(_corners(halves[0]), Vector3(8, 0, 12)) and _has_point(_corners(halves[1]), Vector3(12, 1, 8)))
+			or (_has_point(_corners(halves[1]), Vector3(8, 0, 12)) and _has_point(_corners(halves[0]), Vector3(12, 1, 8))),
+			"cut along the diagonal from (8, 8) to (12, 12)")
+
+	# Keep only one side.
+	var slab2 := _block(map, Vector3(20, 0.5, 10), Vector3(4, 1, 4))
+	_picked = [slab2]
+	_drag_with(clip, top, Vector3(17.9, 0, 7.9), Vector3(22.1, 0, 12.1))
+	clip.next_direction()
+	_expect(clip.keep == ToolClip.Keep.FRONT, "the next-direction key keeps only the part in front")
+	clip.input(top, enter)
+	_expect(_picked_blocks().size() == 1 and not slab2.is_inside_tree(), "and Enter leaves just that part")
+
+	# Giving up.
+	var slab3 := _block(map, Vector3(-10, 0.5, 10), Vector3(4, 1, 4))
+	_picked = [slab3]
+	_drag_with(clip, top, Vector3(-12.1, 0, 7.9), Vector3(-7.9, 0, 12.1))
+	clip.input(top, _press(top, Vector3(-10, 0, 10), true, MOUSE_BUTTON_RIGHT))
+	_expect(not clip.busy() and slab3.is_inside_tree() and clip._pending.is_empty(), "a right click gives up the cut")
+
+	# The 3D view: a diagonal across a block's front face cuts it into two slopes.
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.look_at_from_position(Vector3(4, 14, 16), Vector3(1, 0, 1))
+	var view := MapView.new(cam)
+	var beam := _block(map, Vector3(0, 1, -6), Vector3(4, 2, 2))   # x -2..2, y 0..2, z -7..-5
+	_picked = [beam]
+	_drag_with(clip, view, Vector3(-1.9, 0.1, -5), Vector3(1.9, 1.9, -5))
+	_expect(clip.phase == ToolClip.Phase.PENDING and clip._pending.size() == 1, "in 3D, a line dragged across a face waits to cut")
+	clip.input(view, enter)
+	var slopes := _picked_blocks()
+	_expect(slopes.size() == 2 and slopes.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.HULL and p.points.size() == 6),
+		"cut square to the face along its diagonal: two slopes (three-sided hulls)")
+
+	# And with a third point: on the top's back edge.
+	var beam2 := _block(map, Vector3(0, 1, -12), Vector3(4, 2, 2))   # z -13..-11
+	_picked = [beam2]
+	_drag_with(clip, view, Vector3(-1.9, 0.1, -11), Vector3(1.9, 1.9, -11))
+	clip.input(view, _press(view, Vector3(0, 2, -12.9), true))
+	clip.input(view, _press(view, Vector3(0, 2, -12.9), false))
+	_expect(clip._has_c and clip._pending.size() == 1, "a click sets a third point")
+	clip.input(view, enter)
+	var tilted := _picked_blocks()
+	_expect(tilted.size() == 2 and tilted.all(func(p: MapBlock) -> bool: return _has_point(_corners(p), Vector3(0, 2, -13))),
+		"the cut runs through all three points (both parts have a corner at the third)")
+	for gone in [slab, slab2, beam, beam2]:   # (cut, so out of the scene; the editor's undo would keep them)
+		gone.free()
+	_release(ctx)
+	map.free()
+	cam.free()
+	top_cam.free()
+
+
 func _check_tools() -> void:
 	print("  tools")
 	var map := MapRoot.new()
@@ -884,7 +1002,8 @@ func _check_tools() -> void:
 	_picked = [first]
 	clip.input(view, _motion(view, Vector3(4.1, 3, 3.8)))
 	_expect(clip._cuts.size() == 1, "Clip: pointing at a selected block shows a cut")
-	_expect(clip.input(view, _press(view, Vector3(4.1, 3, 3.8), true)), "a click cuts it")
+	clip.input(view, _press(view, Vector3(4.1, 3, 3.8), true))
+	_expect(clip.input(view, _press(view, Vector3(4.1, 3, 3.8), false)), "a click cuts it")
 	var halves := _picked.filter(func(n: Node) -> bool: return n is MapBlock)
 	_expect(halves.size() == 2 and not first.is_inside_tree(), "the block is replaced by two, both selected")
 	if halves.size() == 2:

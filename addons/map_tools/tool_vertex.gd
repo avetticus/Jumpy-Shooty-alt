@@ -315,20 +315,9 @@ func _band_select(view: RefCounted) -> void:
 ## A click on no selected hull: select the block under it, as the editor would
 ## (Shift: add it to the selection). Nothing under it: select nothing.
 func _click_select(view: RefCounted, pos: Vector2, adding: bool) -> void:
-	var hit: Dictionary = ctx.pick(view.origin(pos), view.normal(pos))
 	if not adding:
 		picked = []
-	if hit.is_empty():
-		if not adding:
-			ctx.select.call([])
-		return
-	var node: Node = ctx.selectable(hit.block)
-	if node == null:
-		return
-	var chosen: Array = ctx.selected() if adding else []
-	if node not in chosen:
-		chosen.append(node)
-	ctx.select.call(chosen)
+	ctx.click_select(view.origin(pos), view.normal(pos), adding)
 
 
 # ---------------------------------------------------------------------------

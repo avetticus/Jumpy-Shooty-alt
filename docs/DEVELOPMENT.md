@@ -707,6 +707,15 @@ makes ordinary MapBlocks and is one step of undo.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes
   only across their height.
+  **At any angle**: drag a line instead of clicking. In a top, front or side view the
+  cut runs through the line straight into the view (drag anywhere). In the 3D view,
+  start on a face of a selected block: the cut runs through the line you draw across
+  the face, square to it (a diagonal across a box's side cuts it into two slopes); then
+  click a third point on any block to tilt the cut through all three. The ends snap to
+  the grid. The parts are outlined, kept ones yellow and the rest red: `X` chooses what
+  to keep (both, the part in front of the cut, the part behind it), Enter cuts, Esc or
+  a right click gives up. A box cut square to its sides stays boxes; anything else
+  becomes hull blocks. Tubes, arches and hollow domes are only cut straight.
 - **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): turn those settings
   on or off on every selected block, in groups too.
 - **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the

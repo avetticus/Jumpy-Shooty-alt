@@ -138,6 +138,24 @@ func selectable(node: Node) -> Node:
 	return result
 
 
+## A click that a tool took for itself but that was only a click: select the block
+## under it as the editor's own click would (`adding`, Shift: add it to the
+## selection). Nothing under it: select nothing.
+func click_select(origin: Vector3, dir: Vector3, adding: bool) -> void:
+	var hit := pick(origin, dir)
+	if hit.is_empty():
+		if not adding:
+			select.call([])
+		return
+	var node := selectable(hit.block)
+	if node == null:
+		return
+	var chosen: Array = selected() if adding else []
+	if node not in chosen:
+		chosen.append(node)
+	select.call(chosen)
+
+
 ## Where a new block goes: beside the first selected node, else under the map.
 func new_parent() -> Node:
 	var sel := selected()
