@@ -265,6 +265,10 @@ Networked and bot runs (real time):
   it there, the fourth takes the first away on both copies, both see them armed, and the
   host walking within reach sets them off (the client's blasts, with the grenade
   launcher) while the client sees them go;
+- the pistols' tilt online (`tests/run_tilt_test.sh`): a client with the Pistol holds alt
+  fire; its guns turn over on its own copy and on the host's, and back; tilted, six clicks
+  0.11 s apart all fire, upright the same clicks are too quick for some, and the host
+  takes every shot;
 - respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
   shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
   player's first snapshot from the new life, and both must show every respawned player;
@@ -1729,6 +1733,48 @@ fire: for your own player and bots from the input, for everyone else from bit 22
 animation flags in their snapshots (`RobotAnimInput.make_flags`, `alt_of`), which the
 killcam's frames carry too, so a pose built on it shows on every screen. A press calls
 `Player._alt_pressed()` from `_update_weapon` (alive, not racing, a weapon in hand).
+
+**The tilt** (alt fire held with the Pistol or the Dual Pistols). The numbers are
+`WeaponData.tilt_interval` (0.6: the time between shots) and `tilt_spread` (3: the
+spread), fields like any other, so another gun that tilts can have its own. Every place
+the pace or the spread is used goes through them:
+- `WeaponState.tilted` (set from `Player.alt_held()` each frame in `_update_weapon`) makes
+  `fire()` wait `WeaponData.interval_at(spin, tilted)`. Still one shot per click.
+- `Player.spread_scale()` multiplies in `WeaponData.spread_scale(alt_held())`; the shot's
+  pellets are spread with it where they are fired (`shot_directions`, on the shooter's
+  copy: the host is sent the directions), and the HUD sizes the crosshair with it (a
+  spectated player's too, from their flags).
+- The host: `Match._host_shot` turns away shots closer together than 0.7 of
+  `WeaponData.shot_gap()`, which for a gun that tilts is its tilted pace. A shot does not
+  say whether the gun was tilted (the flag in a snapshot can arrive after the shot), so a
+  gun that tilts is held to the quicker pace always.
+- Bots never hold alt fire (their `_fire_wait` still goes by `fire_interval`); killcams
+  and replays play the shots as they were fired, and pose the guns from the flag.
+
+The pose is procedural, laid over whatever clip the arms are playing, rather than baked
+clips: it has to work over every pose and blend (idle, run, wall run, dive, the recoil,
+the aim pitch) and in every model file, and new clips would mean versions of all of them.
+`RobotAnimator.tilt_gun` rolls one gun `TILT_ROLL` (90 degrees) about its barrel, the top
+turning in toward the body's middle: the hand turns about the barrel's line through the
+wrist (the gun's bone points it down its -Y, `rig.GUN_REST`), so the gun, the fist and the
+fingers go round together, and the forearm takes `TILT_FOREARM` of the turn about its own
+length (which leaves the wrist where it is), so it looks like the wrist and arm turn rather
+than the gun spinning in the hand. Both `RobotAnimator` (the body everyone sees, from bit
+22 of the flags) and `ViewModel` (your arms, from `Player.alt_held()`; the killcam's arms
+from the flag in the recording) call it, after everything else, easing in and out at
+`TILT_RATE` (about a tenth of a second). Body: one Pistol's arms blend to a one-handed hold
+(the right arm of the `grapple` clip, `AIM_R_ONE`; the left of `sprint` as the arms pass the
+body), and the left arm then takes no aim pitch; the Dual Pistols' arms swing out
+`TILT_SPREAD` about the shoulders, the hands turned back so the guns still point ahead, so
+the two guns turned in do not meet. Arms: the gun in the right hand turns in every pose
+but `TILT_BUSY`; the left hand only in `TILT_LEFT` (where it is up at the gun): the Dual
+Pistols' left gun turns, and one Pistol's left arm drops to `fp_one_hand`'s (turned with
+the chest, since `fp_idle` turns the shoulders). It shows only where the gun is up: not in
+a reload (`_reload_w`), on the rope with the gun at your side, or with the arms pumping;
+holding alt fire keeps the arms out of the sprint pose. `RobotAnimator.tilt()` is how far
+over it is (tests; `--sync-log` prints `TILT SELF|SEEN` as it goes all the way over and
+back). `tests/robot_test.gd` checks the pose on every character, `tests/weapon_test.gd`
+the numbers, `tests/run_tilt_test.sh` the pace and the pose online.
 
 **Rockets, grenades and sticky grenades.** A projectile is host-authoritative: the
 shooter asks (`Match.request_projectile`), the host flies its own copy in

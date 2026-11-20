@@ -64,6 +64,7 @@ var _corpse_fall := 0.0
 var _corpse_room := 0.0
 var _in_remains := false          # the body is hidden because remains took its place (see hide_for_remains)
 var _logged_anim := ""            # --sync-log: the last animation we printed
+var _logged_tilt := false         # --sync-log: the pistols last seen all the way over (see _log_tilt)
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
 var _hook_rope: HookRope          # the grappling hook's rope and hook (made when first needed; see Grapple)
@@ -546,6 +547,7 @@ func _update_weapon(delta: float) -> void:
 		elif weapon.ammo <= 0 or weapon.is_reloading():
 			_burst_left = 0
 		return
+	weapon.tilted = alt_held()   # the pistols on their side: quicker shots (and wider: see spread_scale)
 	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
 	if not wants or not Match.running:
 		return
@@ -1255,9 +1257,14 @@ func ammo_for(gun: String) -> int:
 const GLIDE_SPREAD := 0.5
 
 
-## How wide this player's shots scatter right now, against the gun's own spread (1 = as usual).
+## How wide this player's shots scatter right now, against the gun's own spread (1 = as
+## usual): tighter gliding, wider with a pistol tilted on its side (WeaponData.tilt_spread).
+## The shots are spread with it where they are fired, and the crosshair is drawn with it.
 func spread_scale() -> float:
-	return GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+	var s := GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+	if weapon != null:
+		s *= weapon.data.spread_scale(alt_held())
+	return s
 
 
 ## The directions of one shot's pellets (one for most guns), spread at random
@@ -1747,6 +1754,7 @@ func _animate(delta: float) -> void:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
+		_log_tilt()
 
 
 ## The ground under each foot, measured from the floor this body stands on (see
@@ -1797,6 +1805,16 @@ func _log_animation() -> void:
 		return
 	_logged_anim = shown
 	_print_animation(shown)
+
+
+## The sync log: "TILT SELF|SEEN <this copy> <player> on|off" as a player's pistols are
+## seen all the way over on their side (alt fire held, see alt_held), and back.
+func _log_tilt() -> void:
+	var over := animator.tilt() >= 0.99
+	if over == _logged_tilt:
+		return
+	_logged_tilt = over
+	print("TILT %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, "on" if over else "off"])
 
 
 func _print_animation(shown: String) -> void:

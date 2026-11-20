@@ -119,6 +119,8 @@ echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by th
 tests/run_slam_test.sh
 echo "== Sticky grenades online: a client's stick to the floor where the host has them, the fourth takes the first away, the host walking in sets them off"
 tests/run_sticky_test.sh
+echo "== The pistols' tilt online: a client's guns turn over on both copies, tilted shots come quicker and the host takes them all"
+tests/run_tilt_test.sh
 echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
 tests/run_respawn_visible_test.sh
 echo "== Kick kills in the kill feed: a client kicked into a wall and kicked down, the boot and the wall on both copies"

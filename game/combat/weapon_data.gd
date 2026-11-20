@@ -116,6 +116,11 @@ const SLIDE_KICK := ["pistol", "akimbo", "dual_machine_pistol"]
 ## sees it turned (Player.alt_held); "sticky" (the grenade launcher) is a press: it fires
 ## a sticky proximity grenade instead of a normal one (Player._alt_pressed).
 @export var alt := ""
+## Alt fire "tilt" held (the gun on its side, see Player.alt_held): the time between shots
+## is this much of fire_interval (0.6: 40% less) and the spread this many times as wide.
+## Still one shot per click. Only for a weapon whose alt is "tilt".
+@export var tilt_interval := 0.6
+@export var tilt_spread := 3.0
 @export_group("Projectile")
 ## Kind.PROJECTILE: a rocket or grenade that flies (the host follows it) and blows up
 ## where it lands: full `damage` within `splash_inner` metres, falling to nothing at
@@ -636,11 +641,19 @@ static func bat() -> WeaponData:
 const SPIN_START := 3.0
 
 
-## Seconds between shots with the barrels spun up `spin` (0..1) of the way.
-func interval_at(spin: float) -> float:
+## Seconds between shots with the barrels spun up `spin` (0..1) of the way, and with the
+## gun tilted on its side when `tilted` (alt fire held: see tilt_interval).
+func interval_at(spin: float, tilted: bool = false) -> float:
+	var gap := fire_interval * (tilt_interval if tilted and alt_is_hold() else 1.0)
 	if spin_up <= 0.0:
-		return fire_interval
-	return fire_interval * lerpf(SPIN_START, 1.0, clampf(spin, 0.0, 1.0))
+		return gap
+	return gap * lerpf(SPIN_START, 1.0, clampf(spin, 0.0, 1.0))
+
+
+## How much wider than spread_degrees the shots scatter with the gun tilted on its side
+## when `tilted` (alt fire held: see tilt_spread), 1 otherwise. (Player.spread_scale.)
+func spread_scale(tilted: bool) -> float:
+	return tilt_spread if tilted and alt_is_hold() else 1.0
 
 
 ## A projectile's look: rocket (flies straight) or grenade (drops) unless it says.
@@ -714,9 +727,11 @@ func is_projectile() -> bool:
 	return kind == Kind.PROJECTILE
 
 
-## The shortest time between two rounds (inside a burst, for a burst rifle).
+## The shortest time between two rounds (inside a burst, for a burst rifle; tilted on its
+## side, for a gun that tilts). The host holds every shooter to it: it cannot tell from a
+## shot whether the gun was tilted, so a gun that tilts is allowed its tilted rate.
 func shot_gap() -> float:
-	return minf(burst_gap, fire_interval) if burst > 1 else fire_interval
+	return minf(burst_gap, fire_interval) if burst > 1 else interval_at(1.0, true)
 
 
 ## Which group of the pickers the weapon is in (0 = sidearms).

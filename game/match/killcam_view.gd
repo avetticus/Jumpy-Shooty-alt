@@ -234,6 +234,7 @@ func _play_killer(delta: float) -> void:
 	# The arms follow what the killer was doing (see ViewModel).
 	var p := _puppet
 	p.alive = bool(f[8])
+	p._anim.flags = int(f[5])   # (what alt fire holds them in: the pistols on their side, see Player.alt_held)
 	p.velocity = f[1]
 	p.input.yaw = yaw
 	p.input.pitch = pitch

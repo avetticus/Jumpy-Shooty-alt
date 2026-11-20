@@ -156,9 +156,52 @@ func _init() -> void:
 	_check(not s.is_reloading(), "sword: nothing to reload")
 	_melee_animation()
 	_melee_in_the_air()
+	_tilt()
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
 	quit(0 if _ok else 1)
+
+
+## Alt fire "tilt" (the Pistol and the Dual Pistols on their side): about 40% less time
+## between shots and three times the spread, still one shot per click; nothing for any
+## other weapon; and the host's fire-rate check lets the tilted pace through.
+func _tilt() -> void:
+	for id in WeaponData.IDS:
+		var w := WeaponData.by_id(id)
+		var tilts: bool = id in ["pistol", "akimbo"]
+		_check(w.alt_is_hold() == tilts, "%s: %s" % [id, "tilts on alt fire" if tilts else "no tilt"])
+		if tilts:
+			_check(is_equal_approx(w.interval_at(0.0, true), w.fire_interval * 0.6) and is_equal_approx(w.interval_at(0.0), w.fire_interval),
+				"%s tilted: %.3f s between shots, not %.3f" % [id, w.interval_at(0.0, true), w.fire_interval])
+			_check(is_equal_approx(w.spread_scale(true), 3.0) and w.spread_scale(false) == 1.0, "%s tilted: three times the spread" % id)
+			_check(not w.automatic, "%s tilted: still one shot per click" % id)
+		else:
+			_check(w.interval_at(1.0, true) == w.interval_at(1.0) and w.spread_scale(true) == 1.0, "%s: alt fire held changes neither pace nor spread" % id)
+		# The host turns away shots closer together than 0.7 of shot_gap (Match._host_shot).
+		var quickest := w.interval_at(1.0, tilts) if w.burst <= 1 else minf(w.burst_gap, w.fire_interval)
+		_check(w.shot_gap() * 0.7 < quickest * 0.95, "%s: the host takes shots as quick as it can fire" % id)
+	var pistol := WeaponData.by_id("pistol")
+	for tilted in [false, true]:
+		var ws := WeaponState.new(pistol)
+		ws.tilted = tilted
+		var shots := 0
+		for i in 60:   # one second, the trigger pulled every frame
+			if ws.fire():
+				shots += 1
+			ws.update(1.0 / 60.0)
+		var want := ceili(1.0 / pistol.interval_at(0.0, tilted) - 0.01)
+		_check(absi(shots - want) <= 1, "pistol %s: %d shots in a second (about %d)" % ["tilted" if tilted else "upright", shots, want])
+	var s := WeaponState.new(pistol)
+	s.tilted = true
+	s.fire()
+	_step(s, pistol.fire_interval * 0.6 + 0.01)
+	_check(s.can_fire(), "pistol tilted: ready again after %.2f s" % (pistol.fire_interval * 0.6))
+	s.tilted = false
+	s.fire()
+	_step(s, pistol.fire_interval * 0.6 + 0.01)
+	_check(not s.can_fire(), "pistol upright: not yet")
+	s.reset()
+	_check(not s.tilted, "a reset gun is upright")
 
 
 ## The wind-up and swing of every melee weapon, on a real robot skeleton: the body

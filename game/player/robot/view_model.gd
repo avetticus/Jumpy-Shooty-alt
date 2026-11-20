@@ -55,6 +55,13 @@ const ROPE_LUNGE := 0.6
 const ROPE_SCREW := 0.5                ## diving into the rope, the body corkscrews as it pulls tight: your arms roll out this far and back (radians; the view itself stays level)
 ## In these the hands are busy (climbing, tucked): the weapon is not held up.
 const MELEE_BUSY := ["fp_mantle", "fp_tuck", "fp_dive"]
+## Alt fire "tilt" (the pistols on their side, see RobotAnimator.tilt_gun): the gun in the
+## right hand rolls over in every pose but these (the hands busy)...
+const TILT_BUSY := ["fp_mantle", "fp_tuck"]
+## ...and the left hand only where it is up at the gun: there the Dual Pistols' left gun
+## rolls over too, and one pistol is let go of, the left arm dropping to your side (as on
+## the rope: "fp_one_hand").
+const TILT_LEFT := ["fp_idle", "fp_sprint", "fp_wall_r", "fp_dive", "fp_raise"]
 
 var model: RobotModel
 var rig: RobotRig
@@ -89,6 +96,9 @@ var _last_yaw := 0.0
 var _last_pitch := 0.0
 var _grapple_w := 0.0
 var _arm_l: PackedInt32Array
+var _let_go: PackedInt32Array     # the left arm and fingers, let go of a tilted pistol
+var _tilt_r := 0.0                # alt fire "tilt": how far over the right gun is, 0..1
+var _tilt_l := 0.0                # ...and the left (or how far one pistol's left hand has let go)
 var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
@@ -119,6 +129,9 @@ func setup(player: Player, color: Color) -> void:
 	_tmp = rig.new_pose()
 	for n in ["upper_arm_l", "forearm_l", "hand_l"]:
 		_arm_l.append(rig.bones[n])
+	for n in ["upper_arm_l", "forearm_l", "hand_l"] + Hands.LEFT:
+		if rig.bones.has(n):
+			_let_go.append(rig.bones[n])
 	_last_yaw = player.input.yaw
 	_last_pitch = player.input.pitch
 	if _data.is_melee():
@@ -229,7 +242,8 @@ func update(delta: float) -> void:
 
 	# --- Arm pose for what the body is doing
 	var swing := rope()
-	var key := clip(_pick(motor, speed, reloading))
+	var base := _pick(motor, speed, reloading)
+	var key := clip(base)
 	if key != source:
 		_from.copy(_base)
 		_fade = 0.0 if source != "" else 1.0
@@ -282,6 +296,13 @@ func update(delta: float) -> void:
 			_raise_t += delta
 		else:
 			_raise_t = -1.0
+
+	# --- Alt fire "tilt": one pistol is let go of by the left hand (the roll is laid on last)
+	var tilt_on := _weapon != "none" and _data.alt_is_hold() and _player.alt_held() and not reloading and _end_t < 0.0
+	_tilt_l = move_toward(_tilt_l, 1.0 if tilt_on and base in TILT_LEFT and not motor.grapple.rope_out() else 0.0,
+		delta * RobotAnimator.TILT_RATE)
+	if _tilt_l > 0.0 and not _data.is_akimbo() and rig.has_clip("fp_one_hand"):
+		_let_go_left(smoothstep(0.0, 1.0, _tilt_l))
 
 	# --- On the rope: the gun hangs low, off to the right, until it is used
 	var in_use := _since_fire < RobotAnimator.ROPE_AIM_HOLD or reloading or _end_t >= 0.0 or _fire_t >= 0.0 \
@@ -352,6 +373,13 @@ func update(delta: float) -> void:
 		for side in [["hand_r", _recoil], ["hand_l", _recoil_l]]:
 			var b: int = rig.bones[side[0]]
 			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.25) * _pose.rot[b]
+	# Alt fire "tilt": the guns that are up roll onto their sides (over the recoil: they
+	# still flip up in the view).
+	_tilt_r = move_toward(_tilt_r, 1.0 if tilt_on and base not in TILT_BUSY else 0.0, delta * RobotAnimator.TILT_RATE)
+	var up := (1.0 - _reload_w) * (1.0 - low)
+	RobotAnimator.tilt_gun(_pose, rig.bones, false, smoothstep(0.0, 1.0, _tilt_r) * up)
+	if _data.is_akimbo():
+		RobotAnimator.tilt_gun(_pose, rig.bones, true, smoothstep(0.0, 1.0, _tilt_l) * up)
 	_pose.apply(model.skeleton)
 	# The reload's own effects: the gun's glow, the spent cell thrown clear.
 	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
@@ -416,6 +444,24 @@ func update(delta: float) -> void:
 		position += Basis(Vector3.RIGHT, -pitch) * swing.lunge(yaw) * ROPE_LUNGE * swing.w
 
 
+## One pistol tilted on its side: the left hand lets go and drops to your side (the left
+## arm of "fp_one_hand", turned with the chest so it hangs where that clip has it however
+## this pose turns the shoulders), `w` of the way.
+func _let_go_left(w: float) -> void:
+	rig.sample(_tmp, "fp_one_hand", 0.0)
+	var up_l: int = rig.bones["upper_arm_l"]
+	_tmp.rot[up_l] = _chest(_pose).inverse() * _chest(_tmp) * _tmp.rot[up_l]
+	_pose.blend_bones(_tmp, w, _let_go)
+
+
+## The chest's turn in the arms model, from a pose.
+func _chest(pose: RobotPose) -> Quaternion:
+	var q := Quaternion.IDENTITY
+	for n in ["root", "hips", "spine", "chest"]:
+		q = q * pose.rot[rig.bones[n]]
+	return q
+
+
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
 	if motor.state in [S.AIR, S.DIVE, S.GRAPPLE] and rope().flip() >= 0.0 and not rope().flip_hurried():
 		return "fp_tuck"   # rolling off the rope: the arms are tucked in
@@ -423,7 +469,7 @@ func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
 		return "fp_tuck"   # backflipping out of a glide: the arms swing in with it (the view stays level)
 	match motor.state:
 		S.GROUND:
-			if speed > 9.0 and _since_fire > 0.7 and not reloading and _player.input.sprint:
+			if speed > 9.0 and _since_fire > 0.7 and not reloading and _player.input.sprint and not _player.alt_held():   # (tilted, the gun stays up)
 				return "fp_sprint"
 		S.SLIDE: return "fp_slide"
 		S.WALL_RUN:
