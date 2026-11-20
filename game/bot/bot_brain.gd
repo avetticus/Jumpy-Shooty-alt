@@ -59,13 +59,12 @@ const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rif
 	"lever_action": [10.0, 26.0, 999.0], "bolt_action": [14.0, 32.0, 999.0], "railgun": [14.0, 34.0, 999.0],
 	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],
 	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "axe": [0.0, 1.7, 3.0], "bat": [0.0, 1.7, 3.0],
-	"derringer": [2.5, 8.0, 20.0], "flare_gun": [6.0, 16.0, 45.0], "plasma_pistol": [6.0, 16.0, 999.0],
-	"auto_shotgun": [2.5, 7.0, 18.0], "slug_shotgun": [6.0, 16.0, 45.0], "air_cannon": [1.5, 5.0, 12.0],
+	"derringer": [2.5, 8.0, 20.0], "air_cannon": [1.5, 5.0, 12.0],
 	"minigun": [6.0, 18.0, 60.0], "battle_rifle": [10.0, 26.0, 999.0], "laser_rifle": [8.0, 22.0, 999.0],
 	"nail_gun": [5.0, 14.0, 45.0], "crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
-	"harpoon_gun": [6.0, 16.0, 38.0], "mortar": [10.0, 22.0, 60.0], "plasma_cannon": [7.0, 15.0, 40.0],
-	"katana": [0.0, 1.8, 3.2], "scythe": [0.0, 2.4, 3.9], "mace": [0.0, 1.5, 2.7], "machete": [0.0, 1.4, 2.6],
-	"wrench": [0.0, 1.4, 2.5], "energy_sword": [0.0, 1.7, 3.0], "claws": [0.0, 1.2, 2.3],
+	"plasma_cannon": [7.0, 15.0, 40.0],
+	"scythe": [0.0, 2.4, 3.9], "mace": [0.0, 1.5, 2.7], "machete": [0.0, 1.4, 2.6],
+	"wrench": [0.0, 1.4, 2.5], "energy_sword": [0.0, 1.7, 3.0],
 	"karate": [0.0, 1.3, 2.4]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6

@@ -466,7 +466,6 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
 	var breaks := _breakables()
 
-	var pull := -1.0 if weapon.pull else 1.0   # the harpoon reels them in instead of pushing them away
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
 	var shove := {}    # target id -> knockback of this shot (each pellet pushes along its path)
@@ -502,7 +501,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
 					damage[bb[0]] = damage.get(bb[0], 0.0) + dmg
 					shove[bb[0]] = shove.get(bb[0], Vector3.ZERO) \
-						+ Vector3(dir.x, 0.0, dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
+						+ Vector3(dir.x, 0.0, dir.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
 					heads[bb[0]] = heads.get(bb[0], false) or hit.head
 					dirs[bb[0]] = dir
 					if DevArgs.sync_log:
@@ -550,7 +549,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
-				+ Vector3(best_dir.x, 0.0, best_dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
+				+ Vector3(best_dir.x, 0.0, best_dir.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
 			dirs[best_target] = best_dir
 		elif wall_cell >= 0:

@@ -18,15 +18,13 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FAMILIES = [
     ("Sidearms", [("pistol", "Pistol"), ("revolver", "Revolver"), ("golden_gun", "Golden Gun"), ("machine_pistol", "Machine Pistol"),
-                  ("akimbo", "Akimbo Pistols"), ("derringer", "Derringer"), ("flare_gun", "Flare Gun"), ("plasma_pistol", "Plasma Pistol")]),
-    ("Shotguns", [("shotgun", "Shotgun"), ("slug_shotgun", "Slug Shotgun"), ("break_action", "Break-Action Shotgun"),
-                  ("auto_shotgun", "Auto Shotgun"), ("air_cannon", "Air Cannon")]),
+                  ("akimbo", "Akimbo Pistols"), ("derringer", "Derringer")]),
+    ("Shotguns", [("shotgun", "Shotgun"), ("break_action", "Break-Action Shotgun"), ("air_cannon", "Air Cannon")]),
     ("Automatics", [("smg", "Submachine Gun"), ("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
                     ("lmg", "Light Machine Gun"), ("minigun", "Minigun"), ("laser_rifle", "Laser Rifle"), ("nail_gun", "Nail Gun")]),
     ("Precision", [("lever_action", "Lever-Action Rifle"), ("bolt_action", "Bolt-Action Rifle"), ("sniper", "Sniper Rifle"),
-                   ("anti_materiel", "Anti-Materiel Rifle"), ("railgun", "Railgun"), ("crossbow", "Crossbow"), ("harpoon_gun", "Harpoon Gun")]),
-    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher"), ("mortar", "Mortar"),
-                 ("plasma_cannon", "Plasma Cannon")]),
+                   ("anti_materiel", "Anti-Materiel Rifle"), ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
+    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher"), ("plasma_cannon", "Plasma Cannon")]),
 ]
 CELL = (640, 280)
 HEAD = 64

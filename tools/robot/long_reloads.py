@@ -6,12 +6,8 @@ Shotguns:
     Shotgun          a shell at a time, each thumbed in with a flick (it loops); when the
                      tube is full the left hand lets go and the gun is spun once forward
                      round the right hand, racking itself ("reload_end")
-    Slug Shotgun     the same rhythm; it ends with the gun dropped to the hip and the pump
-                     hauled back and slammed forward
     Break-Action     snapped open (the empties fly back over the shoulder), two new shells
                      pushed in together, flicked shut with the wrist alone
-    Auto Shotgun     the drum is shaken out, a new one is tossed up into the well spinning
-                     like a top (it spins down in place), the charging handle is slammed
     Air Cannon       the tank is spun loose and dropped, a new one is tossed up, caught
                      under the gun and spun in, and the side vents hiss shut
 
@@ -210,31 +206,6 @@ def shotgun_end(gun, fp):
     return pose
 
 
-def slug_end(gun, fp):
-    """Full: the gun drops to the hip and the pump is hauled back and slammed forward, the
-    whole body in it."""
-    L = Long(gun, fp)
-    tilt = _shell_poses(L)[0]
-    low = L.right((0.02, -0.08 if fp else -0.15, 0.06), (82.0, 6.0, 0.0), -6.0, work=0.0)
-    haul = L.right((0.02, -0.07 if fp else -0.14, 0.085), (86.0, 6.0, 0.0), -10.0, work=0.0)
-    slam = L.right((0.02, -0.09 if fp else -0.16, 0.05), (80.0, 6.0, 0.0), -2.0, work=0.0)
-    rest = L.right(work=0.0)
-    keys_r = [(0.0, tilt), (0.16, low), (0.30, haul, "out"), (0.38, slam, "out"), (0.46, low), (0.60, rest), (0.65, rest)]
-    slide_keys = [(0.0, 0.0), (0.20, 0.0), (0.30, 0.085, "out"), (0.33, 0.085), (0.38, 0.0, "in")]
-
-    def pump(t):
-        return ("gun", L.fore + v(0.0, 0.0, at(t, slide_keys)), CUPPED)
-    keys_l = [(0.0, L.belt), (0.18, pump, "out"), (0.65, pump)]
-
-    def pose(t):
-        spec, _, _, _ = L.pose(t, keys_r, keys_l, [(0.0, "relaxed"), (0.14, "support")])
-        spec["slide"] = at(t, slide_keys)
-        spec["vent_pos"] = (0.0, at(t, [(0.0, 0.006), (0.36, 0.006), (0.40, 0.0, "in")]), 0.0)
-        L.body(spec, t, [(0.0, 0.0), (0.3, -8.0, "out"), (0.38, 6.0, "out"), (0.6, 0.0)], [(0.0, 0.0), (0.16, 8.0), (0.3, 5.0), (0.38, 10.0, "out"), (0.6, 0.0)])
-        return spec
-    return pose
-
-
 # ---------------------------------------------------------------------------
 # Break-action (1.7 s). The barrels and fore-end are the gun's vent part: they tip down on
 # the hinge (weapons.BREAK_HINGE); the pair of shells is on the magazine bone.
@@ -290,70 +261,6 @@ def break_action(gun, fp):
                 spec["mag"] = tuple(v(*spec["mag"]) - rx(tipped) @ v(0.0, 0.0, -1.0) * at(t, [(0.15, 0.0), (0.2, 0.1, "linear")]))
         L.body(spec, t, [(0.0, 0.0), (0.15, 5.0, "out"), (0.42, -4.0), (0.8, -7.0), (1.08, 5.0, "out"), (1.32, 0.0)],
                [(0.0, 0.0), (0.15, 6.0, "out"), (0.42, 2.0), (0.99, 4.0), (1.08, -5.0, "out"), (1.32, 0.0)])
-        return spec
-    return pose
-
-
-# ---------------------------------------------------------------------------
-# Auto shotgun (2.6 s)
-
-DRUM = v(0.0, -0.06, -0.12)   # the middle of the drum, seated (gun space); its axle runs across the gun
-DRUM_R = 0.08
-HANDLE = v(-0.033, 0.07, -0.10)   # the charging handle, on the left of the receiver
-
-
-def auto_shotgun(gun, fp):
-    L = Long(gun, fp)
-    rest = L.right(work=0.0)
-    dip = L.right((0.0, -0.014, 0.0), (86.0, 4.0, 0.0), work=0.0)
-    kick = L.right((0.0, 0.035, 0.0), (106.0, 6.0, 0.0), -16.0, work=0.6)   # jerked up: the drum drops out
-    hold = L.right((0.0, 0.0, 0.01), (98.0, 8.0, 0.0), -22.0)
-    ready = L.right((0.0, 0.01, 0.01), (100.0, 9.0, 0.0), -25.0)
-    knock = L.right((0.0, 0.04, 0.005), (104.0, 8.0, 0.0), -18.0)           # the new drum goes home
-    level = L.right((0.0, 0.0, 0.0), (91.0, 7.0, 0.0), -8.0, work=0.7)
-    yank = L.right((0.0, 0.0, 0.03), (93.0, 7.0, 0.0), -10.0, work=0.7)
-    slam = L.right((0.0, -0.006, -0.02), (88.0, 6.0, 0.0), -4.0, work=0.7)
-    peek = L.right((0.0, 0.012, 0.01), (102.0, 12.0, 0.0), -42.0)          # rolled over for a look into the empty well
-    keys_r = [(0.0, rest), (0.07, dip), (0.15, kick, "out"), (0.32, hold), (0.58, peek), (0.74, peek), (1.0, ready), (1.2, ready), (1.25, knock, "out"), (1.36, hold),
-              (1.5, level), (1.60, yank, "out"), (1.70, slam, "out"), (1.84, level), (2.15, rest), (2.6, rest)]
-    under = turn_of((0.0, 1.0, 0.0), (-0.75, -0.45, 0.45))
-
-    def carrying(below):
-        return ("gun", on_palm(DRUM - v(0.0, below, 0.0), DRUM_R, under), under)
-    side = turn_of((1.0, 0.0, 0.0), (-0.55, -0.35, 0.75))   # on the charging handle, from the left
-    grab = HANDLE + v(-0.02, 0.0, 0.0)
-    slide_keys = [(0.0, 0.0), (1.47, 0.0), (1.60, 0.075, "out"), (1.655, 0.075), (1.70, 0.0, "in")]
-
-    def handle(t):
-        return ("gun", grab + v(0.0, 0.0, at(min(t, 1.655), slide_keys)), side)   # it rides the handle back, and lets it fly
-    keys_l = [(0.0, L.rest_l), (0.08, L.rest_l), (0.48, L.belt, "in"), (0.90, carrying(0.24)), (1.02, carrying(0.13), "out"),
-              (1.20, carrying(0.012)), (1.30, carrying(0.03)), (1.46, handle), (1.64, handle), (1.74, ("gun", grab + v(-0.03, 0.0, 0.085), side), "out"),
-              (2.0, L.rest_l), (2.6, L.rest_l)]
-    fingers = [(0.0, L.rest_fingers), (0.08, L.rest_fingers), (0.3, "relaxed"), (0.5, "flat"), (1.3, "flat"), (1.46, "foregrip"),
-               (1.63, "foregrip"), (1.70, "open", "out"), (1.86, "relaxed"), (2.0, L.rest_fingers)]
-
-    def pose(t):
-        spec, frame, fist, turn = L.pose(t, keys_r, keys_l, fingers)
-        spec["slide"] = at(t, slide_keys)
-        open_ = at(t, [(0.0, 0.0), (0.12, 0.0), (0.17, 1.2, "out"), (0.24, 1.0), (1.22, 1.0), (1.27, 0.0, "in")])
-        spec["vent_pos"] = (0.0, 0.0, -0.02 * open_)
-        # The new drum is set turning as it is tossed, and turns to a stop in the gun: slowly enough
-        # to read as a turn (it is ten-sided: any faster and it only flickers), ending a whole turn on.
-        spun = rx(at(t, [(0.0, 0.0), (0.86, 0.0), (1.02, -45.0, "in"), (1.2, -145.0, "linear"), (1.9, -360.0, "out"), (2.6, -360.0)]))
-        aim, grip = frame
-        if 0.14 <= t < 0.22:      # out of the well (the game's own falling drum takes over)
-            spec["mag"] = (0.0, -at(t, [(0.14, 0.0), (0.22, 0.2, "linear")]), 0.0)
-        elif 0.22 <= t < 1.02:    # standing on the left palm
-            _put(spec, frame, in_palm(fist, turn, DRUM_R), spun, DRUM)
-        elif t < 1.2:             # tossed up into the well
-            u = (t - 1.02) / 0.18
-            start = in_palm(*L.left(t, spec["arm_r"], [(0.0, carrying(0.13))])[1:], DRUM_R)
-            _put(spec, frame, start + (grip + aim @ DRUM - start) * ease(u, "out"), spun, DRUM)
-        else:
-            spec["mag_rot"] = euler_of(spun)
-            spec["mag"] = tuple(DRUM - spun @ DRUM)
-        L.body(spec, t, [(0.0, 0.0), (0.15, 6.0, "out"), (0.5, 2.0), (1.25, -8.0, "in"), (1.6, -4.0), (1.7, 5.0, "out"), (2.15, 0.0)],
-               [(0.0, 0.0), (0.15, -5.0, "out"), (0.5, 0.0), (1.25, -4.0), (1.6, 0.0), (1.7, 4.0, "out"), (2.15, 0.0)])
         return spec
     return pose
 
@@ -1130,36 +1037,6 @@ def crossbow(gun, fp):
 SHAFT = turn_of((1.0, 0.0, 0.0), (0.0, -1.0, 0.3))   # the left fist round a shaft lying along the barrel
 
 
-def harpoon_gun(gun, fp):
-    """The gun is swung up across the body, the new harpoon is twirled once in the left
-    hand, its tail is fed into the muzzle and it is let slide down the barrel."""
-    L = Long(gun, fp)
-    G = v(0.0, 0.065, -0.2)   # where the hand holds the harpoon: near its tail (gun space, seated)
-    D = 0.5                   # how far out of the barrel it starts
-    rest = L.right(work=0.0)
-    across = L.right((-0.05, -0.05, 0.15) if fp else (0.03, -0.14, 0.13), (118.0, 34.0, 0.0), 0.0, work=0.0)   # muzzle up, across to the left hand
-    seated = L.right((-0.05, -0.065, 0.16) if fp else (0.03, -0.155, 0.14), (115.0, 34.0, 0.0), 0.0, work=0.0)
-    keys_r = [(0.0, rest), (0.28, across), (0.90, across), (0.95, seated, "out"), (1.02, across), (1.18, rest), (1.2, rest)]
-    twirl = G + v(-0.13, 0.02, -D)
-    feed = G + v(0.0, 0.0, -D)
-    keys_l = [(0.0, L.rest_l), (0.04, L.rest_l), (0.22, L.belt, "in"), (0.34, ("gun", twirl, SHAFT)), (0.58, ("gun", twirl, SHAFT)),
-              (0.70, ("gun", feed, SHAFT)), (0.79, ("gun", feed + v(0.0, 0.0, 0.09), SHAFT)), (0.9, ("gun", feed + v(-0.09, 0.03, 0.05), SHAFT), "out"),
-              (1.14, L.rest_l), (1.2, L.rest_l)]
-    fingers = [(0.0, L.rest_fingers), (0.04, L.rest_fingers), (0.14, "relaxed"), (0.22, "fist"), (0.79, "fist"), (0.85, "open", "out"),
-               (1.0, "relaxed"), (1.14, L.rest_fingers)]
-
-    def pose(t):
-        spec, frame, fist, turn = L.pose(t, keys_r, keys_l, fingers)
-        if t < 0.70:      # in the fist (the game hides it until the hand has it), turned once end over end
-            _put(spec, frame, fist, rx(at(t, [(0.0, 0.0), (0.34, 0.0), (0.58, -360.0)])), G)
-        elif t < 0.93:    # fed in by the hand, then sliding home on its own
-            spec["mag"] = (0.0, 0.0, at(t, [(0.70, -D), (0.79, -D + 0.09, "linear"), (0.93, 0.0, "in")]))
-        spec["vent_pos"] = (0.0, 0.0, at(t, [(0.0, 0.0), (0.90, 0.0), (0.94, 0.012, "out"), (1.05, 0.0)]))
-        L.body(spec, t, [(0.0, 0.0), (0.28, -14.0), (0.9, -16.0), (1.18, 0.0)], [(0.0, 0.0), (0.28, -5.0), (0.9, -5.0), (0.95, -2.0), (1.18, 0.0)])
-        return spec
-    return pose
-
-
 # ---------------------------------------------------------------------------
 # Heavies
 
@@ -1201,43 +1078,6 @@ def rocket_launcher(gun, fp):
             spec["mag"] = (0.0, 0.0, at(t, [(0.72, -D), (0.81, -D + 0.09, "linear"), (0.96, 0.0, "in")]))
         spec["vent_pos"] = (0.0, 0.0, at(t, [(0.0, 0.0), (0.93, 0.0), (0.97, 0.02, "out"), (1.1, 0.0)]))
         L.body(spec, t, [(0.0, 0.0), (0.28, -12.0), (0.93, -14.0), (1.46, 0.0)], [(0.0, 0.0), (0.28, -5.0), (0.93, -5.0), (0.98, -2.0), (1.46, 0.0)])
-        return spec
-    return pose
-
-
-def mortar(gun, fp):
-    """The mortar is swung down off the shoulder and stood muzzle up; the left hand lifts a
-    shell, flips it up spinning, and it drops down the tube from above."""
-    L = Long(gun, fp)
-    M = v(0.0, 0.115, -0.46)   # the middle of the shell, seated (gun space)
-    rest = L.right(work=0.0)
-    off = (-0.11, -0.31, 0.0) if fp else (-0.07, -0.27, 0.02)
-    stood = L.right(off, (165.0, 6.0, 0.0), 0.0, work=0.0)                    # muzzle up
-    took = L.right((off[0], off[1] - 0.03, off[2]), (163.0, 6.0, 0.0), 0.0, work=0.0)
-    keys_r = [(0.0, rest), (0.36, stood), (1.17, stood), (1.23, took, "out"), (1.34, stood), (1.72, rest), (1.8, rest)]
-    cup = turn_of((0.0, 0.0, -1.0), (-0.9, 0.2, 0.4))     # (gun space: with the muzzle up, the palm faces up)
-    low = ("gun", on_palm(M + v(-0.15, 0.0, 0.05), 0.055, cup), cup)
-    flick = ("gun", on_palm(M + v(-0.15, 0.0, -0.06), 0.055, cup), cup)
-    keys_l = [(0.0, L.rest_l), (0.05, L.rest_l), (0.34, L.belt, "in"), (0.58, low), (0.68, flick, "out"), (0.80, low), (1.3, L.clear),
-              (1.5, L.clear), (1.72, L.rest_l), (1.8, L.rest_l)]
-    fingers = [(0.0, L.rest_fingers), (0.05, L.rest_fingers), (0.2, "relaxed"), (0.34, "support"), (0.64, "support"), (0.70, "open", "out"),
-               (1.0, "relaxed"), (1.5, "relaxed"), (1.72, L.rest_fingers)]
-
-    def pose(t):
-        spec, frame, fist, turn = L.pose(t, keys_r, keys_l, fingers)
-        aim, grip = frame
-        if t < 0.68:       # lying in the left palm (the game hides it until the hand has it)
-            _put(spec, frame, in_palm(fist, turn, 0.055), np.eye(3), M)
-        elif t < 1.05:     # flipped up: an arc over the muzzle, end over end once
-            u = (t - 0.68) / 0.37
-            start = in_palm(*L.left(0.68, spec["arm_r"], keys_l)[1:], 0.055)
-            over = M + v(0.0, 0.0, -0.32)
-            middle = start + (grip + aim @ over - start) * u + aim @ v(0.0, 0.0, -0.22) * 4.0 * u * (1.0 - u)
-            _put(spec, frame, middle, rx(-360.0 * ease(u)), M)
-        elif t < 1.2:      # down the tube
-            spec["mag"] = (0.0, 0.0, at(t, [(1.05, -0.32), (1.2, 0.0, "in")]))
-        spec["vent_pos"] = (0.0, 0.0, at(t, [(0.0, 0.0), (1.18, 0.0), (1.22, -0.02, "out"), (1.36, 0.0)]))
-        L.body(spec, t, [(0.0, 0.0), (0.36, 8.0), (1.17, 6.0), (1.72, 0.0)], [(0.0, 0.0), (0.36, 6.0), (1.17, 5.0), (1.23, 9.0, "out"), (1.72, 0.0)])
         return spec
     return pose
 
@@ -1362,11 +1202,11 @@ def plasma_cannon(gun, fp):
     return pose
 
 
-RELOADS = {"rocket_launcher": rocket_launcher, "mortar": mortar, "grenade_launcher": grenades, "plasma_cannon": plasma_cannon,
+RELOADS = {"rocket_launcher": rocket_launcher, "grenade_launcher": grenades, "plasma_cannon": plasma_cannon,
            "lever_action": lever_rounds, "bolt_action": bolt_rounds, "sniper": sniper, "anti_materiel": anti_materiel, "railgun": railgun,
-           "crossbow": crossbow, "harpoon_gun": harpoon_gun, "smg": smg, "rifle": rifle, "burst_rifle": burst_rifle, "battle_rifle": battle_rifle, "nail_gun": nail_gun, "lmg": lmg,
-           "minigun": minigun, "laser_rifle": laser_rifle, "shotgun": shells, "slug_shotgun": shells, "break_action": break_action, "auto_shotgun": auto_shotgun, "air_cannon": air_cannon}
-FPS = {"auto_shotgun": 60, "air_cannon": 60, "smg": 60, "rifle": 60, "crossbow": 60, "harpoon_gun": 60, "rocket_launcher": 60, "mortar": 60}   # clips baked at more frames a second (rig.Clip): a part turning about its own middle
+           "crossbow": crossbow, "smg": smg, "rifle": rifle, "burst_rifle": burst_rifle, "battle_rifle": battle_rifle, "nail_gun": nail_gun, "lmg": lmg,
+           "minigun": minigun, "laser_rifle": laser_rifle, "shotgun": shells, "break_action": break_action, "air_cannon": air_cannon}
+FPS = {"air_cannon": 60, "smg": 60, "rifle": 60, "crossbow": 60, "rocket_launcher": 60}   # clips baked at more frames a second (rig.Clip): a part turning about its own middle
 # What ends a shell-at-a-time reload once the gun is full: {gun: (seconds, clip)}.
-ENDS = {"shotgun": (0.75, shotgun_end), "slug_shotgun": (0.65, slug_end), "lever_action": (0.7, lever_end), "bolt_action": (0.55, bolt_end),
+ENDS = {"shotgun": (0.75, shotgun_end), "lever_action": (0.7, lever_end), "bolt_action": (0.55, bolt_end),
         "grenade_launcher": (0.7, grenade_end)}

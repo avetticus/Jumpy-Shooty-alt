@@ -846,7 +846,7 @@ def weapons(m):
         # Grand Library
         (P(RS + 9.0, 75.0, T(1) + 0.1), "rifle"), (P(rc(1) + 2.4, 60.0, T(1) + L1 + 0.1), "burst_rifle"), (P(RS + 4.0, 190.0, T(1) + L3 + 0.1), "crossbow"),
         # Alchemy Labs
-        (P(RS + 11.5, 75.0, T(2) + 0.1), "auto_shotgun"), (P(rc(2) + 2.4, 20.0, T(2) + L2 + 0.1), "plasma_pistol"), (P(RS + 5.0, 352.0, T(2) + L1 + 0.1), "nail_gun"),
+        (P(RS + 11.5, 75.0, T(2) + 0.1), "break_action"), (P(rc(2) + 2.4, 20.0, T(2) + L2 + 0.1), "pistol"), (P(RS + 5.0, 352.0, T(2) + L1 + 0.1), "nail_gun"),
         # Menagerie
         (P(RS + 5.6, 75.0, T(3) + 0.1), "lmg"), (P(rc(3) + 2.4, 128.0, T(3) + L2 + 0.1), "lever_action"), (P(RS + 4.0, 230.0, T(3) + L3 + 0.1), "machine_pistol"),
         # Summoning Chamber: nothing on or near the altar
@@ -854,7 +854,7 @@ def weapons(m):
         # Observatory: a power weapon on the gallery
         (P(ri(T(5) + 9.0) - 1.6, 75.0, T(5) + 9.1), "sniper"), (P(RS + 5.0, 318.0, T(5) + 0.1), "bolt_action"),
         # Outside: the docking ring, the eaves among the sensor masts
-        (P(E.RING_R - 3.0, 55.0, E.RING_Y + 0.1), "harpoon_gun"),
+        (P(E.RING_R - 3.0, 55.0, E.RING_Y + 0.1), "crossbow"),
         (P(E.R_TOP + 0.7, 0.0, TOP + 2.7), "grenade_launcher"),
     ]
     for at, weapon in inside:

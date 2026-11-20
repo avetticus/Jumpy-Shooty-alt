@@ -1,6 +1,6 @@
 class_name ReloadPuff
 extends MeshInstance3D
-## A puff of steam or smoke from a reload (a gun venting, a spent flare): it drifts off,
+## A puff of steam from a reload (a gun venting): it drifts off,
 ## swells and fades. Looks only, like SpentCell: every copy of the game makes its own.
 
 var velocity := Vector3.ZERO

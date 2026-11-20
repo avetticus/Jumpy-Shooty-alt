@@ -28,10 +28,10 @@ const SHOW_TURN := {"sword": PI * 0.5}
 ## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
 const EDGES := {"sword": [0.36, 1.48], "hammer": [0.62, 0.92], "dagger": [0.12, 0.56],
 	"brass_knuckles": [0.0, 0.1], "spear": [1.3, 2.04], "axe": [0.47, 0.93], "bat": [0.4, 1.0],
-	"katana": [0.12, 1.12], "scythe": [0.9, 1.3], "mace": [0.5, 0.74], "machete": [0.12, 0.62],
-	"wrench": [0.44, 0.64], "energy_sword": [0.16, 1.06], "claws": [0.0, 0.12], "karate": [-0.05, 0.05]}
+	"scythe": [0.9, 1.3], "mace": [0.5, 0.74], "machete": [0.12, 0.62],
+	"wrench": [0.44, 0.64], "energy_sword": [0.16, 1.06], "karate": [-0.05, 0.05]}
 ## Worn on both fists (the left one on the akimbo pistol's grip bone, see attach_left).
-const BOTH_FISTS := ["brass_knuckles", "claws", "karate"]
+const BOTH_FISTS := ["brass_knuckles", "karate"]
 
 
 ## Each material kind: [colour, roughness, metallic]. "edge" is the glow, in the player's trim colour.
@@ -57,7 +57,7 @@ static func attach(model: RobotModel, id: String, trim: Color, viewmodel: bool) 
 	return at
 
 
-## The brass knuckles and the claws go on both fists: the left one, on the left hand's
+## The brass knuckles and the karate wraps go on both fists: the left one, on the left hand's
 ## own grip bone (the akimbo pistol's). Null for any other weapon.
 static func attach_left(model: RobotModel, id: String, trim: Color, viewmodel: bool) -> Node3D:
 	if not id in BOTH_FISTS or model.skeleton.find_bone("pistol_l") < 0:
@@ -165,8 +165,6 @@ static func parts(id: String) -> Array:
 			return _dagger()
 		"brass_knuckles":
 			return _knuckles()
-		"katana":
-			return _katana()
 		"scythe":
 			return _scythe()
 		"mace":
@@ -177,8 +175,6 @@ static func parts(id: String) -> Array:
 			return _wrench()
 		"energy_sword":
 			return _energy_sword()
-		"claws":
-			return _claws()
 		"karate":
 			return _wraps()
 	return _longsword()
@@ -407,43 +403,6 @@ static func _knuckles() -> Array:
 # ---------------------------------------------------------------------------
 # The third batch of blades
 
-## Katana: a long, slightly curved single-edged blade (the edge glowing), a round guard
-## and a long grip for both hands.
-static func _katana() -> Array:
-	var k := MeleeKit.new()
-	var side := MeleeKit.SIDE
-	k.bar("grip", [[-0.26, 0.021], [0.06, 0.021]], 8, Vector2(0.85, 1.0))
-	for y in [-0.18, -0.08, 0.02]:
-		k.bar("detail", [[y - 0.006, 0.022], [y + 0.006, 0.024]], 8, Vector2(0.85, 1.0))
-	k.bar("dark", [[-0.29, 0.02], [-0.275, 0.026], [-0.26, 0.024]], 8)
-	k.bar("edge", [[-0.3, 0.012], [-0.29, 0.016]], 8)
-	k.bar("dark", [[0.06, 0.07], [0.074, 0.07]], 10)    # the round guard
-	k.bar("plate", [[0.074, 0.026], [0.1, 0.022]], 8)   # the collar
-	# The blade in side view: the back curves away from the edge toward the point.
-	var back := PackedVector2Array()
-	var front := PackedVector2Array()
-	for i in 9:
-		var t := float(i) / 8.0
-		var y := lerpf(0.1, 1.08, t)
-		var bend := 0.05 * t * t
-		var w := lerpf(0.034, 0.026, t)
-		back.append(Vector2(-0.008 - bend, y))
-		front.append(Vector2(w - 0.008 - bend, y))
-	var blade := PackedVector2Array()
-	blade.append_array(front)
-	blade.append(Vector2(-0.008 - 0.05 + 0.01, 1.16))   # the point
-	for i in range(back.size() - 1, -1, -1):
-		blade.append(back[i])
-	k.plate("steel", blade, -0.005, 0.005, side)
-	var edge := PackedVector2Array()
-	for p in front:
-		edge.append(p + Vector2(0.004, 0.0))
-	for i in range(front.size() - 1, -1, -1):
-		edge.append(front[i] - Vector2(0.006, 0.0))
-	k.plate("edge", edge, -0.0025, 0.0025, side)
-	return k.parts()
-
-
 ## Scythe: a long haft with two grips and a long curved blade jutting forward from
 ## the top, its inner edge glowing.
 static func _scythe() -> Array:
@@ -539,23 +498,6 @@ static func _energy_sword() -> Array:
 	k.plate_pair("plate", PackedVector2Array([Vector2(0.03, 0.09), Vector2(0.05, 0.1), Vector2(0.045, 0.15), Vector2(0.03, 0.15)]),
 		-0.01, 0.01)
 	k.bar("edge", [[0.15, 0.015], [0.2, 0.018], [0.98, 0.018], [1.06, 0.0]], 8)
-	return k.parts()
-
-
-## Wrist claws: a guard over the knuckles and three long blades out past the fist.
-## (One for each fist: see attach_left.)
-static func _claws() -> Array:
-	var k := MeleeKit.new()
-	k.box("dark", Vector3(0, 0, 0.006), Vector3(0.028, 0.104, 0.014))
-	for y in [-0.066, 0.066]:
-		k.box("detail", Vector3(0, y, -0.024), Vector3(0.034, 0.014, 0.076))
-	k.plate("dark", MeleeKit.cut_rect(0.03, 0.077, 0.014), -0.046, -0.074)
-	k.plate("plate", MeleeKit.cut_rect(0.022, 0.066, 0.01), -0.074, -0.082)
-	for i in 3:
-		var forward := Transform3D(MeleeKit.Z_AXIS.basis, Vector3(0, -0.04 + 0.04 * i, 0))
-		k.bar("steel", [[0.07, 0.012], [0.3, 0.008], [0.36, 0.0]], 4, Vector2(0.35, 1.0), forward)
-		k.bar("edge", [[0.08, 0.004], [0.28, 0.003]], 4, Vector2(1.0, 1.0), Transform3D(MeleeKit.Z_AXIS.basis,
-			Vector3(0, -0.04 + 0.04 * i - 0.009, 0)))
 	return k.parts()
 
 
