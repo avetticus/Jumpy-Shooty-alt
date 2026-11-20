@@ -17,7 +17,7 @@ func run() -> void:
 	var me: Player = arena.local_player
 	var my_id: int = net.my_id()
 	match_state.dummy_hit.connect(func(s, dm, dmg, h, k): _hits.append([s, dm, dmg, h, k]))
-	match_state.shot_fired.connect(func(s, m, ends, hits, vias): _shots.append([ends, hits, vias]))
+	match_state.shot_fired.connect(func(s, m, ends, hits): _shots.append([ends, hits]))
 	match_state.player_hit.connect(func(s, t, dmg, h): if t == net.my_id(): _player_hits.append([s, t, dmg]))   # (dummies are told about as players too)
 	var dummy: TargetDummy = arena.dummies[1]   # 10 m out, nothing in front of it
 	var d: Vector3 = dummy.global_position
