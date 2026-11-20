@@ -367,7 +367,9 @@ func _validate_property(property: Dictionary) -> void:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"points":
 			if shape != Shape.HULL:
-				property.usage &= ~PROPERTY_USAGE_EDITOR
+				# Not shown, and not saved either: the editor would otherwise write an
+				# empty list into every block of every map it saves.
+				property.usage &= ~(PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE)
 		"inner":
 			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH:
 				property.usage &= ~PROPERTY_USAGE_EDITOR

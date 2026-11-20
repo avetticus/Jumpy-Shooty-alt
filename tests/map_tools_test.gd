@@ -265,6 +265,12 @@ func _check_hulls() -> void:
 		pipe_hull.free()
 	pipe.sides = 20
 	_expect(MapOps.make_editable(pipe) == null, "one of 40 corners is too many (at most %d)" % MapMesher.MAX_HULL_CORNERS)
+	var stored := func(b: MapBlock) -> bool:
+		for p in b.get_property_list():
+			if p.name == "points":
+				return p.usage & PROPERTY_USAGE_STORAGE != 0
+		return false
+	_expect(not stored.call(pipe) and cone_hull != null and stored.call(cone_hull), "only a hull saves its Points (no empty list in every block of a map)")
 	pipe.shape = MapBlock.Shape.TUBE
 	pipe.sides = 8
 	pipe.inner = 1.0
