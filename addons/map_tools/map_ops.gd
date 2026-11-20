@@ -345,10 +345,7 @@ static func extruded(points: PackedVector3Array, face: int, by: float) -> Packed
 	var moved: Array[Plane] = planes.duplicate()
 	var plane: Plane = planes[face]
 	moved[face] = Plane(plane.normal, plane.d + by)
-	var raw := Geometry3D.compute_convex_mesh_points(moved)
-	for i in raw.size():   # (rounded, so corners worked out from planes stay where they belong)
-		raw[i] = raw[i].snappedf(0.0001)
-	var pts := MapMesher.hull_corners(raw)
+	var pts := corners_of(moved)
 	if pts.size() > MapMesher.MAX_HULL_CORNERS:
 		return PackedVector3Array()
 	var after := MapMesher.hull_planes(pts)
@@ -508,10 +505,7 @@ static func clip_plane(block: MapBlock, plane: Plane) -> Array:
 	for side: Plane in [Plane(n, d), Plane(-n, -d)]:
 		var cut: Array[Plane] = planes.duplicate()
 		cut.append(side)
-		var raw := Geometry3D.compute_convex_mesh_points(cut)
-		for i in raw.size():
-			raw[i] = raw[i].snappedf(0.0001)
-		var corners := MapMesher.hull_corners(raw)
+		var corners := corners_of(cut)
 		if corners.size() > MapMesher.MAX_HULL_CORNERS:
 			return []
 		if MapMesher.hull_planes(corners).size() < 4:
@@ -530,6 +524,219 @@ static func clip_plane(block: MapBlock, plane: Plane) -> Array:
 		part.name = String(block.name) if out.is_empty() else String(block.name) + "B"
 		out.append(part)
 	return out
+
+
+## The corners of the convex shape closed by `planes` (each facing out). Godot gives
+## a corner once for every three planes that meet there, so where several meet (the
+## top of a pyramid, two shapes sharing a face) the same corner comes many times over:
+## each is kept once, as finding a lump's faces takes far longer the more points there
+## are. Rounded to a tenth of a millimetre, so corners worked out from planes stay where
+## they belong.
+static func corners_of(planes: Array[Plane]) -> PackedVector3Array:
+	var unique := {}
+	for p in Geometry3D.compute_convex_mesh_points(planes):
+		unique[p.snappedf(0.0001)] = true
+	return MapMesher.hull_corners(PackedVector3Array(unique.keys()))
+
+
+# ---------------------------------------------------------------------------
+# CSG: subtract, merge, intersect, and hollow for any shape
+
+## The solid that `planes` (each facing out) close round: its corners, or empty if
+## they close round nothing thicker than a sliver.
+static func solid_of(planes: Array[Plane]) -> PackedVector3Array:
+	var corners := corners_of(planes)
+	if MapMesher.hull_planes(corners).size() < 4:
+		return PackedVector3Array()
+	var size := MapBlock.points_bounds(corners).size
+	if minf(size.x, minf(size.y, size.z)) < SLIVER:
+		return PackedVector3Array()
+	return corners
+
+
+## A block's shape as planes in the map (each facing out). Empty if it is not one
+## convex lump (a tube, an arch, a hollow dome) or has too many corners.
+static func world_planes(block: MapBlock) -> Array[Plane]:
+	var out: Array[Plane] = []
+	var lumps := editable_lumps(block)
+	if lumps.size() != 1:
+		return out
+	var xf := global_of(block)
+	for p in MapMesher.hull_planes(lumps[0]):
+		out.append(xf * p)
+	return out
+
+
+## `planes` (in the map) as seen from a block's own frame.
+static func planes_in(block: MapBlock, planes: Array[Plane]) -> Array[Plane]:
+	var inv := global_of(block).affine_inverse()
+	var out: Array[Plane] = []
+	for p in planes:
+		out.append(inv * p)
+	return out
+
+
+## What is left of the convex shape with corners `pts` when the convex shape closed
+## by `cutter` (planes in the same frame) is taken out of it: the pieces outside the
+## cutter, each its corners, none overlapping. Null if the two do not overlap.
+static func subtract_points(pts: PackedVector3Array, cutter: Array[Plane]) -> Variant:
+	var planes := MapMesher.hull_planes(pts)
+	var both: Array[Plane] = planes.duplicate()
+	both.append_array(cutter)
+	if solid_of(both).is_empty():
+		return null
+	var out := []
+	var rest: Array[Plane] = planes.duplicate()
+	for c in cutter:
+		# The part of what is left that lies outside this face of the cutter is a piece;
+		# go on with the part inside it.
+		var outside: Array[Plane] = rest.duplicate()
+		outside.append(Plane(-c.normal, -c.d))
+		var piece := solid_of(outside)
+		if not piece.is_empty():
+			out.append(piece)
+		rest.append(c)
+	return out
+
+
+## A copy of `block` (every setting kept) of the shape with corners `pts` (in the
+## block's own frame), placed where those corners are when its frame is `frame`
+## (a transform under the block's parent; null: the block's own). A shape that is a box
+## square to the block's frame is a box block; anything else a hull block.
+static func shaped_like(block: MapBlock, pts: PackedVector3Array, frame: Variant = null) -> MapBlock:
+	var part := MapPiece.copy(block) as MapBlock
+	for c in part.get_children():
+		part.remove_child(c)
+		c.free()
+	var box := MapBlock.points_bounds(pts)
+	var square := pts.size() == 8
+	for p in pts:
+		for axis in 3:
+			square = square and (is_equal_approx(p[axis], box.position[axis]) or is_equal_approx(p[axis], box.end[axis]))
+	var at: Transform3D = block.transform if frame == null else frame
+	if square:
+		part.shape = MapBlock.Shape.BOX
+		part.points = PackedVector3Array()
+		part.size = box.size
+	else:
+		part.shape = MapBlock.Shape.HULL
+		part.points = pts
+	part.transform = at
+	part.position = at.origin + at.basis * box.get_center()
+	return part
+
+
+## Subtract: `block` with the shapes of `cutters` (each an Array[Plane] in the map, see
+## world_planes) taken out: a group of the pieces left, standing where the block stood
+## (each piece a copy of it with every setting kept), to put in its place. Null if no
+## cutter overlaps it or the block cannot be cut (several lumps). An empty group if
+## nothing is left.
+static func subtracted(block: MapBlock, cutters: Array) -> Node3D:
+	var lumps := editable_lumps(block)
+	if lumps.size() != 1:
+		return null
+	var pieces := [lumps[0]]
+	var touched := false
+	for cutter: Array[Plane] in cutters:
+		var mine := planes_in(block, cutter)
+		var next := []
+		for p: PackedVector3Array in pieces:
+			var left: Variant = subtract_points(p, mine)
+			if left == null:
+				next.append(p)
+			else:
+				touched = true
+				next.append_array(left)
+		pieces = next
+	if not touched:
+		return null
+	return _group_of(block, pieces, String(block.name))
+
+
+## A group standing where `block` stood, of copies of it shaped as `pieces` (each its
+## corners in the block's own frame), named `prefix` 1, 2... What stood under the block
+## goes into the group, once.
+static func _group_of(block: MapBlock, pieces: Array, prefix: String) -> Node3D:
+	var group := Node3D.new()
+	group.name = block.name
+	group.transform = block.transform
+	group.visible = block.visible
+	group.set_meta("_edit_group_", true)
+	for i in pieces.size():
+		var part := shaped_like(block, pieces[i], Transform3D.IDENTITY)
+		part.name = "%s%d" % [prefix, i + 1]
+		part.visible = true
+		group.add_child(part)
+	for c in block.get_children():
+		group.add_child(MapPiece.copy(c))
+	return group
+
+
+## Merge, as TrenchBroom's convex merge does: the smallest convex block round all of
+## `blocks` (a copy of the first, with its settings), in the first one's frame, to put
+## in place of the first. Any gap or inside corner between them is filled in (a block
+## cannot be L-shaped). Null if any is not one lump, or the result would have too many
+## corners.
+static func merged(blocks: Array) -> MapBlock:
+	if blocks.is_empty():
+		return null
+	var first: MapBlock = blocks[0]
+	var inv := global_of(first).affine_inverse()
+	var all := PackedVector3Array()
+	for b: MapBlock in blocks:
+		var lumps := editable_lumps(b)
+		if lumps.size() != 1:
+			return null
+		var xf := inv * global_of(b)
+		for p in lumps[0]:
+			all.append((xf * p).snappedf(0.0001))
+	var corners := MapMesher.hull_corners(all)
+	if corners.size() > MapMesher.MAX_HULL_CORNERS or MapMesher.hull_planes(corners).size() < 4:
+		return null
+	return shaped_like(first, corners)
+
+
+## Intersect: what all of `blocks` share, as one block (a copy of the first), in the
+## first one's frame. Null if they share nothing, or any is not one lump.
+static func intersected(blocks: Array) -> MapBlock:
+	if blocks.size() < 2:
+		return null
+	var first: MapBlock = blocks[0]
+	var planes: Array[Plane] = []
+	for b: MapBlock in blocks:
+		var mine := world_planes(b)
+		if mine.is_empty():
+			return null
+		planes.append_array(mine)
+	var pts := solid_of(planes_in(first, planes))
+	if pts.is_empty() or pts.size() > MapMesher.MAX_HULL_CORNERS:
+		return null
+	return shaped_like(first, pts)
+
+
+## Hollow for any one-lump shape: walls `thickness` thick (measured square to each
+## face) that fill the same outside, as a group of blocks. `open_top` leaves out the
+## walls of faces that look up, `no_floor` those that look down. Null if the shape is
+## not one lump or the walls do not fit.
+static func hollowed(block: MapBlock, thickness: float, open_top := false, no_floor := false) -> Node3D:
+	var lumps := editable_lumps(block)
+	if lumps.size() != 1 or thickness < SLIVER:
+		return null
+	var scale := global_of(block).basis.get_scale().abs()
+	var inner: Array[Plane] = []
+	for p in MapMesher.hull_planes(lumps[0]):
+		# In the block's own units, so a scaled block's walls are still `thickness` metres.
+		var t := thickness * (Basis.from_scale(scale).inverse() * p.normal).length()
+		if (open_top and p.normal.y > 0.7) or (no_floor and p.normal.y < -0.7):
+			inner.append(Plane(p.normal, p.d + 1.0))   # out past the face: no wall there
+		else:
+			inner.append(Plane(p.normal, p.d - t))
+	if solid_of(inner).is_empty():
+		return null
+	var pieces: Variant = subtract_points(lumps[0], inner)
+	if pieces == null or (pieces as Array).is_empty():
+		return null
+	return _group_of(block, pieces, "Wall")
 
 
 ## Where a block not yet in the scene would be in the map, if it stood beside

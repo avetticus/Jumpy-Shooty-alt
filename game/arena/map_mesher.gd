@@ -229,17 +229,16 @@ const MAX_HULL_CORNERS := 32
 ## of its faces, in the order given, each once. Points inside it, or in the middle
 ## of a face or an edge, are left out. Empty if `pts` are all in one plane.
 static func hull_corners(pts: PackedVector3Array) -> PackedVector3Array:
-	var corners := []
-	for face in hull_faces(pts):
-		corners.append_array(face[1])
+	var planes := hull_planes(pts)
 	var out := PackedVector3Array()
 	for p in pts:
-		var corner := false
-		for c: Vector3 in corners:
-			if c.distance_to(p) <= 0.0005:
-				corner = true
-				break
-		if not corner:
+		# A corner lies on three faces or more; a point in the middle of an edge on two,
+		# in the middle of a face on one, inside on none.
+		var on := 0
+		for plane in planes:
+			if absf(plane.distance_to(p)) <= 0.0005:
+				on += 1
+		if on < 3:
 			continue
 		var seen := false
 		for q in out:
@@ -258,7 +257,10 @@ static func hull_planes(pts: PackedVector3Array) -> Array[Plane]:
 	var out: Array[Plane] = []
 	for face in hull_faces(pts):
 		var n: Vector3 = face[0]
-		out.append(Plane(n, n.dot((face[1] as Array)[0])))
+		var d := 0.0
+		for p: Vector3 in face[1]:
+			d += n.dot(p)
+		out.append(Plane(n, d / (face[1] as Array).size()))   # (through the middle of its corners)
 	return out
 
 
@@ -431,7 +433,7 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 	var faces := []   # [normal, corners in order, a key for where its middle is]
 	var count := {}
 	for pts in hull_points(piece):
-		for face in hull_faces(pts):
+		for face in hull_surface(pts):
 			var mid := Vector3.ZERO
 			for p in face[1]:
 				mid += p
@@ -459,18 +461,25 @@ static func _flat(buf: Array, xf: Transform3D, corners: Array, n: Vector3, color
 		_tri(buf, xf * corners[0], xf * corners[k], xf * corners[k + 1], out, color)
 
 
-## The flat faces of the convex lump with these corners: [[normal, corners going
-## counter-clockwise seen from outside], ...]. Corners that lie in one plane make one face.
+## The flat faces of the convex lump with these corners, as the map tools work with
+## them (its planes, its edges, which face is which): [[normal, corners going
+## counter-clockwise seen from outside], ...]. Corners that lie in one plane make one
+## face, its outline: a point inside a face, or in the middle of one of its edges, is
+## not one of its corners. Points within half a millimetre of a plane count as on it,
+## and faces in all but the same plane are one face, so a slanted face stays one face
+## however often its corners are rounded. (For drawing, see hull_surface: on points
+## that have drifted badly these faces may not quite close up.)
 static func hull_faces(pts: PackedVector3Array) -> Array:
 	var n := pts.size()
-	var faces := []
-	var seen := {}
+	var groups := []   # one per face: [normal (out), how far out its plane is, {index of a point on it: true}]
 	for a in n:
 		for b in range(a + 1, n):
 			for c in range(b + 1, n):
-				var normal := (pts[b] - pts[a]).cross(pts[c] - pts[a])
-				if normal.length_squared() < 1e-10:
-					continue
+				var ab := pts[b] - pts[a]
+				var ac := pts[c] - pts[a]
+				var normal := ab.cross(ac)
+				if normal.length() < 0.001 * ab.length() * ac.length():
+					continue   # (all but in a line: the plane through them could lean any way)
 				normal = normal.normalized()
 				var d := normal.dot(pts[a])
 				var above := false
@@ -490,29 +499,167 @@ static func hull_faces(pts: PackedVector3Array) -> Array:
 					continue
 				if above:
 					normal = -normal
-				var key := "%d %d %d %d" % [roundi(normal.x * 500), roundi(normal.y * 500), roundi(normal.z * 500), roundi(normal.dot(pts[a]) * 500)]
+				# Other threes on the same face find it again, perhaps with a few points
+				# more or less on it (when they have drifted a hair out of one plane): all
+				# of them go to one face, never two all but the same (cutting with both
+				# would make stray corners).
+				d = normal.dot(pts[a])
+				var group: Array = []
+				for g in groups:
+					if (g[0] as Vector3).dot(normal) > 0.9999 and absf(float(g[1]) - d) < 0.001:
+						group = g
+						break
+				if group.is_empty():
+					group = [normal, d, {}]
+					groups.append(group)
+				for i in on:
+					group[2][i] = true
+	var faces := []
+	for g in groups:
+		var on_points := []
+		for i in (g[2] as Dictionary):
+			on_points.append(pts[i])
+		var corners := _outline(on_points, g[0], 0.0005)
+		if corners.size() < 3:
+			continue
+		# The face's own way out, from all its corners, not just the three it was found
+		# by; a face with next to no area is no face.
+		var fit := _twice_area(corners)
+		if fit.length() < 2e-6:
+			continue
+		fit = fit.normalized()
+		faces.append([fit if fit.dot(g[0]) > 0.0 else -fit, corners])
+	return faces
+
+
+## The faces of the convex lump with these corners as they are drawn ([[normal,
+## corners going counter-clockwise seen from outside], ...]): always a closed surface,
+## with no face missing, overlapping or folded over, even for points that have drifted
+## or were dragged a few millimetres apart.
+##
+## These are the lump's faces as they are, to within a fiftieth of a millimetre: points
+## truly in one plane (a box's side) make one face, points a hair out of one plane make
+## several flat ones, side by side, which look the same. Together they always cover the
+## lump with no gap or overlap. (The map tools use hull_faces, where a face whose
+## corners are a little out of one plane is still one face.)
+static func hull_surface(pts: PackedVector3Array) -> Array:
+	# On a plane means on it, to a nanometre: any looser and three points of a face a
+	# hair out of one plane can call it one face where another three call it two, and the
+	# surface gets a face twice in one place and none in another. The sums are done in
+	# 64-bit numbers (Godot's vectors are 32-bit, and a face only millimetres wide would
+	# come out leaning the wrong way); 32-bit points truly in one plane, as a box's side
+	# is, still come out exactly on it.
+	const EXACT := 1e-9
+	var n := pts.size()
+	var x := PackedFloat64Array()
+	var y := PackedFloat64Array()
+	var z := PackedFloat64Array()
+	for p in pts:
+		x.append(p.x)
+		y.append(p.y)
+		z.append(p.z)
+	var faces := []   # [normal (out), its corners in order]
+	var seen := {}
+	for a in n:
+		for b in range(a + 1, n):
+			var ux := x[b] - x[a]
+			var uy := y[b] - y[a]
+			var uz := z[b] - z[a]
+			for c in range(b + 1, n):
+				var vx := x[c] - x[a]
+				var vy := y[c] - y[a]
+				var vz := z[c] - z[a]
+				var nx := uy * vz - uz * vy
+				var ny := uz * vx - ux * vz
+				var nz := ux * vy - uy * vx
+				var length := sqrt(nx * nx + ny * ny + nz * nz)
+				if length < 1e-12:
+					continue   # (in a line)
+				var above := false
+				var below := false
+				var on := []
+				for i in n:
+					# How far in front of the plane the point is (from a point on it, so
+					# that a point truly in it comes out as nothing at all).
+					var s := ((x[i] - x[a]) * nx + (y[i] - y[a]) * ny + (z[i] - z[a]) * nz) / length
+					if s > EXACT:
+						above = true
+					elif s < -EXACT:
+						below = true
+					else:
+						on.append(i)
+					if above and below:
+						break   # points on both sides: not a face
+				if above and below:
+					continue
+				var normal := Vector3(nx / length, ny / length, nz / length)
+				if above:
+					normal = -normal
+				var key := str(on)   # (other threes on the same face find it again)
 				if seen.has(key):
 					continue
 				seen[key] = true
-				# Put the corners in order round the face.
-				var mid := Vector3.ZERO
+				var on_points := []
 				for i in on:
-					mid += pts[i]
-				mid /= on.size()
-				var u := (pts[on[0]] - mid).normalized()
-				var v := normal.cross(u)
-				var ring := []
-				for i in on:
-					var r: Vector3 = pts[i] - mid
-					ring.append([atan2(r.dot(v), r.dot(u)), pts[i]])
-				ring.sort_custom(func(p, q): return p[0] < q[0])
-				var corners := []
-				for r in ring:
-					if corners.is_empty() or (corners[-1] as Vector3).distance_to(r[1]) > 0.0005:
-						corners.append(r[1])
-				if corners.size() >= 3:
-					faces.append([normal, corners])
+					on_points.append(pts[i])
+				var ring := _outline(on_points, normal, 0.0)
+				if ring.size() >= 3 and _twice_area(ring).length() > 1e-12:
+					faces.append([normal, ring])
+	if faces.size() < 4:
+		return []   # all in one plane (or too few points): no solid
 	return faces
+
+
+## Twice a flat ring's area, facing the way its corners turn counter-clockwise
+## (Newell's method).
+static func _twice_area(ring: Array) -> Vector3:
+	var out := Vector3.ZERO
+	for k in ring.size():
+		var p: Vector3 = ring[k]
+		var q: Vector3 = ring[(k + 1) % ring.size()]
+		out += Vector3((p.y - q.y) * (p.z + q.z), (p.z - q.z) * (p.x + q.x), (p.x - q.x) * (p.y + q.y))
+	return out
+
+
+## The outline of `points` (all in one plane facing along `normal`): its corners in
+## order, counter-clockwise seen from the side it faces. A point inside the outline, in
+## the middle of one of its sides or on top of another (within `slack` metres) is left out.
+static func _outline(points: Array, normal: Vector3, slack := 0.0005) -> Array:
+	var u := normal.cross(Vector3.UP if absf(normal.y) < 0.9 else Vector3.RIGHT).normalized()
+	var v := normal.cross(u)   # (u, v, normal) turn the right way: counter-clockwise in u, v is seen from outside
+	var flat := []
+	for p: Vector3 in points:
+		flat.append([Vector2(p.dot(u), p.dot(v)), p])
+	flat.sort_custom(func(p: Array, q: Array) -> bool:
+		return p[0].x < q[0].x or (p[0].x == q[0].x and p[0].y < q[0].y))
+	# Andrew's monotone chain: the lower side left to right, then the upper side back.
+	var chain := []
+	for pass_ in 2:
+		var start := chain.size()
+		var order := flat if pass_ == 0 else flat.duplicate()
+		if pass_ == 1:
+			order.reverse()
+		for p in order:
+			while chain.size() - start >= 2 and _bends_back(chain[-2][0], chain[-1][0], p[0], slack):
+				chain.pop_back()
+			if chain.size() - start >= 1 and (chain[-1][0] as Vector2).distance_to(p[0]) <= slack:
+				continue
+			chain.append(p)
+		chain.pop_back()   # (the last of each side is the first of the next)
+	var out := []
+	for c in chain:
+		if out.is_empty() or (out[-1] as Vector3).distance_to(c[1]) > slack:
+			out.append(c[1])
+	if out.size() > 1 and (out[0] as Vector3).distance_to(out[-1]) <= slack:
+		out.pop_back()
+	return out
+
+
+## Going from `o` to `a` and on to `b`, does the way turn clockwise, or run straight on
+## (within `slack` metres)? Then `a` is not a corner of a counter-clockwise outline.
+static func _bends_back(o: Vector2, a: Vector2, b: Vector2, slack: float) -> bool:
+	var turn := (a - o).cross(b - o)
+	return turn <= slack * maxf((a - o).length(), (b - o).length())
 
 
 static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, color: Color) -> void:

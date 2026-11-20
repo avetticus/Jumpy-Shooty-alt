@@ -154,11 +154,12 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 @export var points := PackedVector3Array():
 	set(v):
 		if shape == Shape.HULL and not v.is_empty():
+			# Centred, and to a tenth of a millimetre: stretching and pushing a hull over
+			# and over must not let its corners drift out of their faces' planes.
 			var middle := points_bounds(v).get_center()
-			if middle.length_squared() > 1e-10:
-				v = v.duplicate()   # (a packed array is passed by reference: leave the caller's alone)
-				for i in v.size():
-					v[i] -= middle
+			v = v.duplicate()   # (a packed array is passed by reference: leave the caller's alone)
+			for i in v.size():
+				v[i] = (v[i] - middle).snappedf(0.0001)
 		points = v
 		if shape == Shape.HULL and not _fitting and not v.is_empty():
 			_fitting = true

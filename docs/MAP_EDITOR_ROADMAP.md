@@ -4,8 +4,8 @@ What it would take for the Godot map tools (`addons/map_tools/`, `MapBlock`) to 
 everything a level designer reaches for in TrenchBroom, without leaving Godot and
 without changing how maps are stored or played.
 
-Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull) and
-P4 (clipping at any angle) are built.** P5 onward are plans.
+Status: **P1 (the hull shape), P2 (the vertex tool), P3 (edges, faces, push/pull), P4
+(clipping at any angle) and P5 (CSG) are built.** P6 onward are plans.
 
 ## Ground rules
 
@@ -283,7 +283,43 @@ The original plan:
   gives hulls.
 - Every selected block the plane passes through is cut, as now.
 
-### P5. CSG: subtract, merge, intersect, hollow (L)
+### P5. CSG: subtract, merge, intersect, hollow (L) — done
+Map menu: CSG: Subtract / Merge / Intersect; Hollow now takes any one-lump shape.
+- `MapOps.solid_of()` (planes to corners), `world_planes()`, `planes_in()`,
+  `subtract_points()` (the cutter's faces one at a time: the part outside each face is
+  a piece, go on with the part inside), `subtracted()`, `merged()`, `intersected()`,
+  `hollowed()`; `shaped_like()` makes a box block when a piece is a box square to the
+  block, else a hull.
+- Subtract takes the cutters away afterwards (they have done their job: carving a
+  doorway is one step), as TrenchBroom does.
+- Merge takes the convex hull, gaps and all, as TrenchBroom's convex merge does. (A
+  version that refused when the hull would fill in a gap was tried in the editor and
+  dropped in favour of TrenchBroom's behaviour.)
+- `MapOps.corners_of()`: Godot's `compute_convex_mesh_points` gives a corner once for
+  every three planes meeting there; kept once each, as face-finding is far slower with
+  repeats (a merge check hung on them).
+- Fixed on the way: `MapMesher.hull_corners()` counted points in the middle of an edge
+  or face as corners. A corner now has to lie on three faces.
+- Fixed after an editor crash (found by pushing and stretching a hull over and over):
+  `hull_faces()` keyed faces by a rounded plane, so a face whose corners had drifted a
+  hair out of line was found twice, and every push rebuilt the shape from both planes,
+  adding stray corners (a five-sided cone went from 10 corners to 31). Faces are now
+  keyed by the corners on them, near-straight threes are skipped, each face's plane is
+  fitted to all its corners, and a hull's points are kept to 0.1 mm. Regression check:
+  "a hull pushed and stretched forty times" in `tests/map_tools_test.gd`.
+- Fixed after hulls drew with faces missing (corners a few millimetres apart, left
+  over from before the fix above): drawing now has its own `MapMesher.hull_surface()`,
+  which finds faces exactly (to a nanometre, in 64-bit sums) so they always tile a
+  closed surface; a face a hair out of one plane is drawn as several flat pieces that
+  look the same. The tools keep `hull_faces()`, which treats points within half a
+  millimetre of a plane as on it, so a slanted face stays one face to push and pick
+  (using the exact faces for editing made a cone fall apart after a few dozen
+  pushes). Each face is now its outline (a point inside a face no longer folds it).
+  Regression check: "messy corners still draw closed". Drawing a shape costs about a
+  third more than before (a bevelled box about 13 ms), paid once when a map loads.
+- Not done: CSG on tubes, arches and hollow domes (several lumps).
+
+The original plan:
 - **Merge**: the convex hull of the selected blocks, as one block (kind from the
   first). Refused if they don't make a convex shape together without filling gaps,
   unless forced.

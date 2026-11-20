@@ -354,6 +354,21 @@ func run(what: String) -> void:
 			apply_edit(MapCommands.toggle(ctx, what))
 		"snap":
 			apply_edit(MapCommands.snap_to_neighbours(ctx))
+		"csg_subtract":
+			var edit := MapCommands.subtract(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select the blocks to carve out of the others. They are taken out of every block they overlap, and then removed. (Tubes, arches and hollow domes cannot be cut: Make Editable them first.)")
+			else:
+				apply_edit(edit)
+		"csg_merge", "csg_intersect":
+			var edit: RefCounted = MapCommands.merge(ctx) if what == "csg_merge" else MapCommands.intersect(ctx)
+			if edit.is_empty():
+				_dialogs.tell("Select two or more blocks to %s. Each must be one solid lump (not a tube, an arch or a hollow dome), only the first may have things standing under it, and the result can have at most %d corners.%s" % [
+					"merge into one" if what == "csg_merge" else "turn into the part they share",
+					MapMesher.MAX_HULL_CORNERS,
+					"" if what == "csg_merge" else " They must overlap."])
+			else:
+				apply_edit(edit)
 		"make_editable":
 			var edit := MapCommands.make_editable(ctx)
 			if edit.is_empty():
@@ -363,7 +378,7 @@ func run(what: String) -> void:
 		"hollow":
 			var thickness := maxf(ctx.grid, 0.1) if ctx.grid <= 0.5 else 0.25
 			if MapCommands.hollowable(ctx, 0.05) == 0:
-				_dialogs.tell("Select one or more box-shaped MapBlocks to hollow. (A group is not hollowed: pick the block itself in the Scene dock.)")
+				_dialogs.tell("Select one or more MapBlocks to hollow (any one-lump shape: not a tube, an arch or a hollow dome). (A group is not hollowed: pick the block itself in the Scene dock.)")
 				return
 			_dialogs.ask_hollow(thickness, func(t: float, open_top: bool, no_floor: bool) -> void:
 				if MapCommands.hollowable(ctx, t) == 0:

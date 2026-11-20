@@ -720,6 +720,22 @@ makes ordinary MapBlocks and is one step of undo.
   on or off on every selected block, in groups too.
 - **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
   thickness you type that fills the same outside. You can leave the top or the floor off.
+  Any other shape of one lump (a wedge, a cylinder, a hull...) is hollowed too: walls
+  square to each of its faces, the top and floor being the faces that look up and down.
+- **Map > CSG: Subtract**: the selected blocks carve their shapes out of every other
+  block they overlap, then go themselves (a block the size of a doorway, through a wall,
+  leaves a doorway). Each block cut becomes a group of the pieces left, with its kind and
+  settings; a box cut by a box stays boxes, anything else becomes hull blocks.
+- **Map > CSG: Merge**: as TrenchBroom's convex merge, the selected blocks become one,
+  the smallest convex block round them all, with the first one's settings. Two boxes
+  side by side make one box; a box with a slope that fits its top, a box with a sloping
+  roof. Any gap or inside corner between them is filled in (a block cannot be
+  L-shaped): a beam sticking out of a wall becomes a slope from the wall's edges to the
+  beam's end. To keep blocks together as they are, group them instead.
+- **Map > CSG: Intersect**: the selected blocks become one, the part they all share.
+  None of the CSG commands works on tubes, arches or hollow domes (Make Editable them
+  first); Merge and Intersect refuse if a block other than the first has something
+  standing under it.
 - **Map > Mirror**: across x or z, about the middle of the map or of the selection, as
   a copy or in place. Nothing is scaled by -1: a mirrored wedge is a wedge facing the
   other way.

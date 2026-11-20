@@ -20,6 +20,9 @@ extends SceneTree
 ##  - clipping at an angle: a box cut square stays boxes, any other cut makes hulls; a
 ##    line dragged in a top view, or across a face in 3D (with a third point), what is
 ##    kept, giving up;
+##  - CSG: a doorway subtracted from a wall leaves three boxes of the right volume and
+##    takes the cutter away; merge (convex, as TrenchBroom's) and intersect; hollowing a
+##    wedge and an open-topped cube;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -55,6 +58,7 @@ func _run() -> void:
 	_check_tools()
 	_check_vertex_tool()
 	_check_angled_clip()
+	_check_csg()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -380,6 +384,62 @@ func _check_extrude() -> void:
 	var cut := _face_toward(chamfered, Vector3.ONE)
 	_expect(not MapOps.extruded(chamfered, cut, 0.1).is_empty(), "a corner cut, pulled out a little, is a smaller cut")
 	_expect(MapOps.extruded(chamfered, cut, 1.0).is_empty(), "pulled out past the corner it cut, it would vanish: refused")
+
+	# Over and over: a five-sided cone with a flat top (its slanted faces do not lie on
+	# the grid), each face pushed out and back again and the whole stretched and shrunk,
+	# forty times. It must stay 10 corners and 7 faces: a face whose corners drift a hair
+	# out of one plane used to be found twice, and each push then made stray corners
+	# (until the editor ran out of room).
+	var cone_map := MapRoot.new()
+	root.add_child(cone_map)
+	var cone := _block(cone_map, Vector3.ZERO, Vector3(3, 2, 3))
+	cone.shape = MapBlock.Shape.CONE
+	cone.sides = 5
+	cone.top = 1.0
+	var spun := MapOps.make_editable(cone) as MapBlock
+	cone_map.add_child(spun)
+	var counts := {}
+	for round in 40:
+		for by in [0.37, -0.37]:
+			var face := round % MapMesher.hull_planes(spun.points).size()
+			var pts := MapOps.extruded(spun.points, face, by)
+			if not pts.is_empty():
+				var placed := MapOps.hull_placement(spun, pts, spun.position)
+				spun.points = placed[0]
+				spun.position = placed[1]
+		spun.size = spun.size * 1.37
+		spun.size = spun.size / 1.37
+		counts["%d corners, %d faces" % [MapMesher.hull_corners(spun.points).size(), MapMesher.hull_planes(spun.points).size()]] = true
+	_expect(counts.keys() == ["10 corners, 7 faces"],
+		"a hull pushed and stretched forty times keeps its corners and faces (%s)" % ", ".join(counts.keys()))
+	cone_map.free()
+
+	# Messy corners, a few millimetres apart (two hulls an editor session left behind,
+	# drawn with faces missing): what is drawn must close up all the same, every edge
+	# shared by two faces and nothing left open.
+	var messy := [
+		PackedVector3Array([Vector3(1.9475, -0.1507, -0.5004), Vector3(2.0462, -1.3498, -1.2499), Vector3(-1.9497, -1.3499, -1.25),
+			Vector3(2.05, -0.1639, 1.2201), Vector3(2.05, -0.1496, 1.25), Vector3(2.05, -1.3498, -1.186), Vector3(2.05, -1.35, 1.25),
+			Vector3(2.0193, 0.108, 1.25), Vector3(2.0498, -0.1481, 1.25), Vector3(1.8665, 1.35, 1.1656), Vector3(1.8602, 1.35, 1.0581),
+			Vector3(1.9076, 1.0463, 1.25), Vector3(1.8802, 1.0059, 0.7083), Vector3(1.8808, 0.9992, 0.7016), Vector3(1.8714, 1.35, 1.25),
+			Vector3(0.3253, 1.35, 1.25), Vector3(-2.05, -0.15, 0.0), Vector3(-1.95, 1.0742, 1.25), Vector3(-1.95, -1.35, 1.25)]),
+		PackedVector3Array([Vector3(-4.6136, -3.25, -6.1578), Vector3(-3.8024, 3.25, -6.19), Vector3(-4.1124, -3.25, 6.4775),
+			Vector3(-3.2981, 3.25, 6.5222), Vector3(-3.5906, 0.9092, 6.5238), Vector3(4.6136, -3.25, -6.5239),
+			Vector3(4.6136, 3.25, -6.5239), Vector3(4.6136, -3.25, 6.4775), Vector3(4.6136, 3.25, 6.4775)]),
+	]
+	for pts in messy:
+		var edges := {}
+		var total := Vector3.ZERO
+		for face in MapMesher.hull_surface(pts):
+			var ring: Array = face[1]
+			for k in ring.size():
+				var p: Vector3 = ring[k]
+				var q: Vector3 = ring[(k + 1) % ring.size()]
+				total += p.cross(q) * 0.5
+				var key := "%s|%s" % ([p, q] if str(p) < str(q) else [q, p])
+				edges[key] = edges.get(key, 0) + 1
+		_expect(edges.values().all(func(c: int) -> bool: return c == 2) and total.length() < 0.001,
+			"messy corners still draw closed: every edge shared by two faces (%d edges), nothing open (%.4f m²)" % [edges.size(), total.length()])
 
 	# A face handle: a cube block, turned and stretched to 4 m tall, its top dragged up
 	# by a ray passing 1.1 m over it.
@@ -764,7 +824,10 @@ func _check_vertex_tool() -> void:
 	dbl.double_click = true
 	tool.input(view, dbl)
 	tool.input(view, _press(view, mid, false))
-	_expect(left.points.size() == 9 and _has_point(_corners(left), mid) and tool.picked.size() == 1, "a double-click on an edge adds a corner in its middle, picked")
+	var left_points := []   # (all its points: one in the middle of an edge is not yet a corner)
+	for pt in left.points:
+		left_points.append(MapOps.global_of(left) * pt)
+	_expect(left.points.size() == 9 and _has_point(left_points, mid) and tool.picked.size() == 1, "a double-click on an edge adds a corner in its middle, picked")
 	_drag_with(tool, view, mid, Vector3(1, 2, -2.1))
 	_expect(_has_point(_corners(left), Vector3(1, 2, -2)), "which can then be pulled out")
 	var face_mid := Vector3(3.5, 2, -0.5)   # on the right cube's top, well away from its edges
@@ -935,6 +998,118 @@ func _check_angled_clip() -> void:
 	top_cam.free()
 
 
+## Is `p` (in the map) inside any block of `blocks` (by their real shapes)?
+func _inside_any(blocks: Array, p: Vector3) -> bool:
+	for b: MapBlock in blocks:
+		var planes := MapOps.world_planes(b)
+		if not planes.is_empty() and MapMesher.hull_has(planes, p, -0.001):
+			return true
+	return false
+
+
+func _check_csg() -> void:
+	print("  csg")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var ctx := _context(map)
+
+	# Subtract: a doorway through a wall.
+	var wall := _block(map, Vector3(0, 1.5, 0), Vector3(6, 3, 0.5), "brick")   # x -3..3, y 0..3
+	var door := _block(map, Vector3(0, 1, 0), Vector3(1, 2, 2))                 # x -0.5..0.5, y 0..2, through it
+	_picked = [door]
+	ctx.commit.call(MapCommands.subtract(ctx))
+	var groups := _picked.filter(func(n: Node) -> bool: return n is Node3D and not (n is MapBlock))
+	var parts: Array = MapOps.blocks_in(groups[0]) if groups.size() == 1 else []
+	_expect(groups.size() == 1 and not wall.is_inside_tree() and not door.is_inside_tree(), "Subtract: the wall becomes a group of what is left, and the cutter goes")
+	_expect(parts.size() == 3 and parts.all(func(p: MapBlock) -> bool: return p.shape == MapBlock.Shape.BOX and p.kind == "brick"),
+		"three boxes of brick (either side of the door, and over it)")
+	_expect(is_equal_approx(_volume(parts), 6.0 * 3.0 * 0.5 - 1.0 * 2.0 * 0.5), "together the wall less the doorway (%s m³)" % _volume(parts))
+	_expect(not _inside_any(parts, Vector3(0, 1, 0)) and _inside_any(parts, Vector3(0, 2.5, 0)) and _inside_any(parts, Vector3(-2, 1, 0)),
+		"the doorway is open, the wall over it and beside it is not")
+	var lone := _block(map, Vector3(30, 1, 30), Vector3(1, 1, 1))
+	_picked = [lone]
+	_expect(MapCommands.subtract(ctx).is_empty(), "a cutter that overlaps nothing does nothing")
+	wall.free()
+	door.free()
+
+	# Merge and intersect.
+	var a := _block(map, Vector3(11, 1, 0), Vector3(2, 2, 2))   # x 10..12
+	var b := _block(map, Vector3(13, 1, 0), Vector3(2, 2, 2))   # x 12..14
+	_picked = [a, b]
+	ctx.commit.call(MapCommands.merge(ctx))
+	var one := _picked[0] as MapBlock if _picked.size() == 1 else null
+	_expect(one != null and one.shape == MapBlock.Shape.BOX and one.size.is_equal_approx(Vector3(4, 2, 2)) and MapOps.global_of(one).origin.is_equal_approx(Vector3(12, 1, 0))
+		and not a.is_inside_tree() and not b.is_inside_tree(), "Merge: two boxes side by side become one box round both")
+	var low := _block(map, Vector3(11, 0.5, 6), Vector3(2, 1, 2))
+	var high := _block(map, Vector3(11, 2, 6), Vector3(0.5, 2, 0.5))   # a post on it, narrower
+	_picked = [low, high]
+	ctx.commit.call(MapCommands.merge(ctx))
+	var tent := _picked[0] as MapBlock if _picked.size() == 1 else null
+	_expect(tent != null and tent.shape == MapBlock.Shape.HULL and tent.points.size() == 12 and _has_point(_corners(tent), Vector3(11.25, 3, 6.25))
+		and _has_point(_corners(tent), Vector3(10, 1, 5)),
+		"a box and a narrower post on it become one hull round both (convex merge: tapering from the box's corners to the post's top)")
+	var big := _block(map, Vector3(11, 2, 12), Vector3(4, 4, 4))           # x 9..13
+	var beam := _block(map, Vector3(14, 3, 12), Vector3(2, 0.5, 0.5))   # sticking out of its side, to x = 15
+	_picked = [big, beam]
+	ctx.commit.call(MapCommands.merge(ctx))
+	var wrapped := _picked[0] as MapBlock if _picked.size() == 1 else null
+	_expect(wrapped != null and wrapped.shape == MapBlock.Shape.HULL and _has_point(_corners(wrapped), Vector3(15, 3.25, 12.25))
+		and _has_point(_corners(wrapped), Vector3(9, 0, 10)),
+		"a block and a beam sticking out of it become one hull round both, the gap between filled in")
+	var base := _block(map, Vector3(11, 1, 18), Vector3(2, 2, 2))   # y 0..2
+	var roof := _block(map, Vector3(11, 2.5, 18), Vector3(2, 1, 2))   # a slope on its top, as wide and deep
+	roof.shape = MapBlock.Shape.WEDGE
+	_picked = [base, roof]
+	ctx.commit.call(MapCommands.merge(ctx))
+	var house := _picked[0] as MapBlock if _picked.size() == 1 else null
+	# (8 corners: the box's foot, the front of its top, the top of the slope at the back;
+	# the box's top back corners are now part way up the back.)
+	_expect(house != null and house.shape == MapBlock.Shape.HULL and house.points.size() == 8 and _has_point(_corners(house), Vector3(12, 3, 17))
+		and _has_point(_corners(house), Vector3(10, 0, 19)) and not base.is_inside_tree(),
+		"a box with a slope that fits its top merge into one hull, a box with a sloping roof (%s)" % ("refused" if house == null else "%d corners" % house.points.size()))
+	var p := _block(map, Vector3(22, 1, 0), Vector3(4, 2, 2))   # x 20..24
+	var q := _block(map, Vector3(24, 1, 0), Vector3(4, 2, 2))   # x 22..26
+	_picked = [p, q]
+	ctx.commit.call(MapCommands.intersect(ctx))
+	var shared := _picked[0] as MapBlock if _picked.size() == 1 else null
+	_expect(shared != null and shared.shape == MapBlock.Shape.BOX and shared.size.is_equal_approx(Vector3(2, 2, 2)) and MapOps.global_of(shared).origin.is_equal_approx(Vector3(23, 1, 0)),
+		"Intersect: two overlapping boxes become the box they share")
+	var far := _block(map, Vector3(40, 1, 0), Vector3(1, 1, 1))
+	_picked = [shared, far]
+	_expect(MapCommands.intersect(ctx).is_empty(), "blocks that share nothing are left alone")
+	var holder := _block(map, Vector3(40, 1, 5), Vector3(1, 1, 1))
+	var lamp := MapBlock.new()
+	holder.add_child(lamp)
+	_picked = [far, holder]
+	_expect(MapCommands.merge(ctx).is_empty(), "a merge that would lose what stands under the second block is refused")
+	for gone in [a, b, low, high, big, beam, p, q, base, roof]:
+		gone.free()
+
+	# Hollow any shape: a wedge, walls 0.25 m thick.
+	var ramp := _block(map, Vector3(0, 2, 20), Vector3(6, 4, 6))
+	ramp.shape = MapBlock.Shape.WEDGE
+	var shell := MapOps.hollowed(ramp, 0.25)
+	_expect(shell != null and shell.get_child_count() >= 4, "Hollow: a wedge becomes walls (%d)" % (shell.get_child_count() if shell else 0))
+	if shell:
+		map.add_child(shell)
+		var walls := MapOps.blocks_in(shell)
+		_expect(not _inside_any(walls, Vector3(0, 1, 19)) and _inside_any(walls, Vector3(0, 0.1, 19)) and _inside_any(walls, Vector3(2.9, 1, 19)),
+			"hollow inside, with a floor and sides")
+		var box := MapOps.bounds_of(walls)
+		_expect(box.is_equal_approx(MapOps.bounds_of([ramp])), "filling the same outside")
+	var cube := _block(map, Vector3(0, 2, 30), Vector3(4, 4, 4))
+	cube.shape = MapBlock.Shape.HULL
+	cube.points = MapOps.editable_lumps(_block(map, Vector3.ZERO, Vector3(4, 4, 4)))[0]
+	var open := MapOps.hollowed(cube, 0.5, true)
+	if open:
+		map.add_child(open)
+	var open_walls := MapOps.blocks_in(open) if open else []
+	_expect(open != null and not _inside_any(open_walls, Vector3(0, 3.9, 30)) and _inside_any(open_walls, Vector3(0, 0.1, 30)),
+		"with the top left open: no wall over it, but a floor")
+	_release(ctx)
+	map.free()
+
+
 func _check_tools() -> void:
 	print("  tools")
 	var map := MapRoot.new()
@@ -1040,13 +1215,14 @@ func _check_commands() -> void:
 	var ctx := _context(map)
 	var box := _block(map, Vector3(0, 2, 0), Vector3(6, 4, 6), "drywall")
 	var pipe := _block(map, Vector3(9, 2, 0), Vector3(2, 4, 2), "steel")
-	pipe.shape = MapBlock.Shape.CYLINDER
+	pipe.shape = MapBlock.Shape.TUBE   # a tube is several lumps: it cannot be hollowed
+	pipe.inner = 1.0
 	_picked = [box, pipe]
-	_expect(MapCommands.hollowable(ctx, 0.25) == 1, "Hollow: of a box and a cylinder, one can be hollowed")
+	_expect(MapCommands.hollowable(ctx, 0.25) == 1, "Hollow: of a box and a tube, one can be hollowed")
 	ctx.commit.call(MapCommands.hollow(ctx, 0.25, false, false))
 	var room := _picked[0] as Node3D if _picked.size() == 1 else null
 	_expect(room != null and not (room is MapBlock) and room.get_child_count() == 6 and pipe.is_inside_tree() and not box.is_inside_tree(),
-		"the box is replaced by a room, the cylinder left alone")
+		"the box is replaced by a room, the tube left alone")
 	box.free()
 
 	_picked = [pipe]
