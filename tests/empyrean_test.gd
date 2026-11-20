@@ -328,7 +328,7 @@ func _pickups() -> void:
 	_expect(bad.is_empty(), "each over a floor with room to stand %s" % [bad])
 	var misplaced := []
 	for w in map.weapon_spawns:
-		if w[1] in ["railgun", "rocket_launcher", "anti_materiel", "grenade_launcher", "bolt_action"]:
+		if w[1] in ["railgun", "rocket_launcher", "anti_materiel", "grenade_launcher"]:
 			var p: Vector3 = w[0]
 			var out := is_equal_approx(WorldGravity.zone_at(p), 0.4)
 			if not out and p.y < TIER * 5:

@@ -581,7 +581,7 @@ every step to about 2 m), the rocket boots down to the Hearth from every outer i
 will be 6 m up or less (the Citadel and Terrace never come that low: bots go round by
 the pads). Each link rides the part it sets off from. Falling is death (Kill Height
 -36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
-upper floor, the bolt-action rifle on the Citadel's wall walk, the railgun on the Broken
+upper floor, the lever-action rifle on the Citadel's wall walk, the railgun on the Broken
 Tower's lookout), all inside islands so they ride the bob, so it is listed for
 free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
 --script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the

@@ -22,8 +22,8 @@ FAMILIES = [
     ("Shotguns", [("shotgun", "Shotgun"), ("break_action", "Break-Action Shotgun"), ("air_cannon", "Air Cannon")]),
     ("Automatics", [("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
                     ("lmg", "Light Machine Gun"), ("minigun", "Minigun")]),
-    ("Precision", [("lever_action", "Lever-Action Rifle"), ("bolt_action", "Bolt-Action Rifle"),
-                   ("anti_materiel", "Anti-Materiel Rifle"), ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
+    ("Precision", [("lever_action", "Lever-Action Rifle"), ("anti_materiel", "Anti-Materiel Rifle"),
+                   ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
     ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher")]),
 ]
 CELL = (640, 280)

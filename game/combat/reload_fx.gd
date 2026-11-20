@@ -41,7 +41,6 @@ const GUNS := {
 	"lmg": {"eject": 0.98, "hide": [0.99, 1.37], "seat": 1.8, "throw": Vector3(-2.0, -0.3, 0.4), "spin": Vector3(3.0, 2.0, 5.0), "lift": 0.6},
 	"minigun": {"eject": 1.10, "hide": [1.11, 1.52], "seat": 2.2, "throw": Vector3(-2.0, -0.3, 0.4), "spin": Vector3(3.0, 2.0, 5.0), "lift": 0.6},
 	"lever_action": {"hide": [0.37, 0.45], "seat": 0.26},
-	"bolt_action": {"seat": 0.30},
 	"anti_materiel": {"eject": 0.32, "hide": [0.33, 0.62], "seat": 1.30, "throw": Vector3(0.0, -1.0, 0.2), "spin": Vector3(2.0, 0.5, 1.0), "lift": 0.0},
 	"railgun": {"eject": 0.30, "hide": [0.31, 0.82], "seat": 1.60, "hot": true, "throw": Vector3(-0.4, -1.4, 1.4), "spin": Vector3(9.0, 3.0, 6.0),
 		"lift": 1.0, "steam": [0.42, 1.8], "steam_at": Vector3(0.0, 0.11, -0.5)},

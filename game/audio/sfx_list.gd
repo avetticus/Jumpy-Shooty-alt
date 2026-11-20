@@ -33,16 +33,16 @@ const VOLUME := {
 	# The newer weapons
 	"fire_akimbo": -5.5, "far_akimbo": -9.5, "fire_akimbo_fp": -5.5, "equip_akimbo": -10.0,
 	"fire_revolver": -3.5, "fire_machine_pistol": -6.5, "fire_break_action": -3.0,
-	"fire_burst_rifle": -6.0, "fire_lmg": -6.0, "fire_lever_action": -3.5, "fire_bolt_action": -3.0,
+	"fire_burst_rifle": -6.0, "fire_lmg": -6.0, "fire_lever_action": -3.5,
 	"fire_railgun": -3.0, "fire_rocket_launcher": -3.0, "fire_grenade_launcher": -4.0,
 	"far_revolver": -7.0, "far_machine_pistol": -10.0, "far_break_action": -6.5,
-	"far_burst_rifle": -9.5, "far_lmg": -9.0, "far_lever_action": -6.5, "far_bolt_action": -5.5,
+	"far_burst_rifle": -9.5, "far_lmg": -9.0, "far_lever_action": -6.5,
 	"far_railgun": -6.0, "far_rocket_launcher": -6.0, "far_grenade_launcher": -8.0,
 	"fire_revolver_fp": -3.5, "fire_machine_pistol_fp": -6.5, "fire_break_action_fp": -3.0,
-	"fire_burst_rifle_fp": -6.0, "fire_lmg_fp": -6.0, "fire_lever_action_fp": -3.5, "fire_bolt_action_fp": -3.0,
+	"fire_burst_rifle_fp": -6.0, "fire_lmg_fp": -6.0, "fire_lever_action_fp": -3.5,
 	"fire_railgun_fp": -3.0, "fire_rocket_launcher_fp": -3.0, "fire_grenade_launcher_fp": -4.0,
 	"equip_revolver": -10.0, "equip_machine_pistol": -10.0, "equip_break_action": -10.0,
-	"equip_burst_rifle": -10.0, "equip_lmg": -10.0, "equip_lever_action": -10.0, "equip_bolt_action": -10.0,
+	"equip_burst_rifle": -10.0, "equip_lmg": -10.0, "equip_lever_action": -10.0,
 	"equip_railgun": -10.0, "equip_rocket_launcher": -10.0, "equip_grenade_launcher": -10.0,
 	"equip_brass_knuckles": -10.0, "equip_spear": -10.0, "equip_bat": -10.0,
 	"swing_brass_knuckles": -10.0, "swing_spear": -9.0, "swing_bat": -7.0,
@@ -90,7 +90,6 @@ const RELOAD_STEPS := {
 	"burst_rifle": [[0.59, "mag_out_rifle"], [0.82, "mag_in_rifle"], [1.175, "charge_back"], [1.29, "charge_fwd"]],
 	"lmg": [[0.30, "cover_open"], [0.88, "box_out"], [1.78, "box_in"], [2.54, "cover_close"]],
 	"lever_action": [[0.25, "shell_in"]],
-	"bolt_action": [[0.28, "shell_in"]],
 	"railgun": [[0.16, "cell_out"], [0.23, "rail_vent"], [0.91, "cell_in"]],   # its 2.6 s clip played in its 1.5 s reload
 	"rocket_launcher": [[0.42, "gun_toss"], [0.94, "rocket_in"]],
 	"grenade_launcher": [[0.28, "grenade_in"], [0.40, "drum_turn"]],
@@ -100,19 +99,17 @@ const RELOAD_STEPS := {
 	"anti_materiel": [[0.30, "mag_out_rifle"], [1.28, "mag_in_rifle"], [1.80, "bolt_up"], [2.06, "bolt_back"],
 		[2.50, "bolt_fwd"], [2.66, "bolt_down"]],
 }
-## After each shot: the shotgun's pump and the bolt-action's bolt.
+## After each shot: the shotgun's pump, the lever-action's lever and the anti-materiel rifle's bolt.
 ## What ends a shell-at-a-time reload once the gun is full (the "reload_end" clips in
 ## tools/robot/long_reloads.py): the pump racked by the flourish.
 const RELOAD_END_STEPS := {
 	"shotgun": [[0.14, "gun_spin"], [0.245, "pump_back"], [0.455, "pump_fwd"]],
 	"lever_action": [[0.14, "gun_spin"], [0.2, "lever_down"], [0.44, "lever_up"]],
-	"bolt_action": [[0.19, "bolt_fwd"], [0.27, "bolt_down"]],
 	"grenade_launcher": [[0.12, "drum_turn"], [0.42, "cylinder_close"]],
 }
 const FIRE_STEPS := {
 	"shotgun": [[0.17, "pump_back"], [0.315, "pump_fwd"]],
 	"lever_action": [[0.10, "lever_down"], [0.30, "lever_up"]],
-	"bolt_action": [[0.345, "bolt_up"], [0.38, "bolt_back"], [0.518, "bolt_fwd"], [0.665, "bolt_down"]],
 	"railgun": [[0.05, "rail_vent"]],
 	"anti_materiel": [[0.65, "bolt_up"], [0.72, "bolt_back"], [0.98, "bolt_fwd"], [1.26, "bolt_down"]],
 }

@@ -259,9 +259,6 @@ GUNS = {
     "lever_action": dict(crack=(1750, 0.6, 0.015), blast=(2100, 0.035, 1.2), boom=(0.15, 0.6),
                          thump=(105, 40, 0.08, 0.65), mech=([700, 1150, 1800], 0.014), slide_at=None,
                          tail=(1.5, 0.6, 1900), drive=3.3),
-    "bolt_action": dict(crack=(1950, 0.6, 0.015), blast=(2050, 0.038, 1.25), boom=(0.18, 0.55),
-                        thump=(98, 38, 0.09, 0.6), mech=([660, 1110, 1750], 0.015), slide_at=None,
-                        tail=(1.7, 0.65, 1900), drive=3.4),
     # Akimbo: a lighter, snappier pistol (two of them, firing in turn)
     "akimbo": dict(crack=(1850, 0.75, 0.01), blast=(2600, 0.019, 0.95), boom=(0.06, 0.55),
                    thump=(140, 54, 0.045, 0.65), mech=([1040, 1720, 2600], 0.009), slide_at=0.026,
@@ -280,7 +277,7 @@ GUNS = {
 # The order the equip sounds were made in (each gun's seed is its place in it): new guns go on the end.
 # None: the place of a weapon since taken out of the game, kept so every other gun keeps its seed.
 EQUIP_ORDER = ["pistol", "rifle", "shotgun", None, "revolver", "machine_pistol", "break_action", None,
-               "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
+               "burst_rifle", "lmg", "lever_action", None, "railgun", "rocket_launcher", "grenade_launcher",
                "akimbo", None, None, None, "minigun", "battle_rifle", "anti_materiel",
                None, None, "air_cannon", None, None, "crossbow", None,
                None, None]

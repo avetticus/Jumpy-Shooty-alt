@@ -7,7 +7,7 @@ extends Node3D
 ## grapple, reload) with a small set of arm poses, plus movement you can feel:
 ## sway when you turn, bob when you run, a dip when you land, recoil when you shoot.
 ## Each long gun has its own set of these poses ("fp_idle_rifle"...), and the shotgun
-## and the bolt-action work their pump or bolt after every shot ("fp_fire_shotgun").
+## and the anti-materiel rifle work their pump or bolt after every shot ("fp_fire_shotgun").
 
 const S := MovementController.State
 const EYE := Vector3(0.0, 1.60, 0.0)   ## where the camera sits inside the arms model

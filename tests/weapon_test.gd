@@ -3,8 +3,8 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/weapon_test.gd
 ##
 ## Every gun in the pickers exists and is sane; the shotgun kills in one shot up close
-## and not far away; the bolt-action kills with one headshot and two body shots; the
-## lever-action kills with a headshot out to where its falloff starts; the railgun
+## and not far away; the lever-action kills with a headshot out to where its falloff
+## starts; the railgun
 ## kills anyone in one hit and reloads after every shot (tests/railgun_test.gd shoots
 ## it through a wall); the rifle
 ## and pistol need several hits; magazines reload, and the shotgun's shell-by-shell
@@ -54,6 +54,7 @@ func _init() -> void:
 		_check(w.damage_at(0.0) == w.damage, "%s: full damage point blank" % id)
 		_check(w.damage_at(1000.0) <= w.damage, "%s: no more damage far away" % id)
 	_check(WeaponData.valid("bazooka") == "pistol", "unknown guns fall back to the pistol")
+	_check(not WeaponData.has("bolt_action") and WeaponData.valid("bolt_action") == "pistol", "a cut gun (an old saved bolt-action) falls back to the pistol")
 	# The Golden Gun (Golden Gun mode): a real weapon nobody can pick.
 	var golden := WeaponData.by_id("golden_gun")
 	_check(golden.id == "golden_gun" and WeaponData.has("golden_gun") and WeaponData.valid("golden_gun") == "golden_gun",
@@ -71,11 +72,6 @@ func _init() -> void:
 	_check(shotgun.damage_at(30.0) * shotgun.pellets < 50.0, "shotgun: weak at 30 m")
 	_check(shotgun.damage_at(15.0) < shotgun.damage_at(9.0) and shotgun.damage_at(15.0) > shotgun.damage_at(22.0),
 		"shotgun: damage falls off between 9 and 22 m")
-
-	var bolt := WeaponData.by_id("bolt_action")
-	_check(bolt.damage * bolt.headshot_multiplier >= 100.0, "bolt-action: a headshot kills")
-	_check(bolt.damage < 100.0 and bolt.damage * 2.0 >= 100.0, "bolt-action: two body shots kill, one does not")
-	_check(bolt.spread_degrees == 0.0, "bolt-action: no wobble")
 
 	# The railgun: a hit kills anyone (even overhealed, at any range), the slug goes
 	# through everything, and it reloads after every shot. (Match is an autoload: its

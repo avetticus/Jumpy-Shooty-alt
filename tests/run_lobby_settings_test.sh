@@ -22,9 +22,9 @@ COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP")
 
 # Vs Bots, on a fixed game clock: one gun for everyone.
 timeout 120 "$GODOT" --fixed-fps 60 --headless --path . -- --game-clock --bot=1 --bots=2 --allowed-weapons=bat --weapon=pistol \
-  --bot-weapon=bolt_action --sync-log --map="$MAP" --quit-after=8 > "$OUT/lobby_bots.log" 2>&1 &
-# Online: the host saved the bolt-action, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=bolt_action --allowed-weapons=shotgun,railgun,lmg --jetpack --mobility=grapple \
+  --bot-weapon=lever_action --sync-log --map="$MAP" --quit-after=8 > "$OUT/lobby_bots.log" 2>&1 &
+# Online: the host saved the lever-action, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=lever_action --allowed-weapons=shotgun,railgun,lmg --jetpack --mobility=grapple \
   --autostart=2 --rules=kills:30 --time-limit=60 --swap-on-death --quit-after=34 "${COMMON[@]}" > "$OUT/lobby_host.log" 2>&1 &
 sleep 1
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --mobility=grapple --swap-on-death --quit-after=32 "${COMMON[@]}" \

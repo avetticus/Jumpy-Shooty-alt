@@ -22,11 +22,11 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle",
 	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo", "muzzle_akimbo_l",
 	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
-const LONG_GUNS := ["shotgun", "rifle", "bolt_action"]
+const LONG_GUNS := ["shotgun", "rifle", "anti_materiel"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",

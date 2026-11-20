@@ -1033,7 +1033,7 @@ caption = "20 m"
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 79, 0, -2)
 script = ExtResource("5_dummy")
 character = "bulwark"
-gun = "bolt_action"
+gun = "lever_action"
 caption = "35 m"
 
 [node name="Dummy60m" type="Marker3D" parent="TargetRange" unique_id=255555737]

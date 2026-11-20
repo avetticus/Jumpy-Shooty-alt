@@ -265,10 +265,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"lever_action":
 			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(42, 0.5), Vector2(42, 2.5), Vector2(14, 3.5), Vector2(12, 5),
 				Vector2(0, 6.5)], [Vector2(9, 4.5), Vector2(15, 4.5), Vector2(15, 9), Vector2(9, 9)], [Vector2(16, 3), Vector2(30, 3), Vector2(30, 5), Vector2(16, 5)]]
-		"bolt_action":
-			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(26, 1), Vector2(44, 1.2), Vector2(44, 3), Vector2(36, 3.5),
-				Vector2(36, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6.5)],
-				[Vector2(14, -1.5), Vector2(16, -1.5), Vector2(16, 1), Vector2(14, 1)]]
 		"railgun":
 			shapes = [[Vector2(0, 1), Vector2(10, -1), Vector2(44, -1), Vector2(44, 1), Vector2(18, 1), Vector2(18, 3),
 				Vector2(44, 3), Vector2(44, 5), Vector2(15, 5), Vector2(14, 10), Vector2(11, 10), Vector2(11, 5), Vector2(0, 6)]]
@@ -341,7 +337,7 @@ static func weapon_width(id: String) -> float:
 	id = WeaponData.look_of(id)
 	return {"shotgun": 40.0, "rifle": 38.0, "sword": 40.0, "hammer": 32.0,
 		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "burst_rifle": 38.0, "lmg": 46.0,
-		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
+		"lever_action": 42.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
 		"brass_knuckles": 18.0, "spear": 54.0, "bat": 38.0,
 		"air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "crossbow": 40.0,
 		"anti_materiel": 54.0, "energy_sword": 42.0}.get(id, 22.0)

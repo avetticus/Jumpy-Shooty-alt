@@ -9,7 +9,7 @@ extends Marker3D
 @export_enum("pistol", "revolver", "machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
 	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
-	"lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel",
+	"lever_action", "railgun", "crossbow", "anti_materiel",
 	"rocket_launcher", "grenade_launcher",
 	"sword", "hammer", "brass_knuckles", "spear", "bat",
 	"energy_sword") var weapon := "pistol":   ## (WeaponData.IDS)

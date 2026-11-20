@@ -688,74 +688,6 @@ def lever_end(gun, fp):
     return pose
 
 
-BOLT_ROUND = v(0.0, 0.07, -0.0525)   # the bolt-action's round (its vent part), seated in the action
-
-
-def _bolt_work_pose(L):
-    """The open action turned toward the left hand (in first person kept low and out: the hand
-    over it would otherwise fill the view)."""
-    if L.fp:
-        return L.right((0.0, -0.03, -0.05), (92.0, 8.0, 0.0), 18.0, work=0.3)
-    return L.right((0.0, 0.0, 0.0), (96.0, 10.0, 0.0), 22.0)
-
-
-def bolt_rounds(gun, fp):
-    """One round, the bolt standing open: brought down over the action and pressed in with the thumb."""
-    L = Long(gun, fp)
-    n = L.W.RELOAD[gun] / 0.5
-    work = _bolt_work_pose(L)
-    pressed = dict(work, ik=tuple(x + y for x, y in zip(work["ik"], (0.0, -0.014, 0.0))))
-    keys_r = [(0.0, work), (0.22 * n, work), (0.29 * n, pressed, "out"), (0.40 * n, work), (0.5 * n, work)]
-
-    def holding(p):
-        return ("gun", p - LID_DOWN @ TIPS, LID_DOWN)
-    keys_l = [(0.0, L.belt), (0.20 * n, holding(BOLT_ROUND + v(0.0, 0.07, 0.0)), "out"), (0.28 * n, holding(BOLT_ROUND + v(0.0, 0.03, 0.0)), "in"),
-              (0.36 * n, holding(BOLT_ROUND + v(-0.04, 0.10, 0.02)), "out"), (0.5 * n, L.belt)]
-    fingers = [(0.0, "pinch"), (0.26 * n, "pinch"), (0.32 * n, "open", "out"), (0.42 * n, "relaxed"), (0.5 * n, "pinch")]
-
-    def pose(t):
-        spec, frame, fist, turn = L.pose(t, keys_r, keys_l, fingers)
-        spec["slide_turn"] = -70.0
-        spec["slide"] = 0.09
-        aim, grip = frame
-        if t < 0.26 * n:      # in the fingertips
-            spec["vent_pos"] = tuple(aim.T @ (fist + turn @ TIPS - grip) - BOLT_ROUND)
-        elif t < 0.30 * n:    # thumbed down into the action
-            spec["vent_pos"] = (0.0, 0.03 * (1.0 - (t - 0.26 * n) / (0.04 * n)), 0.0)
-        L.body(spec, t, [(0.0, 0.0), (0.29 * n, -3.0, "out"), (0.5 * n, 0.0)])
-        return spec
-    return pose
-
-
-HEEL = turn_of((0.0, 0.0, -1.0), (-0.6, -0.5, 0.3))   # the left palm facing forward, behind a bolt's knob
-
-
-def bolt_end(gun, fp):
-    """Full: the bolt is slammed home with the heel of the hand and knocked down."""
-    L = Long(gun, fp)
-    work = _bolt_work_pose(L)
-    struck = dict(work, ik=tuple(x + y for x, y in zip(work["ik"], (0.0, 0.0, -0.035))))
-    down = L.right((0.0, -0.02, -0.01), (88.0, 7.0, 0.0), 6.0, work=0.5)
-    rest = L.right(work=0.0)
-    keys_r = [(0.0, work), (0.15, work), (0.22, struck, "out"), (0.30, down), (0.48, rest), (0.55, rest)]
-    c = v(0.0, 0.06, 0.0)
-    knob = v(*L.W.SPEC[gun]["bolt"])
-    opened = c + rz(-70.0) @ (knob - c) + v(0.0, 0.0, 0.09)
-    keys_l = [(0.0, L.belt), (0.14, ("gun", on_palm(opened + v(0.0, 0.0, 0.08), 0.013, HEEL), HEEL)),
-              (0.21, ("gun", on_palm(opened - v(0.0, 0.0, 0.09), 0.013, HEEL), HEEL), "in"),
-              (0.29, ("gun", on_palm(knob, 0.013, LID_DOWN), LID_DOWN)), (0.36, ("gun", on_palm(knob + v(-0.03, 0.04, 0.0), 0.013, LID_DOWN), LID_DOWN), "out"),
-              (0.5, L.rest_l), (0.55, L.rest_l)]
-    fingers = [(0.0, "relaxed"), (0.12, "flat"), (0.32, "flat"), (0.5, L.rest_fingers)]
-
-    def pose(t):
-        spec, _, _, _ = L.pose(t, keys_r, keys_l, fingers)
-        spec["slide"] = at(t, [(0.0, 0.09), (0.15, 0.09), (0.21, 0.0, "in")])
-        spec["slide_turn"] = at(t, [(0.0, -70.0), (0.21, -70.0), (0.29, 0.0, "in")])
-        L.body(spec, t, [(0.0, 0.0), (0.22, -7.0, "in"), (0.5, 0.0)], [(0.0, 0.0), (0.22, 4.0, "in"), (0.5, 0.0)])
-        return spec
-    return pose
-
-
 def anti_materiel(gun, fp):
     """Everything about it is heavy: the muzzle sags, the huge cell is let drop, the new one
     is heaved up from the hip with a swing of the shoulders, and the bolt is hauled back and
@@ -1004,10 +936,10 @@ def grenade_end(gun, fp):
 
 
 RELOADS = {"rocket_launcher": rocket_launcher, "grenade_launcher": grenades,
-           "lever_action": lever_rounds, "bolt_action": bolt_rounds, "anti_materiel": anti_materiel, "railgun": railgun,
+           "lever_action": lever_rounds, "anti_materiel": anti_materiel, "railgun": railgun,
            "crossbow": crossbow, "rifle": rifle, "burst_rifle": burst_rifle, "battle_rifle": battle_rifle, "lmg": lmg,
            "minigun": minigun, "shotgun": shells, "break_action": break_action, "air_cannon": air_cannon}
 FPS = {"air_cannon": 60, "rifle": 60, "crossbow": 60, "rocket_launcher": 60}   # clips baked at more frames a second (rig.Clip): a part turning about its own middle
 # What ends a shell-at-a-time reload once the gun is full: {gun: (seconds, clip)}.
-ENDS = {"shotgun": (0.75, shotgun_end), "lever_action": (0.7, lever_end), "bolt_action": (0.55, bolt_end),
+ENDS = {"shotgun": (0.75, shotgun_end), "lever_action": (0.7, lever_end),
         "grenade_launcher": (0.7, grenade_end)}

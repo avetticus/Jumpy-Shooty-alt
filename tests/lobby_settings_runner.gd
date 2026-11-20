@@ -62,7 +62,7 @@ func _settings(weapons: Array, game: String = "ffa", mode: String = "kills") -> 
 func _cleaning() -> void:
 	print("  stored values")
 	_expect(LobbySettings.clean({}).get("weapons") == [], "a missing setting is filled in with its default (any weapon)")
-	_expect(LobbySettings.normalized_weapons(["bolt_action", "nonsense", "pistol", "bolt_action"]) == ["pistol", "bolt_action"],
+	_expect(LobbySettings.normalized_weapons(["lever_action", "nonsense", "pistol", "lever_action"]) == ["pistol", "lever_action"],
 		"unknown weapons are dropped and each is listed once, in the pickers' order")
 	_expect(LobbySettings.normalized_weapons(WeaponData.IDS) == [], "allowing every weapon is stored as any weapon")
 	_expect(LobbySettings.normalized_weapons("rifle") == [], "a value that is not a list means any weapon")
@@ -71,12 +71,12 @@ func _cleaning() -> void:
 
 func _host_enforces() -> void:
 	print("  the host enforces it")
-	Net.start_offline("Host", "needle", "bolt_action")
+	Net.start_offline("Host", "needle", "lever_action")
 	_settings(["shotgun", "rifle"])
 	_expect(Net.match_settings.weapons == ["shotgun", "rifle"], "the setting is kept in the match settings everyone is sent")
-	_expect(Net.player_loadout_weapon(1) == "shotgun", "the host's saved bolt-action is not allowed, so it gets the first allowed weapon")
+	_expect(Net.player_loadout_weapon(1) == "shotgun", "the host's saved lever-action is not allowed, so it gets the first allowed weapon")
 	_expect(Net.pending_weapon() == "shotgun", "the pause menu would show the allowed weapon")
-	Net.set_my_weapon("bolt_action")
+	Net.set_my_weapon("lever_action")
 	_expect(Net.player_loadout_weapon(1) == "shotgun", "picking a weapon that is not allowed changes nothing")
 	Net.set_my_weapon("rifle")
 	_expect(Net.player_loadout_weapon(1) == "rifle", "picking an allowed weapon works")
@@ -90,7 +90,7 @@ func _host_enforces() -> void:
 	_expect(Net.player_loadout_weapon(1) == "railgun" and Net.player_loadout_weapon(2) == "railgun",
 		"one gun: when the host sets it, everyone is given that gun")
 	_expect(LobbySettings.only_weapon() == "railgun", "one gun: it is the only weapon")
-	Net.players[2]["weapon"] = "bolt_action"   # however it got there...
+	Net.players[2]["weapon"] = "lever_action"   # however it got there...
 	Net.host_fit_loadouts()               # ...nobody starts the match with it
 	_expect(Net.player_loadout_weapon(2) == "railgun", "starting the match swaps out any weapon that is not allowed")
 	_settings([])
@@ -109,7 +109,7 @@ func _bots() -> void:
 		ok = ok and Net.player_loadout_weapon(id) in ["spear", "bat"]
 		Net.remove_bot(id)
 	_expect(ok, "bots take a gun at random from the allowed ones")
-	var forced := Net.add_bot(1, "bolt_action")
+	var forced := Net.add_bot(1, "lever_action")
 	_expect(Net.player_loadout_weapon(forced) == "spear", "a --bot-weapon that is not allowed gives way to an allowed one")
 	Net.remove_bot(forced)
 	var fine := Net.add_bot(1, "bat")
@@ -119,32 +119,32 @@ func _bots() -> void:
 func _other_modes() -> void:
 	print("  Gun Game and Deathmatch")
 	Net.start_offline("Host", "needle", "pistol")
-	_settings(["bolt_action"], "ffa", "gungame")
+	_settings(["lever_action"], "ffa", "gungame")
 	_expect(not LobbySettings.weapons_apply() and LobbySettings.allowed_weapons().size() == WeaponData.IDS.size(),
 		"Gun Game ignores the setting (it has its own ladder)")
-	_settings(["bolt_action"], "dm")
+	_settings(["lever_action"], "dm")
 	_expect(not LobbySettings.weapons_apply() and LobbySettings.only_weapon() == "", "a Deathmatch ignores the setting (weapons are on the map)")
-	_expect(Net.match_settings.weapons == ["bolt_action"], "the setting is kept for when the host goes back to a shoot-out")
-	_settings(["bolt_action"], "ffa")
-	_expect(LobbySettings.only_weapon() == "bolt_action", "back in a shoot-out it applies again")
+	_expect(Net.match_settings.weapons == ["lever_action"], "the setting is kept for when the host goes back to a shoot-out")
+	_settings(["lever_action"], "ffa")
+	_expect(LobbySettings.only_weapon() == "lever_action", "back in a shoot-out it applies again")
 
 
 func _death_pick() -> void:
 	print("  death screen pick")
 	Net.start_offline("Host", "needle", "pistol")
-	_settings(["pistol", "revolver", "shotgun", "bolt_action"])
+	_settings(["pistol", "revolver", "shotgun", "lever_action"])
 	var groups := LobbySettings.weapon_groups()
 	_expect(groups.map(func(g): return g[0]) == ["Sidearms", "Shotguns", "Marksman"], "only the classes with allowed weapons are listed (%s)" % [groups])
 	_expect(groups[0][1] == ["pistol", "revolver"], "a class lists only its allowed weapons")
 	_expect(LobbySettings.death_pick("pistol", 0, 0) == "revolver", "key 1 goes on through the allowed sidearms")
 	_expect(LobbySettings.death_pick("revolver", 0, 0) == "pistol", "...and round again")
-	_expect(LobbySettings.death_pick("pistol", 2, 0) == "bolt_action", "key 3 is the third class shown (marksman: the bolt-action)")
+	_expect(LobbySettings.death_pick("pistol", 2, 0) == "lever_action", "key 3 is the third class shown (marksman: the lever-action)")
 	_expect(LobbySettings.death_pick("pistol", 5, 0) == "", "a key past the classes shown does nothing")
-	_expect(LobbySettings.death_pick("bolt_action", -1, 1) == "pistol", "scrolling on from the last allowed weapon goes back to the first")
-	_expect(LobbySettings.death_pick("pistol", -1, -1) == "bolt_action", "scrolling back goes through the allowed weapons only")
+	_expect(LobbySettings.death_pick("lever_action", -1, 1) == "pistol", "scrolling on from the last allowed weapon goes back to the first")
+	_expect(LobbySettings.death_pick("pistol", -1, -1) == "lever_action", "scrolling back goes through the allowed weapons only")
 	_expect(LobbySettings.death_pick("lmg", -1, 1) == "pistol", "from a weapon that is not allowed, scrolling gives the first allowed one")
-	_settings(["bolt_action"])
-	_expect(LobbySettings.death_pick("bolt_action", 0, 0) == "" and LobbySettings.death_pick("bolt_action", -1, 1) == "",
+	_settings(["lever_action"])
+	_expect(LobbySettings.death_pick("lever_action", 0, 0) == "" and LobbySettings.death_pick("lever_action", -1, 1) == "",
 		"one gun: the keys and the wheel pick nothing")
 
 
@@ -155,9 +155,9 @@ func _host_control() -> void:
 	c.changed.connect(func(ids: Array): got.append(ids))
 	c._on_chip("pistol")
 	_expect(c.value().size() == WeaponData.IDS.size() - 1 and not "pistol" in c.value(), "unticking a weapon leaves the rest allowed")
-	c.preferred = "bolt_action"
+	c.preferred = "lever_action"
 	c._set_single(true)
-	_expect(c.value() == ["bolt_action"], "One gun starts on your own weapon")
+	_expect(c.value() == ["lever_action"], "One gun starts on your own weapon")
 	c._on_chip("rifle")
 	_expect(c.value() == ["rifle"], "One gun: pressing another weapon makes that the one")
 	c._set_single(false)
@@ -172,19 +172,19 @@ func _host_control() -> void:
 
 func _lobby_menu() -> void:
 	print("  lobby")
-	Net.start_offline("Host", "needle", "bolt_action")
-	_settings(["shotgun", "rifle", "bolt_action"])
+	Net.start_offline("Host", "needle", "lever_action")
+	_settings(["shotgun", "rifle", "lever_action"])
 	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
 	get_tree().root.add_child(lobby)
 	await get_tree().process_frame
 	var picker: WeaponPicker = lobby.find_children("*", "WeaponPicker", true, false)[0]
 	var control: AllowedWeaponsPicker = lobby.find_children("*", "AllowedWeaponsPicker", true, false)[0]
-	_expect(picker.allowed() == ["shotgun", "rifle", "bolt_action"], "the lobby's weapon cards offer only the allowed weapons")
-	_expect(picker._cards["pistol"].disabled and not picker._cards["bolt_action"].disabled, "weapons that are not allowed are greyed out")
+	_expect(picker.allowed() == ["shotgun", "rifle", "lever_action"], "the lobby's weapon cards offer only the allowed weapons")
+	_expect(picker._cards["pistol"].disabled and not picker._cards["lever_action"].disabled, "weapons that are not allowed are greyed out")
 	_expect(control.is_visible_in_tree() and control._edit.visible, "the host sees the Weapons allowed control and can change it")
 	control._set_single(true)
 	await get_tree().process_frame
-	_expect(Net.match_settings.weapons == ["bolt_action"], "the host's control changes the lobby setting (one gun: its own bolt-action)")
+	_expect(Net.match_settings.weapons == ["lever_action"], "the host's control changes the lobby setting (one gun: its own lever-action)")
 	_expect(lobby._weapon_card.disabled and lobby._no_weapon_note.visible, "one gun: the weapon card cannot be pressed and a note says why")
 	_settings([], "dm")
 	await get_tree().process_frame
@@ -195,7 +195,7 @@ func _lobby_menu() -> void:
 
 func _loadout_menu() -> void:
 	print("  pause menu loadout")
-	Net.start_offline("Host", "needle", "bolt_action")
+	Net.start_offline("Host", "needle", "lever_action")
 	for weapons in [["shotgun", "rifle"], ["bat"]]:
 		_settings(weapons)
 		Net.in_match = true
@@ -207,7 +207,7 @@ func _loadout_menu() -> void:
 		var guns := menu.find_children("*", "WeaponPicker", true, false)
 		if weapons.size() > 1:
 			_expect(guns.size() == 1 and (guns[0] as WeaponPicker).allowed() == weapons, "the Loadout offers only the allowed weapons")
-			_expect(guns.size() == 1 and (guns[0] as WeaponPicker).current == "shotgun", "...starting on an allowed one (the saved bolt-action is not)")
+			_expect(guns.size() == 1 and (guns[0] as WeaponPicker).current == "shotgun", "...starting on an allowed one (the saved lever-action is not)")
 		else:
 			_expect(guns.is_empty(), "one gun: the Loadout has no weapon to pick")
 		menu.queue_free()

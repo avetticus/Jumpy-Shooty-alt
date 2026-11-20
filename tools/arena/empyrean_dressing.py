@@ -839,7 +839,7 @@ def weapons(m):
         # Summoning Chamber: nothing on or near the altar
         (P(rc(4) + 1.3, 300.0, T(4) + L1 + 0.1), "battle_rifle"), (P(RS + 8.5, 200.0, T(4) + L3 + 0.1), "battle_rifle"),
         # Observatory: a power weapon on the gallery
-        (P(ri(T(5) + 9.0) - 1.6, 75.0, T(5) + 9.1), "bolt_action"), (P(RS + 5.0, 318.0, T(5) + 0.1), "bolt_action"),
+        (P(ri(T(5) + 9.0) - 1.6, 75.0, T(5) + 9.1), "lever_action"), (P(RS + 5.0, 318.0, T(5) + 0.1), "lever_action"),
         # Outside: the docking ring, the eaves among the sensor masts
         (P(E.RING_R - 3.0, 55.0, E.RING_Y + 0.1), "crossbow"),
         (P(E.R_TOP + 0.7, 0.0, TOP + 2.7), "grenade_launcher"),

@@ -15,9 +15,9 @@ handguard square-on. The game turns the chest by the aim clip's twist too.
 
 New clips per gun:
   body:  aim (gun up), carry (sprinting: gun across the chest), reload, fire (the
-         shotgun's pump, the bolt-action's bolt), respawn
+         shotgun's pump, the anti-materiel rifle's bolt), respawn
   arms:  fp_idle, fp_one_hand, fp_sprint, fp_slide, fp_wall_l, fp_wall_r, fp_dive,
-         fp_tuck, fp_mantle, fp_raise, fp_reload, fp_fire (shotgun, bolt-action)
+         fp_tuck, fp_mantle, fp_raise, fp_reload, fp_fire (shotgun, anti-materiel)
 The shotgun reloads a shell at a time: its reload clips are one shell, looped.
 """
 import numpy as np
@@ -29,7 +29,7 @@ import long_reloads
 from weapons import SUPPORT
 
 LONG = ("shotgun", "rifle", "break_action", "burst_rifle", "lmg", "lever_action",
-        "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
+        "railgun", "rocket_launcher", "grenade_launcher",
         "air_cannon", "minigun", "battle_rifle",
         "crossbow", "anti_materiel")
 # Sidearms held like the pistol: they keep its poses but have their own reloads.
@@ -49,7 +49,6 @@ SPEC = {
     "burst_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.034, 0.075, 0.02), "mag_hold": (0.0, -0.08, -0.10)},
     "lmg": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
     "lever_action": {"hold": "rifle", "reload": "gate", "fire": "lever"},
-    "bolt_action": {"hold": "sniper", "reload": "top", "fire": "bolt", "bolt": (-0.08, 0.06, -0.01)},
     "railgun": {"hold": "sniper", "reload": "cell", "fire": "vent", "mag_hold": (0.0, -0.005, 0.105)},
     "rocket_launcher": {"hold": "rocket_launcher", "reload": "rocket"},
     "grenade_launcher": {"hold": "shotgun", "reload": "drum"},
@@ -93,13 +92,13 @@ REACH = 0.462    # how far from its shoulder the left wrist is at most (the arm 
 
 # Reload lengths match WeaponData (the shotgun's is one shell; it loops).
 RELOAD = {"shotgun": 0.5, "rifle": 1.9, "break_action": 1.7, "burst_rifle": 2.0,
-          "lmg": 3.6, "lever_action": 0.45, "bolt_action": 0.5, "railgun": 2.6, "rocket_launcher": 1.5,
+          "lmg": 3.6, "lever_action": 0.45, "railgun": 2.6, "rocket_launcher": 1.5,
           "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4,
           "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "crossbow": 1.3,
           "anti_materiel": 3.2}
-FIRE = {"shotgun": 0.6, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5,
+FIRE = {"shotgun": 0.6, "lever_action": 0.66, "railgun": 0.5,
         "anti_materiel": 1.8}
-LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher")   # a round at a time
+LOOPED = ("shotgun", "lever_action", "grenade_launcher")   # a round at a time
 # The left hand under a fore-end: palm up, the fingers across under the gun and up its
 # right side (the fist's turn, relative to the gun's). A gun held by an upright handle
 # (weapons.SUPPORT: "upright") is held as the forearm comes, like a second grip.
@@ -343,7 +342,7 @@ def _gate_reload(gun, fp, rest, tilt, away):
 
 
 def _top_reload(gun, fp, rest, tilt, away):
-    """Bolt-action: bolt open, a round pressed down into the action from above. Loops."""
+    """The action open, a round pressed down into it from above."""
     bolt_open = {"slide_turn": -70.0, "slide": 0.09}
     top = (0.0, 0.09, -0.06)
     above = _add(top, (-0.03, 0.10, 0.04))

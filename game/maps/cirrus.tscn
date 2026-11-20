@@ -26008,10 +26008,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8.4)
 script = ExtResource("4_weapon")
 weapon = "shotgun"
 
-[node name="BoltAction" type="Marker3D" parent="LectureHall/WeaponSpawns"]
+[node name="LeverAction" type="Marker3D" parent="LectureHall/WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.4, 8.8, 8.2)
 script = ExtResource("4_weapon")
-weapon = "bolt_action"
+weapon = "lever_action"
 
 [node name="Cafeteria" type="Node3D" parent="."]
 transform = Transform3D(0.809, 0, -0.5878, 0, 1, 0, 0.5878, 0, 0.809, -29.2129, 0, 40.2081)
@@ -43437,10 +43437,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8.4)
 script = ExtResource("4_weapon")
 weapon = "rifle"
 
-[node name="BoltAction" type="Marker3D" parent="Library/WeaponSpawns"]
+[node name="LeverAction" type="Marker3D" parent="Library/WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 11, 11.4)
 script = ExtResource("4_weapon")
-weapon = "bolt_action"
+weapon = "lever_action"
 
 [node name="Crossbow19" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.7477, 0.6, -17.6897)

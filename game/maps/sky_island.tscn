@@ -10693,10 +10693,10 @@ script = ExtResource("6_bu61d")
 
 [node name="WeaponSpawns" type="Node3D" parent="Islands/Citadel" unique_id=1812870687]
 
-[node name="BoltAction" type="Marker3D" parent="Islands/Citadel/WeaponSpawns" unique_id=780647123]
+[node name="LeverAction" type="Marker3D" parent="Islands/Citadel/WeaponSpawns" unique_id=780647123]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.3, 5, -2.9)
 script = ExtResource("7_6pxm6")
-weapon = "bolt_action"
+weapon = "lever_action"
 
 [node name="MachinePistol" type="Marker3D" parent="Islands/Citadel/WeaponSpawns" unique_id=1853143352]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)

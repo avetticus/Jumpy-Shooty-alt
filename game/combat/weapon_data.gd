@@ -31,7 +31,7 @@ const GROUPS := [
 	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo"]],
 	["Shotguns", ["shotgun", "break_action", "air_cannon"]],
 	["Rifles", ["rifle", "burst_rifle", "lmg", "minigun", "battle_rifle"]],
-	["Marksman", ["lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel"]],
+	["Marksman", ["lever_action", "railgun", "crossbow", "anti_materiel"]],
 	["Explosives", ["rocket_launcher", "grenade_launcher"]],
 	["Melee", ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]],
 ]
@@ -39,14 +39,14 @@ const GROUPS := [
 const IDS := ["pistol", "revolver", "machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
 	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
-	"lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel",
+	"lever_action", "railgun", "crossbow", "anti_materiel",
 	"rocket_launcher", "grenade_launcher",
 	"sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
 const MELEE := ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
 const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
 	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
-	"lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel",
+	"lever_action", "railgun", "crossbow", "anti_materiel",
 	"rocket_launcher", "grenade_launcher"]
 ## The third batch of weapons: see the bottom of this file.
 const BATCH_3 := ["air_cannon", "minigun", "battle_rifle", "crossbow", "anti_materiel",
@@ -445,26 +445,6 @@ static func lever_action() -> WeaponData:
 	return w
 
 
-## A bolt-action rifle on iron sights: a quick bolt, a round at a time.
-static func bolt_action() -> WeaponData:
-	var w := _gun("bolt_action", "Bolt-Action Rifle", "Bolt Action")
-	w.blurb = "Iron sights and a quick bolt. A headshot kills, so do two to the body. Loads a round at a time."
-	w.damage = 70.0
-	w.fire_interval = 1.0
-	w.magazine = 5
-	w.reload_time = 0.5
-	w.reload_per_round = true
-	w.max_range = 250.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.6
-	w.structure_damage = 1.4
-	w.crosshair = "dot"
-	w.kick = 2.4
-	w.knockback = 7.0
-	w.knockback_up = 1.5
-	return w
-
-
 ## A slug that goes through everything in a line, walls included, and kills whoever it
 ## touches (200: as much as anyone can have, overhealed). One shot, then a reload.
 static func railgun() -> WeaponData:
@@ -712,7 +692,6 @@ static func _make(weapon_id: String) -> WeaponData:
 		"burst_rifle": return burst_rifle()
 		"lmg": return lmg()
 		"lever_action": return lever_action()
-		"bolt_action": return bolt_action()
 		"railgun": return railgun()
 		"rocket_launcher": return rocket_launcher()
 		"grenade_launcher": return grenade_launcher()

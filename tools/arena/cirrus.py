@@ -1271,7 +1271,7 @@ def library(m, g, accent, roof_kind):
     w = m.group("WeaponSpawns", g, grouped=False)
     m.weapon_in(w, (6.4, 0, 5.0), "sword")                  # a lane between the east stacks
     m.weapon_in(w, (0, 0, ZT + 2.6), "rifle")                  # the tip, where people land
-    m.weapon_in(w, (-8.0, F3, 11.4), "bolt_action")          # the top floor's back strip
+    m.weapon_in(w, (-8.0, F3, 11.4), "lever_action")         # the top floor's back strip
 
 
 def lecture_hall(m, g, accent, roof_kind):
@@ -1346,7 +1346,7 @@ def lecture_hall(m, g, accent, roof_kind):
     w = m.group("WeaponSpawns", g, grouped=False)
     m.weapon_in(w, (11.6, 0.6, 2.4), "break_action")
     m.weapon_in(w, (0, 0, ZT + 2.6), "shotgun")
-    m.weapon_in(w, (-12.4, BY, 8.2), "bolt_action")               # the booth
+    m.weapon_in(w, (-12.4, BY, 8.2), "lever_action")              # the booth
 
 
 def labs(m, g, accent, roof_kind):

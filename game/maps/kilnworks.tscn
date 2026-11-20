@@ -1248,10 +1248,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 6, 27)
 script = ExtResource("5_hcpj5")
 weapon = "lmg"
 
-[node name="BoltAction" type="Marker3D" parent="WeaponSpawns" unique_id=1139526701]
+[node name="LeverAction2" type="Marker3D" parent="WeaponSpawns" unique_id=1139526701]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 6, 26)
 script = ExtResource("5_hcpj5")
-weapon = "bolt_action"
+weapon = "lever_action"
 
 [node name="BreakAction" type="Marker3D" parent="WeaponSpawns" unique_id=1301678457]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 6, -26)

@@ -3,7 +3,7 @@ right fist closes on the grip) and tied to the three gun bones:
 
   pistol        the gun itself (the bone is called "pistol" for history; every gun uses it)
   pistol_slide  the part that moves when the gun is worked: the pistol's slide, the
-                shotgun's pump, the rifle's charging handle, the bolt-action's bolt
+                shotgun's pump, the rifle's charging handle, the anti-materiel rifle's bolt
   pistol_mag    the magazine (the shotgun's: one shell, kept out of sight inside the
                 receiver until a reload brings it out)
 
@@ -30,7 +30,7 @@ from kit import Part, loft, rect, box, prism, ball
 from rig import BODY, GUN_REST
 
 IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action",
-       "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
+       "burst_rifle", "lmg", "lever_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
        # The third batch
        "air_cannon", "minigun",
        "battle_rifle", "crossbow", "anti_materiel")
@@ -47,7 +47,6 @@ SUPPORT = {
     "burst_rifle": {"grip": (0.0, 0.044, -0.25)},
     "lmg": {"grip": (0.0, 0.025, -0.27)},
     "lever_action": {"grip": (0.0, 0.033, -0.28)},
-    "bolt_action": {"grip": (0.0, 0.027, -0.29)},
     "railgun": {"grip": (0.0, 0.036, -0.27)},
     "rocket_launcher": {"grip": (0.0, -0.02, -0.24), "upright": True},  # the front handle under the tube
     "grenade_launcher": {"grip": (0.0, 0.025, -0.28)},
@@ -717,29 +716,6 @@ def lever_action(mesh):
     _add(mesh, g, "glow", "pistol_mag", _tube(0.007, 0.02, 0.06, 0.055, 6))   # one round, for reloads (hidden in the action)
 
 
-def bolt_action(mesh):
-    """A bolt-action rifle, about 1 m, with iron sights: a full-length armour fore-end with
-    a lit line along it, and a bolt worked from the left side."""
-    g = "bolt_action"
-    _add(mesh, g, "grip", "pistol", _grip(-20, 0.038))
-    receiver = _core([(-0.056, 0.036), (0.16, 0.036), (0.17, 0.046), (0.17, 0.078), (0.16, 0.086), (-0.03, 0.086), (-0.056, 0.07)], 0.042, 0.006)
-    under = _run([_sec(0.04, 0.03, -0.03, 0.022, ch=0.01), _sec(0.04, 0.03, 0.56, 0.03, ch=0.01)])
-    _add(mesh, g, "dark", "pistol", receiver + under + _guard(0.078)
-         + box(0.006, 0.022, 0.012).move(0, 0.08, -0.77) + box(0.022, 0.02, 0.016).move(0, 0.094, -0.12))
-    _add(mesh, g, "plate", "pistol", _run([_sec(0.05, 0.03, 0.0, 0.045, ch=0.012), _sec(0.05, 0.03, 0.55, 0.05, ch=0.012),
-                                          _sec(0.032, 0.024, 0.6, 0.052, ch=0.008)]))
-    _add(mesh, g, "glow", "pistol", _panels([(0.2, 0.042), (0.5, 0.047), (0.5, 0.054), (0.2, 0.049)], 0.0252, 0.002, 0.0))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.053, 0.034, 0.52, 0.05, ch=0.013), _sec(0.053, 0.034, 0.54, 0.05, ch=0.013)]))
-    _add(mesh, g, "detail", "pistol", _slats(0.09, 3, 0.022, 0.062, 0.08, 0.021, t=0.008, lean=0.005, thick=0.003))
-    # Its vent part is one round, hidden in the action: a reload brings it down into the open bolt from above.
-    _vent(mesh, g, "glow", _tube(0.007, 0.03, 0.075, 0.07, 6))
-    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.16, 0.80, 0.06, 6))
-    _add(mesh, g, "detail", "pistol", _tube(0.0155, 0.772, 0.802, 0.06, 6))
-    _stock(mesh, g, -0.275, 0.068, 0.064, -0.058, 0.046)
-    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.03, 0.06, 0.006).move(0, 0.01, -0.09))
-    _bolt(mesh, g, -0.08, 0.06, -0.01, 0.013)
-
-
 def anti_materiel(mesh):
     """An anti-materiel rifle, about 1.35 m: a heavy barrel in an armour shroud with a huge
     muzzle brake, a big scope, a box cell, a bipod folded under and a bolt on the left."""
@@ -895,7 +871,7 @@ def grenade_launcher(mesh):
 
 BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "revolver": revolver,
          "machine_pistol": machine_pistol, "break_action": break_action, "burst_rifle": burst_rifle,
-         "lmg": lmg, "lever_action": lever_action, "bolt_action": bolt_action, "railgun": railgun,
+         "lmg": lmg, "lever_action": lever_action, "railgun": railgun,
          "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher, "akimbo": akimbo,
          "air_cannon": air_cannon, "minigun": minigun, "battle_rifle": battle_rifle,
          "crossbow": crossbow, "anti_materiel": anti_materiel}
