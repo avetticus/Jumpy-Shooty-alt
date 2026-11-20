@@ -16,9 +16,7 @@ signal player_died(victim: int, killer: int)
 signal player_respawned(id: int, spawn_index: int)   ## spawn_index: a new number for every respawn (it numbers the life: see Player._life)
 ## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
 signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
-## One end per pellet; `vias`: per pellet, where it went into and came out of portals on
-## the way ([in, out, ...], empty for a straight one: see Portals.path_bends).
-signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array, vias: Array)
+signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
 ## Just before shot_fired: where the shooter was aiming (from `eye`, before any spread),
 ## so a killcam can point the killer's crosshair exactly where it was (see Killcam).
 signal shot_aimed(shooter: int, eye: Vector3, aim: Vector3)
@@ -449,7 +447,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	# (In game time: the debug menu can speed the game up offline.)
 	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.shot_gap() * 0.7:
 		return
-	if weapon.is_melee() or weapon.is_projectile():
+	if weapon.is_melee() or weapon.is_projectile() or weapon.is_blast():
 		return
 	_last_shot_time[shooter] = now
 	var shooter_node: Player = Net.arena.get_player(shooter)
@@ -466,7 +464,6 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
 	var breaks := _breakables()
 
-	var pull := -1.0 if weapon.pull else 1.0   # the harpoon reels them in instead of pushing them away
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
 	var shove := {}    # target id -> knockback of this shot (each pellet pushes along its path)
@@ -474,93 +471,75 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var ends := PackedVector3Array()
 	var hit_mask := 0
 	var log := []
-	var vias := []     # per pellet: where it went into and came out of portals (Portals.path_bends)
-	var portals: Portals = Net.arena.get("portals")   # (a test's stand-in arena may have none)
 	for i in directions.size():
 		var direction := directions[i].normalized()
-		# Its path: to where it hits the level, through any portals on the way (each
-		# leg after a portal starts out of the other one, turned to match).
-		var legs: Array = portals.shot_path(space, origin, direction, weapon.max_range, 1) if portals \
-			else [{"a": origin, "b": origin + direction * weapon.max_range, "dir": direction,
-				"hit": space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * weapon.max_range, 1))}]   # layer 1: level only
-		var last: Dictionary = legs[legs.size() - 1]
-		var world_hit: Dictionary = last.hit
-		var end: Vector3 = last.b
-		vias.append(Portals.path_bends(legs))
+		# How far the pellet can travel before hitting the level (the railgun's slug
+		# goes through it all, its whole range).
+		var end := origin + direction * weapon.max_range
+		var world_hit := {} if weapon.pierce \
+			else space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, end, 1))  # layer 1: level only
 		var wall_cell := -1
-		if world_hit and breaks:
-			wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
-		var travelled := 0.0   # along the legs before this one (damage falls off with the whole way)
-		if weapon.pierce:   # the railgun: everyone along the line
-			for leg in legs:
-				var dir: Vector3 = leg.dir
-				for bb in bodies:
-					var hit := _ray_body(leg.a, leg.b, bb)
-					if hit.is_empty():
-						continue
-					hit_mask |= 1 << i
-					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
-					damage[bb[0]] = damage.get(bb[0], 0.0) + dmg
-					shove[bb[0]] = shove.get(bb[0], Vector3.ZERO) \
-						+ Vector3(dir.x, 0.0, dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
-					heads[bb[0]] = heads.get(bb[0], false) or hit.head
-					dirs[bb[0]] = dir
-					if DevArgs.sync_log:
-						log.append("hit %d at %.2f m%s" % [bb[0], hit.height, " head" if hit.head else ""])
-				travelled += (leg.a as Vector3).distance_to(leg.b)
-			if wall_cell >= 0:
-				breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
-			ends.append(end)
-			continue
-		# The nearest opponent the pellet passes through, leg by leg.
+		if world_hit:
+			end = world_hit.position
+			if breaks:
+				wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
+		# The nearest opponent the pellet passes through.
 		var best_target := 0
 		var best_dist := INF
 		var best_point := end
 		var best_head := false
 		var best_height := 0.0
-		var best_dir := direction
-		for leg in legs:
-			var la: Vector3 = leg.a
-			var lb: Vector3 = leg.b
-			for bb in bodies:
-				var feet: Vector3 = bb[1]
-				var height: float = bb[2]
-				var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
-				var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
-				var top := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
-				var pts := Geometry3D.get_closest_points_between_segments(la, lb, a, top)
-				if pts[0].distance_to(pts[1]) <= r:
-					var d := travelled + la.distance_to(pts[0])
-					if d < best_dist:
-						best_dist = d
-						best_target = bb[0]
-						best_point = pts[0]
-						best_height = pts[0].y - feet.y
-						best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
-						best_dir = leg.dir
-			if best_target != 0:
-				# Hit on this leg: the path stops here (the portals after it are not reached).
-				var cut := legs.find(leg)
-				vias[i] = Portals.path_bends(legs.slice(0, cut + 1))
-				break
-			travelled += la.distance_to(lb)
+		if weapon.pierce:   # the railgun: everyone and everything along the line
+			for b in bodies:
+				var hit := _ray_body(origin, end, b)
+				if hit.is_empty():
+					continue
+				hit_mask |= 1 << i
+				var dmg := weapon.damage_at(hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
+				damage[b[0]] = damage.get(b[0], 0.0) + dmg
+				shove[b[0]] = shove.get(b[0], Vector3.ZERO) \
+					+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
+				heads[b[0]] = heads.get(b[0], false) or hit.head
+				dirs[b[0]] = direction
+				if DevArgs.sync_log:
+					log.append("hit %d at %.2f m%s" % [b[0], hit.height, " head" if hit.head else ""])
+			if breaks:   # every breakable piece of wall and floor it goes through
+				for into in breaks.cells_along(origin, end):
+					breaks.damage(into[0], weapon.damage_at(float(into[1])) * weapon.structure_damage)
+			ends.append(end)
+			continue
+		for b in bodies:
+			var feet: Vector3 = b[1]
+			var height: float = b[2]
+			var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
+			var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
+			var top := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
+			var pts := Geometry3D.get_closest_points_between_segments(origin, end, a, top)
+			if pts[0].distance_to(pts[1]) <= r:
+				var d := origin.distance_to(pts[0])
+				if d < best_dist:
+					best_dist = d
+					best_target = b[0]
+					best_point = pts[0]
+					best_height = pts[0].y - feet.y
+					best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 		if best_target != 0:
 			end = best_point
 			hit_mask |= 1 << i
 			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
-				+ Vector3(best_dir.x, 0.0, best_dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
+				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
-			dirs[best_target] = best_dir
+			dirs[best_target] = direction
 		elif wall_cell >= 0:
-			breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
+			breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
 		ends.append(end)
 		if DevArgs.sync_log:
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
 	if aim.length_squared() < 0.0001:
 		aim = directions[0]
-	_shot_effect.rpc(shooter, origin, ends, hit_mask, aim.normalized(), vias)
+	_shot_effect.rpc(shooter, origin, ends, hit_mask, aim.normalized())
 	_flush_breaks()
 	for id in damage:
 		if is_dummy(id):
@@ -672,15 +651,6 @@ func _physics_process(delta: float) -> void:
 					at = pts[0]
 					head = pts[0].y - b[1].y >= b[2] - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
-		# Into a portal before anything else: out of the other one, turned to match
-		# (Projectile flies its look through the same way on every copy).
-		var gates: Portals = Net.arena.get("portals")   # (a test's stand-in arena may have none)
-		var gate: Dictionary = gates.crossing(from, to) if gates else {}
-		if gate and from.distance_to(gate.at) < best and (not wall or from.distance_to(gate.at) <= from.distance_to(wall.position) + 0.05):
-			var through := Projectile.through_portal(gate, from, to, p.vel)
-			p.pos = through[0]
-			p.vel = through[1]
-			continue
 		if wall and from.distance_to(wall.position) < best:
 			_host_explode(id, wall.position + wall.normal * 0.05, 0, wall.collider, wall.normal)
 		elif direct != 0:
@@ -760,6 +730,63 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 @rpc("authority", "call_local", "reliable")
 func _projectile_boom(id: int, at: Vector3, weapon_id: String) -> void:
 	exploded.emit(id, at, weapon_id)
+
+
+# ---------------------------------------------------------------------------
+# Air blasts (WeaponData.Kind.BLAST: the air cannon; see AirBlast)
+
+## Called by the local player (or a bot) when it lets go of a charged blast: from the
+## eyes, toward where it aims, charged `charge` 0..1. Like a shot, it says when it was
+## seeing each opponent.
+func request_blast(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float, shooter: int = 0) -> void:
+	if Net.is_host():
+		_host_blast(shooter if shooter != 0 else Net.my_id(), origin, direction, view_times, charge)
+	else:
+		_blast_request.rpc_id(1, origin, direction, view_times, charge)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _blast_request(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
+	if Net.is_host():
+		_host_blast(multiplayer.get_remote_sender_id(), origin, direction, view_times, charge)
+
+
+## Shoves everyone in the cone it can see; hurts nobody (a crash or fall it causes is
+## the shooter's: see _host_shove). Everyone is shown it like a shot: its streaks of air.
+func _host_blast(shooter: int, origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
+	if not running or not is_alive(shooter) or not Net.arena or Race.active or not direction.is_finite() \
+			or direction.length_squared() < 0.0001:
+		return
+	var weapon := WeaponData.by_id(Net.player_weapon(shooter))
+	if not weapon.is_blast():
+		return
+	var now := Net.now()
+	var since: float = (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale
+	if since < weapon.fire_interval * 0.7:
+		return
+	var who: Player = Net.arena.get_player(shooter)
+	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
+		return
+	_last_shot_time[shooter] = now
+	# Nobody can have charged for longer than it has been since their last blast.
+	charge = clampf(charge, 0.0, weapon.charge_of(since)) if is_finite(charge) else 0.0
+	direction = direction.normalized()
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var clear := func(a: Vector3, b: Vector3) -> bool:
+		return space.intersect_ray(PhysicsRayQueryParameters3D.create(a, b, 1)).is_empty()   # layer 1: the level
+	var hits := AirBlast.hits(origin, direction, _rewound_bodies(shooter, view_times), weapon, charge, clear)
+	var ends := AirBlast.fan(space, origin, direction, weapon, charge)
+	var hit_mask := 0
+	for h in hits:
+		hit_mask |= 1 << ends.size()
+		ends.append(h.at)
+	if DevArgs.sync_log:
+		print("BLAST %d %s %d charge %.2f" % [shooter, weapon.id, hits.size(), charge])
+		print("SHOT %d %s" % [shooter, ("hit %d at blast" % hits[0].id) if not hits.is_empty() else "miss"])
+	_shot_effect.rpc(shooter, origin, ends, hit_mask, direction, [])
+	for h in hits:
+		if not is_dummy(h.id):   # (a target dummy stands its ground)
+			_host_shove(shooter, h.id, h.push, weapon.id)
 
 
 ## Everyone `attacker` could hit, each moved back to where `attacker` saw them:
@@ -1194,17 +1221,23 @@ func _host_slam(id: int, speed: float, where: Vector3) -> void:
 	_last_slam_time[id] = now
 	var amount := minf((minf(speed, 90.0) - SLAM_SPEED) * SLAM_DAMAGE, SLAM_MAX)
 	# Shoved into it? Then whoever shoved you gets the hit (and the kill).
-	var by := id
-	var with := ""   # what threw them into it (see death_fx)
-	var shove: Array = _last_shove.get(id, [])
-	if not shove.is_empty() and now - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
-		by = shove[0]
-		with = str(shove[2]) if shove.size() > 2 else ""
+	var shover := _shoved_by(id)
+	var by: int = shover[0] if shover[0] != 0 else id
+	var with: String = shover[1]   # what threw them into it (see death_fx)
 	_slam_effect.rpc(id, where, speed)
 	if DevArgs.sync_log:
 		print("SLAM %d %.1f m/s %.0f damage by %d" % [id, speed, amount, by])
 	if amount >= 1.0:
 		_host_damage(by, id, amount, false, "slam", {"with": with})
+
+
+## Who shoved `id` in the last SHOVE_CREDIT seconds, and with what: [their id, with]
+## ([0, ""] if nobody). A crash or a fall soon after is theirs.
+func _shoved_by(id: int) -> Array:
+	var shove: Array = _last_shove.get(id, [])
+	if not shove.is_empty() and Net.now() - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
+		return [int(shove[0]), str(shove[2]) if shove.size() > 2 else ""]
+	return [0, ""]
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -1221,12 +1254,12 @@ func _clamped_view_time(target: Player, t: float) -> float:
 
 
 @rpc("authority", "call_local", "unreliable")
-func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_mask: int, aim: Vector3, vias: Array) -> void:
+func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_mask: int, aim: Vector3) -> void:
 	shot_aimed.emit(shooter, muzzle, aim)
 	var hits := []
 	for i in ends.size():
 		hits.append(hit_mask & (1 << i) != 0)
-	shot_fired.emit(shooter, muzzle, ends, hits, vias)
+	shot_fired.emit(shooter, muzzle, ends, hits)
 
 
 # ---------------------------------------------------------------------------
@@ -1331,7 +1364,10 @@ func _host_fell(id: int) -> void:
 		return   # in a race you go back to your checkpoint instead (see Race)
 	if running and is_alive(id):
 		health[id] = 0.0
-		_host_kill(id, 0, "fell")
+		# Shoved off (blasted, kicked, hit...)? Then whoever shoved you gets the kill, as for a crash.
+		var shover := _shoved_by(id)
+		var by: int = shover[0] if shover[0] != id else 0
+		_host_kill(id, by, "fell", false, _death_fx(by, id, "fell", false, 0.0, {"with": shover[1]}) if by != 0 else {})
 
 
 ## `fx`: see death_fx (from _death_fx; a death without one tells nothing more).

@@ -449,13 +449,13 @@ const MOVES := {
 }
 ## How long the blow, follow-through and recovery take, against the sword's.
 const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6, "brass_knuckles": 0.55, "spear": 0.85, "axe": 1.15, "bat": 1.1,
-	"katana": 0.8, "scythe": 1.2, "mace": 1.05, "machete": 0.7, "wrench": 0.9, "energy_sword": 0.85, "claws": 0.5,
+	"scythe": 1.2, "mace": 1.05, "machete": 0.7, "wrench": 0.9, "energy_sword": 0.85,
 	"karate": 0.62}
-## The newer blades swing like one of the first seven: the katana, machete and energy
-## sword cut like the longsword, the mace and wrench like the hammer, the scythe sweeps
-## wide like the bat, and the claws strike like the brass knuckles.
-const MOVES_LIKE := {"katana": "sword", "machete": "sword", "energy_sword": "sword", "mace": "hammer",
-	"wrench": "hammer", "scythe": "bat", "claws": "brass_knuckles"}
+## The newer blades swing like one of the first seven: the machete and energy sword
+## cut like the longsword, the mace and wrench like the hammer, and the scythe sweeps
+## wide like the bat.
+const MOVES_LIKE := {"machete": "sword", "energy_sword": "sword", "mace": "hammer",
+	"wrench": "hammer", "scythe": "bat"}
 ## One-handed weapons: where the left fist is held, up in a guard.
 const GUARD := Vector3(-0.13, -0.1, -0.3)
 ## Which way each elbow points (down, out and a little back), in the hold frame.

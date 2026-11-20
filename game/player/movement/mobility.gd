@@ -1,37 +1,32 @@
 class_name Mobility
 extends RefCounted
-## The mobility slot: the tool on your mobility button (right mouse), picked like
+## The mobility slot: the tool on your mobility button (middle mouse), picked like
 ## your weapon before a match and while you wait to respawn.
 ##
 ##  - grapple: the grappling hook (see Grapple): the hook is shot out and takes a
 ##             moment to fly there, trailing a slack line that pulls tight once it
 ##             has bitten. Swing, reel in, hook players (lead what you aim at).
-##  - portal:  the portal gun (see PortalGun and Portal): shoot two portals onto
-##             walls, floors or ceilings; walk into one and come out of the other
-##             with your speed carried through. Anyone can use anyone's portals.
 ##  - blink:   a short teleport where you look (see Blink), one charge that
 ##             comes back a couple of seconds after you use it.
-##  - jetpack: hold to fly (see Jetpack), on fuel that refills when you let go.
 ##
-## A race always uses the grapple: the courses are built around it.
+## The jetpack is not on this slot: everyone has it, on Space held in mid-air (see
+## Jetpack and MovementController.space_jet). A race always uses the grapple: the
+## courses are built around it.
 
 const GRAPPLE := "grapple"
-const PORTAL := "portal"
 const BLINK := "blink"
-const JETPACK := "jetpack"
-const IDS := [GRAPPLE, PORTAL, BLINK, JETPACK]
+const IDS := [GRAPPLE, BLINK]
 ## Ids that are no longer tools, and the tool a saved choice of one becomes: the
 ## projectile hook was "grapple2" (Grappling Hook 2) until it replaced the first
-## grappling hook.
+## grappling hook. (A saved pick of a tool that has since left the slot, such as the
+## jetpack, which everyone has now, is no tool at all: valid() makes it the default.)
 const RENAMED := {"grapple2": GRAPPLE}
 
-const NAMES := {GRAPPLE: "Grappling Hook", PORTAL: "Portal Gun", BLINK: "Blink", JETPACK: "Jetpack"}
-const SHORT := {GRAPPLE: "Grapple", PORTAL: "Portal Gun", BLINK: "Blink", JETPACK: "Jetpack"}
+const NAMES := {GRAPPLE: "Grappling Hook", BLINK: "Blink"}
+const SHORT := {GRAPPLE: "Grapple", BLINK: "Blink"}
 const BLURBS := {
 	GRAPPLE: "Shoot the hook out: it bites, the slack snaps tight and you swing. Hook a player to kick.",
-	PORTAL: "Shoot a blue and an orange portal onto any surface. Step in one, fly out the other at full speed. Up to 45 m apart.",
 	BLINK: "Teleport a few metres where you look, keeping your speed. A trail of sparks follows you there.",
-	JETPACK: "Hold to fly up and steer with WASD. Fuel refills when you let go, fastest on the ground.",
 }
 
 
@@ -39,7 +34,7 @@ static func default_id() -> String:
 	return GRAPPLE
 
 
-## Is this tool the rope? The others take the mobility button for themselves.
+## Is this tool the rope? Blink takes the mobility button for itself.
 static func is_grapple(id: String) -> bool:
 	return canonical(id) == GRAPPLE
 

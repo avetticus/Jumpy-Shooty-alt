@@ -28,7 +28,7 @@ const LOW_ANGLE := 0.72        ## radians a gun is lowered in the low hold
 const SHELLS := 2              ## a gun loaded a round at a time: this many go in before its last flourish
 
 ## The big guns and the long-handled weapons: too much to dangle from one hand.
-const SHOULDER_GUNS := ["rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon", "lmg", "minigun", "anti_materiel", "railgun"]
+const SHOULDER_GUNS := ["rocket_launcher", "grenade_launcher", "plasma_cannon", "lmg", "minigun", "anti_materiel", "railgun"]
 const SHOULDER_MELEE := ["hammer", "mace", "axe", "bat", "scythe", "spear"]
 
 ## Where the right hand's grip goes and how the weapon lies, in the chest's own frame at
@@ -289,7 +289,7 @@ func _lay_blade(pose: RobotPose, w: float, key: Array, both: bool) -> bool:
 	return true
 
 
-## Fists (brass knuckles, claws, bare hands): down from their guard to hang at the sides.
+## Fists (brass knuckles, bare hands): down from their guard to hang at the sides.
 func _drop_arms(pose: RobotPose, w: float) -> bool:
 	if w <= 0.0:
 		return false

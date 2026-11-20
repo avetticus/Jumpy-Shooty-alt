@@ -224,7 +224,6 @@ func build(with_meshes: bool = true) -> void:
 	_collect_dummies(self, Transform3D.IDENTITY)
 	has_meshes = with_meshes
 	_index_surfaces(pieces)
-	_index_decor(pieces)
 	current = self
 	if destructible:
 		destruction = MapDestruction.new()
@@ -435,86 +434,6 @@ static func _material_under(e: Dictionary, point: Vector3) -> String:
 		var axis := up.abs().max_axis_index()
 		normal[axis] = signf(up[axis])
 	return faces.get(MapBlock.face_key(normal * (e.scale as Vector3)), e.material)
-
-var _decor := {}   # Vector2i bucket -> [{xf: Transform3D, half: Vector3}]: the blocks that are drawn but not solid
-
-
-## Files the map's decoration (blocks that are drawn but not solid: a container's ribs,
-## a sign on a wall, trim) by where it is, for decor_relief().
-func _index_decor(pieces: Array) -> void:
-	_decor = {}
-	for p in pieces:
-		if p.solid or p.get("hidden", false):
-			continue
-		var xf: Transform3D = p.xf
-		var half: Vector3 = p.size * 0.5
-		var box: AABB = xf * AABB(-half, p.size)
-		var lo := Vector2i(floori(box.position.x / SURFACE_BUCKET), floori(box.position.z / SURFACE_BUCKET))
-		var hi := Vector2i(floori(box.end.x / SURFACE_BUCKET), floori(box.end.z / SURFACE_BUCKET))
-		if (hi - lo).length() > 30:
-			continue   # a backdrop: nothing a portal sits on
-		var entry := {"xf": xf, "half": half}
-		for x in range(lo.x, hi.x + 1):
-			for z in range(lo.y, hi.y + 1):
-				var key := Vector2i(x, z)
-				if not _decor.has(key):
-					_decor[key] = []
-				_decor[key].append(entry)
-
-
-## How far the map's decoration sticks out of a surface under an oval: `frame` is the
-## oval's (x right, y up, z out of the surface, its origin on the surface), `half_w` and
-## `half_h` its half size. The furthest any decoration lying on the surface there
-## reaches in front of it (metres), leaving out what reaches further than `reach` (a
-## lamp on a bracket, a banner: not part of the surface). 0 if there is none. Rays do
-## not find decoration (it has no collision): a portal asks this to stand clear of it
-## (see PortalFit).
-func decor_relief(frame: Transform3D, half_w: float, half_h: float, reach: float) -> float:
-	var out := 0.0
-	var to_map := global_transform.affine_inverse() if is_inside_tree() else Transform3D.IDENTITY
-	var local := to_map * frame
-	var inv := local.affine_inverse()
-	var r := maxf(half_w, half_h) + reach
-	var lo := Vector2i(floori((local.origin.x - r) / SURFACE_BUCKET), floori((local.origin.z - r) / SURFACE_BUCKET))
-	var hi := Vector2i(floori((local.origin.x + r) / SURFACE_BUCKET), floori((local.origin.z + r) / SURFACE_BUCKET))
-	var seen := {}
-	for bx in range(lo.x, hi.x + 1):
-		for bz in range(lo.y, hi.y + 1):
-			for e: Dictionary in _decor.get(Vector2i(bx, bz), []):
-				if seen.has(e):
-					continue
-				seen[e] = true
-				out = maxf(out, _relief_of(inv * (e.xf as Transform3D), e.half, half_w, half_h, reach))
-	# The moving parts' own decoration, where they are now.
-	for m in movers:
-		var body: Node3D = m.body
-		if body == null or not is_instance_valid(body) or not body.is_inside_tree():
-			continue
-		var in_body := (to_map * body.global_transform).affine_inverse() * local
-		if not (m.bounds as AABB).grow(r + 1.0).has_point(in_body.origin):
-			continue
-		var body_inv := in_body.affine_inverse()
-		for piece in m.pieces:
-			if not piece.solid and not piece.get("hidden", false):
-				out = maxf(out, _relief_of(body_inv * (piece.xf as Transform3D), (piece.size as Vector3) * 0.5, half_w, half_h, reach))
-	return out
-
-
-## One block (`xf` in the oval's frame, `half` its half size): how far it reaches in
-## front of the oval's plane, if it lies on the surface under the oval; else 0.
-static func _relief_of(xf: Transform3D, half: Vector3, half_w: float, half_h: float, reach: float) -> float:
-	var b := xf.basis
-	var c := xf.origin
-	var ez := absf(b.x.z) * half.x + absf(b.y.z) * half.y + absf(b.z.z) * half.z
-	var top := c.z + ez
-	if top <= 0.004 or top > reach or c.z - ez > 0.12:
-		return 0.0   # behind the surface, standing too far out, or hanging in front of it
-	var ex := absf(b.x.x) * half.x + absf(b.y.x) * half.y + absf(b.z.x) * half.z
-	var ey := absf(b.x.y) * half.x + absf(b.y.y) * half.y + absf(b.z.y) * half.z
-	# The point of the block's outline (seen straight on) nearest the oval's middle.
-	var px := clampf(0.0, c.x - ex, c.x + ex) / half_w
-	var py := clampf(0.0, c.y - ey, c.y + ey) / half_h
-	return top if px * px + py * py <= 1.0 else 0.0
 
 
 ## What is at `point` (or just under it, within `below` metres): a BlockMaterials

@@ -806,7 +806,7 @@ func _apply_weapon(id: int, weapon: String) -> void:
 		players_changed.emit()
 
 
-## Pick the mobility tool (an id from Mobility): the grapple, the portal gun or blink.
+## Pick the mobility tool (an id from Mobility): the grapple or blink.
 ## Same rules as the weapon: in the lobby, or during a fight while you are dead.
 func set_my_mobility(mobility: String) -> void:
 	_local_mobility = Mobility.valid(mobility)
@@ -1427,47 +1427,6 @@ func _map_state_request() -> void:
 	for i in terminals.size():
 		var t := terminals[i] as MapTerminal
 		send_terminal_state(i, t.phase, t.channeler, t.progress, to)
-	if arena and is_instance_valid(arena) and arena.portals:   # ...and where everyone's portals are
-		for owner in arena.portals.owners():
-			for slot in 2:
-				var p: Portal = arena.portals.get_portal(owner, slot)
-				if p:
-					var on: Array = arena.portals.carrier_of(p, arena)
-					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y, on[0], on[1])
-
-
-# ---------------------------------------------------------------------------
-# Portals (see PortalGun and Portals). The copy that runs a player (you, or the
-# host for a bot) places their portals and tells everyone; each copy moves its own
-# players through them. They go on every copy by itself when their owner dies.
-
-## The local player `owner` (you, or one of the host's bots) put a portal up. One on a
-## moving part of the map rides it (see Portal.follow): the message says which part and
-## where on it, so it lands on the same spot of it on every copy, wherever the part has
-## got to by the time the message arrives.
-func place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
-	var on: Array = ["", Transform3D.IDENTITY]
-	if arena and is_instance_valid(arena) and arena.portals:
-		arena.portals.place(owner, slot, at, normal, up)
-		on = arena.portals.carrier_of(arena.portals.get_portal(owner, slot), arena)
-	if is_online:
-		_place_portal.rpc(owner, slot, at, normal, up, on[0], on[1])
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
-	var sender := multiplayer.get_remote_sender_id()
-	if sender != owner and not (sender == host_id() and is_bot(owner)):
-		return   # only a player's own copy places their portals
-	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
-		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
-
-
-## Host to a copy that has just joined: a portal that is already up.
-@rpc("authority", "call_remote", "reliable")
-func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
-	if arena and is_instance_valid(arena) and arena.portals:
-		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame, false)   # (already up: nobody just shot it)
 
 
 # ---------------------------------------------------------------------------

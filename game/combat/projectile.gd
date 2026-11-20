@@ -1,12 +1,11 @@
 class_name Projectile
 extends Node3D
-## A rocket, grenade, flare, mortar shell, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
+## A rocket, grenade, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
 ## of the same flight in Match and decides where it blows up; this one is the look:
-## a body with a glowing tail and a trail of smoke, flying the same path (the same
+## a body with a glowing tail and a trail of smoke (a bolt: a streak, BoltTrail), flying the same path (the same
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
 
 const BLEND := 0.12   ## seconds to slide from the muzzle onto the real flight path
-const SHOT_EXIT := 0.03   ## Portals.SHOT_EXIT: out of a portal this far in front of it
 
 var id := 0
 var weapon: WeaponData
@@ -15,6 +14,8 @@ var _vel := Vector3.ZERO
 var _offset := Vector3.ZERO   # muzzle minus eyes, shrinking to nothing
 var _t := 0.0
 var _smoke_t := 0.0
+var _color := Color.WHITE
+var _trail: BoltTrail          # a bolt's streak (beside it, in the same parent, so it can outlast it)
 
 
 static func make(projectile_id: int, data: WeaponData, origin: Vector3, direction: Vector3, muzzle: Vector3, color: Color) -> Projectile:
@@ -25,24 +26,49 @@ static func make(projectile_id: int, data: WeaponData, origin: Vector3, directio
 	p._pos = origin
 	p._vel = direction.normalized() * data.projectile_speed
 	p._offset = muzzle - origin if muzzle != Vector3.INF else Vector3.ZERO
+	p._color = color
 	p._build(color)
 	return p
+
+
+func _ready() -> void:
+	if weapon.look() == "bolt":
+		_add_trail.call_deferred()   # (the parent may still be busy adding us)
+
+
+## A bolt's streak, made only once the bolt is in the world (so none is left behind
+## by a bolt that never was).
+func _add_trail() -> void:
+	var parent := get_parent()
+	if parent == null or not is_inside_tree() or is_queued_for_deletion():
+		return
+	var tint := weapon.tracer_color if weapon.tracer_color.a > 0.0 else _color
+	_trail = BoltTrail.new().setup(tint)
+	parent.add_child(_trail)
+	if _t > 0.0:   # (before its first step it is not where it flies yet)
+		_trail.follow(_tail(), 0.0)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_trail):
+		_trail.release()   # landed or gone: the streak fades out on its own
+
+
+## The back end of the body (the nose points along -Z).
+func _tail() -> Vector3:
+	return global_position + global_basis.z * 0.25
 
 
 func _build(color: Color) -> void:
 	match weapon.look():
 		"rocket":
 			_rocket(color)
-		"flare":
-			_glowing(0.06, Color(1.0, 0.35, 0.2), 6.0, Color(1.0, 0.4, 0.25), 3.0, 9.0)
 		"orb":
 			_glowing(0.16, Color(0.45, 0.7, 1.0), 4.0, Color(0.5, 0.75, 1.0), 2.0, 5.0)
 		"nail":
 			_dart(0.006, 0.16, color, 0.0)
 		"bolt":
 			_dart(0.012, 0.55, color, 0.07)
-		"shell":
-			_shell(color, 0.11)
 		_:
 			_shell(color, 0.07)
 
@@ -103,7 +129,7 @@ func _rocket(color: Color) -> void:
 	_lamp(Color(1.0, 0.6, 0.25), 1.6, 4.0, Vector3(0, 0, 0.24))
 
 
-## A grenade (or a mortar shell): a ball in the player's colour.
+## A grenade: a ball in the player's colour.
 func _shell(color: Color, radius: float) -> void:
 	var body := MeshInstance3D.new()
 	var ball := SphereMesh.new()
@@ -117,7 +143,7 @@ func _shell(color: Color, radius: float) -> void:
 	_light_ball(radius * 0.7, color, 4.0)
 
 
-## A flare or a ball of plasma: all light, and it lights up what it passes.
+## A ball of plasma: all light, and it lights up what it passes.
 func _glowing(radius: float, color: Color, energy: float, light: Color, light_energy: float, reach: float) -> void:
 	_light_ball(radius, color, energy)
 	_light_ball(radius * 1.8, Color(color, 0.35), energy * 0.5)
@@ -153,45 +179,18 @@ func _dart(radius: float, length: float, color: Color, fletch: float) -> void:
 			add_child(fin)
 
 
-## A step from `from` to `to` (moving at `vel`) that goes into a portal (`gate`, from
-## Portals.crossing): where it ends up and how it is moving, [position, velocity], out
-## of the other portal with the rest of the step. Host and look use the same sum.
-static func through_portal(gate: Dictionary, from: Vector3, to: Vector3, vel: Vector3) -> Array:
-	# (Untyped, and SHOT_EXIT by value: Portal and Portals need the game's autoloads, and
-	# tests load this script without them.)
-	var into = gate.from
-	var out = gate.to
-	var rest: Vector3 = (to - from) * (1.0 - float(gate.t))
-	var v: Vector3 = into.carry(out, vel)
-	var at: Vector3 = into.carry_point(out, gate.at) + out.normal * SHOT_EXIT + into.carry(out, rest)
-	return [at, v]
-
-
 ## Where the host's copy would be after `t` seconds (the same sum, step by step).
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_vel.y -= weapon.projectile_gravity * delta
-	var to := _pos + _vel * delta
-	var gate := {}
-	# (Net by its path, not its name: tests load this script without the game's autoloads.)
-	var net := get_node_or_null("/root/Net")
-	var arena: Node = net.arena if net else null
-	var portals = arena.get("portals") if arena and is_instance_valid(arena) else null
-	if portals and arena.is_ancestor_of(self):
-		gate = portals.crossing(_pos, to)
-	if gate:
-		gate.from.ripple()
-		gate.to.ripple()
-		var through := through_portal(gate, _pos, to, _vel)
-		_pos = through[0]
-		_vel = through[1]
-		_offset = Vector3.ZERO   # (no more drawing it out of the muzzle)
-	else:
-		_pos = to
+	_pos += _vel * delta
 	var k := clampf(1.0 - _t / BLEND, 0.0, 1.0)
 	global_position = _pos + _offset * k
 	if _vel.length_squared() > 0.01:
+		# Nose along the way it is going: a falling bolt tips nose down as it drops.
 		look_at(global_position + _vel, Vector3.UP if absf(_vel.normalized().y) < 0.99 else Vector3.RIGHT)
+	if is_instance_valid(_trail):
+		_trail.follow(_tail(), delta)
 	_smoke_t -= delta
 	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless" and weapon.explosive and weapon.look() != "orb":
 		_smoke_t = 0.025 if weapon.projectile_gravity <= 0.0 else 0.05

@@ -12,8 +12,7 @@ extends SceneTree
 ##    ring and the still islands, none that can see the rune altar;
 ##  - about 20 weapon pickups of 10 or more kinds, none near the altar, the heavy ones
 ##    outside or in the Observatory, those on orbiting chunks riding them;
-##  - the altar's terminal (a 2 s hold within 2 m) fires the Portal Surge: four pairs of
-##    ring gates, 2 s to open, 30 s open, 2 s to close, 60 s cooldown;
+##  - the rune altar and the eight ring gates are scenery: no terminal;
 ##  - three or four tractor-beam lifts at 9 m/s, each several tiers tall, each with a
 ##    bots' link to every floor it passes;
 ##  - the Engine's core is a hazard; the stained glass is the only thing that breaks;
@@ -344,30 +343,10 @@ func _pickups() -> void:
 
 func _objects() -> void:
 	print("  the altar, the gates, the lifts, the core")
-	var terminals := get_nodes_in_group(MapTerminal.GROUP)
-	_expect(terminals.size() == 1, "one terminal: the rune altar")
-	if terminals.size() == 1:
-		var t := terminals[0] as MapTerminal
-		_expect(is_equal_approx(t.channel_time, 2.0) and is_equal_approx(t.range, 2.0), "hold for 2 s within 2 m")
-		_expect(t.global_position.distance_to(ALTAR) < 1.0, "it stands in the middle of the Summoning Chamber (%s)" % t.global_position.snapped(Vector3(0.1, 0.1, 0.1)))
-		var e := t.get_node_or_null(t.event) as PortalSurgeEvent
-		_expect(e != null, "it fires the Portal Surge")
-		if e:
-			_expect(is_equal_approx(e.open_time, 2.0) and is_equal_approx(e.duration, 30.0) and is_equal_approx(e.close_time, 2.0) and is_equal_approx(e.cooldown, 60.0),
-				"2 s to open, 30 s open, 2 s to close, 60 s cooldown (%.0f s in all)" % e.length())
-			_expect(e.pair_count() == 4 and e.gates().size() == 8, "four pairs of ring gates (%d gates)" % e.gates().size())
-			var ends := {}
-			for g in e.gates():
-				var gate := g as MapRingGate
-				var p := gate.global_position
-				var where: String = "debris" if is_equal_approx(WorldGravity.zone_at(p), 0.4) else NAMES[int(p.y / TIER)]
-				ends[gate.pair] = ends.get(gate.pair, []) + [where]
-				if where == "debris":
-					_expect(map.mover_under(p) < 0, "pair %d's far gate stands on a still island" % gate.pair)
-			for pair in ends:
-				(ends[pair] as Array).sort()
-			_expect(ends.get(1) == ["Arcane Engine", "Observatory"] and ends.get(2) == ["Grand Library", "debris"]
-				and ends.get(3) == ["Alchemy Labs", "Summoning Chamber"] and ends.get(4) == ["Menagerie", "debris"], "the pairs: %s" % [ends])
+	# (The altar and the ring gates are scenery: nothing is started there, nothing opens in them.)
+	_expect(get_nodes_in_group(MapTerminal.GROUP).is_empty(), "no terminal: the altar and the ring gates are scenery")
+	var gate_rings := map.get_node_or_null("Gates")
+	_expect(gate_rings != null and gate_rings.get_child_count() == 8, "the eight ring gates still stand (%d)" % (gate_rings.get_child_count() if gate_rings else 0))
 	var lifts := get_nodes_in_group(MapLiftWell.GROUP)
 	_expect(lifts.size() >= 3 and lifts.size() <= 4, "three or four tractor-beam lifts (%d)" % lifts.size())
 	var reach := [INF, -INF]
@@ -390,7 +369,7 @@ func _objects() -> void:
 	var fields := map.find_children("*", "Node", true, false).filter(func(n): return n is MapMagicField)
 	var boxes := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapMagic)
 	var streams := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapMagicStream)
-	_expect(fields.size() == 1 and (fields[0] as MapMagicField).get_node_or_null((fields[0] as MapMagicField).event) is PortalSurgeEvent, "one magic field, livened by the Portal Surge")
+	_expect(fields.size() == 1, "one magic field")
 	_expect(boxes.size() >= 200 and streams.size() == 6, "%d boxes of living magic, the river and five threads off it (%d)" % [boxes.size(), streams.size()])
 	var kinds := {}
 	for b: MapMagic in boxes:
@@ -513,8 +492,8 @@ func _routes() -> void:
 		for p in [link.takeoff(), link.landing_point()]:
 			if NavigationServer3D.map_get_closest_point(nav, p).distance_to(p) > 1.2:
 				missed.append("%s/%s %s" % [link.get_parent().name, link.name, p.snapped(Vector3(0.1, 0.1, 0.1))])
-	_expect(kinds.get(MapJumpLink.How.LIFT, 0) >= 8 and kinds.get(MapJumpLink.How.GATE, 0) == 4 and kinds.get(MapJumpLink.How.GRAPPLE, 0) == 3,
-		"bots are told about the lifts (%d stops), two pairs of gates and the three ways back from the spawn islands" % kinds.get(MapJumpLink.How.LIFT, 0))
+	_expect(kinds.get(MapJumpLink.How.LIFT, 0) >= 8 and kinds.get(MapJumpLink.How.GRAPPLE, 0) == 3 and kinds.size() == 2,
+		"bots are told about the lifts (%d stops) and the three ways back from the spawn islands" % kinds.get(MapJumpLink.How.LIFT, 0))
 	_expect(missed.is_empty(), "every link starts and ends on floor a bot can stand on %s" % [missed])
 
 

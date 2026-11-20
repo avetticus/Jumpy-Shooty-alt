@@ -11,7 +11,7 @@ extends Node
 ##  - It tells the map's rune surfaces (the "masonry", "ring_flags" and "arcane_plates"
 ##    patterns) where those players are, and the runes within Reach that face them
 ##    glow brighter. (A wall's far side faces away, so it never shows through a wall.)
-##  - While the map's event runs (Event: a node with level_at(), like PortalSurgeEvent)
+##  - While the map's event runs (Event: a node with level_at(), running and elapsed)
 ##    it tells every box, stream and rune how far along it is, and they liven up.
 ##
 ## Who counts: every living player and bot, yours included, on every copy of the game

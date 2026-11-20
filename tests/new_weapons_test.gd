@@ -1,9 +1,8 @@
 extends SceneTree
-## Headless checks on the third batch of weapons (WeaponData.BATCH_3): there are 22,
+## Headless checks on the third batch of weapons (WeaponData.BATCH_3): there are 14,
 ## each is distinct from every other weapon and is in the pickers, the bots, the
 ## sounds, the HUD's icons and the robots' models; and their new ways of playing work:
-## the minigun spins up, the energy guns refill themselves and overheat, the harpoon
-## pulls, the darts (nails, bolts) hurt only who they hit, and Gun Game climbs through them.
+## the minigun spins up, the laser rifle refills itself and overheats, the darts (nails, bolts) hurt only who they hit, and Gun Game climbs through them.
 ## Run: godot --headless --path . --script tests/new_weapons_test.gd
 
 var _ok := true
@@ -16,8 +15,8 @@ func _init() -> void:
 	var gg_src := FileAccess.get_file_as_string("res://game/match/gun_game.gd")
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
-	_check(batch.size() == 22, "22 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 46, "46 weapons in all, Karate the last (%d)" % WeaponData.IDS.size())
+	_check(batch.size() == 14, "14 new weapons (%d)" % batch.size())
+	_check(WeaponData.IDS.size() == 38 and WeaponData.IDS[-1] == "karate", "38 weapons in all, Karate the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
@@ -25,8 +24,8 @@ func _init() -> void:
 		_check(not names.has(w.display_name), "%s: a name of its own (%s)" % [id, w.display_name])
 		names[w.display_name] = id
 		# No two weapons play the same: the numbers that matter differ somewhere.
-		var key := "%s|%s|%.1f|%d|%.2f|%d|%.1f|%.1f|%.2f|%s|%s" % [w.kind, w.automatic, w.damage, w.pellets, w.fire_interval,
-			w.magazine, w.max_range, w.charge_damage, w.spin_up + w.recharge, w.pull, w.explosive]
+		var key := "%s|%s|%.1f|%d|%.2f|%d|%.1f|%.1f|%.2f|%s" % [w.kind, w.automatic, w.damage, w.pellets, w.fire_interval,
+			w.magazine, w.max_range, w.charge_damage, w.spin_up + w.recharge, w.explosive]
 		_check(not looks.has(key), "%s: plays differently from %s" % [id, looks.get(key, "")])
 		looks[key] = id
 	for id in batch:
@@ -61,7 +60,7 @@ func _init() -> void:
 	_check(_shots_in(WeaponState.new(mini), 1.0, 1.0) >= 16, "minigun: spun up, about 20 rounds a second")
 
 	# Energy guns: never reload while you keep the battery from running flat; flat, they overheat.
-	for id in ["plasma_pistol", "laser_rifle"]:
+	for id in ["laser_rifle"]:
 		var w := WeaponData.by_id(id)
 		s = WeaponState.new(w)
 		for i in 5:
@@ -79,25 +78,22 @@ func _init() -> void:
 		_step(s, w.reload_time + 0.05)
 		_check(s.ammo == w.magazine and s.can_fire(), "%s: cooled down, full again" % id)
 
-	# The harpoon pulls; the air cannon shoves hard enough to kill by the wall.
-	var harpoon := WeaponData.by_id("harpoon_gun")
-	_check(harpoon.pull and harpoon.knockback > 10.0, "harpoon: reels the target in")
+	# The air cannon hurts nobody, but a full charge shoves hard enough to kill by the
+	# wall (more in tests/air_cannon_test.gd).
 	var air := WeaponData.by_id("air_cannon")
-	_check(air.damage * air.pellets < 25.0 and air.knockback * air.pellets > 30.0, "air cannon: barely hurts, shoves hard")
+	_check(air.is_blast() and air.damage == 0.0 and air.blast_knockback(1.0, 0.0)[0] > 30.0, "air cannon: hurts nobody, a full charge shoves hard")
 	# Darts: no blast; the crossbow kills with a headshot.
 	for id in ["nail_gun", "crossbow"]:
 		var w := WeaponData.by_id(id)
 		_check(w.is_projectile() and not w.explosive and w.self_damage == 0.0, "%s: a dart, no blast" % id)
 	var bow := WeaponData.by_id("crossbow")
 	_check(bow.damage < 100.0 and bow.damage * bow.headshot_multiplier >= 100.0, "crossbow: a headshot kills, a body shot does not")
-	for id in ["flare_gun", "mortar", "plasma_cannon"]:
-		_check(WeaponData.by_id(id).is_projectile() and WeaponData.by_id(id).explosive, "%s: flies and bursts" % id)
-	_check(WeaponData.by_id("mortar").splash_radius > WeaponData.by_id("rocket_launcher").splash_radius, "mortar: the biggest blast")
+	_check(WeaponData.by_id("plasma_cannon").is_projectile() and WeaponData.by_id("plasma_cannon").explosive, "plasma cannon: flies and bursts")
 	var looks_of := {}
 	for id in WeaponData.GUNS:
 		if WeaponData.by_id(id).is_projectile():
 			looks_of[WeaponData.by_id(id).look()] = true
-	_check(looks_of.size() >= 7, "projectiles: seven looks (%s)" % [looks_of.keys()])
+	_check(looks_of.size() >= 5, "projectiles: five looks (%s)" % [looks_of.keys()])
 	var derringer := WeaponData.by_id("derringer")
 	_check(derringer.magazine == 2 and derringer.damage * 2.0 >= 100.0 and derringer.damage_at(30.0) * 2.0 < 50.0,
 		"derringer: both shots kill up close, not far away")
@@ -107,7 +103,6 @@ func _init() -> void:
 	_check(WeaponData.by_id("energy_sword").charge_damage * 2.0 >= 100.0 and WeaponData.by_id("energy_sword").charge_knockback < 17.5,
 		"energy sword: two full swings kill, but it never slams anyone into a wall")
 	_check(WeaponData.by_id("scythe").arc_degrees > WeaponData.by_id("bat").arc_degrees, "scythe: the widest swing")
-	_check(WeaponData.by_id("claws").fire_interval < WeaponData.by_id("brass_knuckles").fire_interval, "claws: the fastest swing")
 
 	# Gun Game: every rung a real gun, no repeats, ends on the knuckles, and the new guns are on it.
 	var seen := {}
@@ -116,10 +111,65 @@ func _init() -> void:
 		seen[id] = true
 	_check(ladder[-1] == "brass_knuckles", "gun game: ends with the knuckles")
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
-	_check(new_rungs >= 10, "gun game: climbs through the new guns too (%d)" % new_rungs)
+	_check(new_rungs >= 7, "gun game: climbs through the new guns too (%d)" % new_rungs)
 
+
+## (Once the tree is up: a bolt has to fly in the world.)
+func _initialize() -> void:
+	_finish.call_deferred()
+
+
+func _finish() -> void:
+	await process_frame
+	_crossbow_arc(WeaponData.by_id("crossbow"))
 	print("NEW WEAPONS TEST PASSED" if _ok else "NEW WEAPONS TEST FAILED")
 	quit(0 if _ok else 1)
+
+
+## The crossbow's bolt falls in a clear arc you aim above (but can still reach far
+## with), tips nose down as it drops, and leaves a streak along its curve that outlives
+## it and fades out after it lands.
+func _crossbow_arc(bow: WeaponData) -> void:
+	var drop := func(metres: float) -> float: return 0.5 * bow.projectile_gravity * pow(metres / bow.projectile_speed, 2.0)
+	_check(drop.call(30.0) > 1.0 and drop.call(50.0) > 2.5, "crossbow: a bolt drops clearly (%.1f m at 30 m, %.1f m at 50 m)" % [drop.call(30.0), drop.call(50.0)])
+	_check(drop.call(50.0) < 8.0 and pow(bow.projectile_speed, 2.0) / bow.projectile_gravity > 200.0,
+		"crossbow: and long shots are still on (a %.0f m lob at 45 degrees)" % (pow(bow.projectile_speed, 2.0) / bow.projectile_gravity))
+	_check(bow.fuse * bow.projectile_speed > 300.0, "crossbow: flies long enough for its arc to play out (%.1f s)" % bow.fuse)
+	var step := 1.0 / 120.0
+	var bolt := Projectile.make(1, bow, Vector3(0, 50, 0), Vector3(0, 0, -1), Vector3.INF, Color(0.9, 0.2, 0.2))
+	root.add_child(bolt)
+	bolt.set_physics_process(false)
+	bolt._add_trail()
+	var trail: BoltTrail = bolt._trail
+	_check(trail != null and trail.get_parent() == root, "crossbow: a bolt has a streak beside it (not under it)")
+	bolt._physics_process(step)
+	var first_nose := -bolt.global_basis.z
+	var t := step
+	while t < 50.0 / bow.projectile_speed:
+		bolt._physics_process(step)
+		t += step
+	var fell := 50.0 - bolt.global_position.y
+	_check(absf(fell - 0.5 * bow.projectile_gravity * t * t) < 0.15, "crossbow: it falls all the way from the start (%.2f m after %.2f s)" % [fell, t])
+	var nose := -bolt.global_basis.z
+	_check(first_nose.y > -0.01 and nose.y < -0.1 and nose.dot(bolt._vel.normalized()) > 0.999,
+		"crossbow: the bolt points along its flight, nose down as it drops (%.2f then %.2f)" % [first_nose.y, nose.y])
+	if trail == null:
+		bolt.free()
+		return
+	var pts: Array = trail._points
+	_check(pts.size() >= 10, "crossbow: the streak keeps a point a metre or so (%d)" % pts.size())
+	if pts.size() >= 3:
+		var a: Vector3 = pts[0][0]
+		var b: Vector3 = pts[-1][0]
+		var mid: Vector3 = pts[pts.size() / 2][0]
+		var chord := a.lerp(b, (mid.z - a.z) / (b.z - a.z))
+		_check(mid.y > chord.y + 0.05, "crossbow: the streak follows the curve, not a straight line (%.2f m off it)" % (mid.y - chord.y))
+	bolt.free()   # it lands
+	_check(is_instance_valid(trail) and trail.is_released() and trail.points() > 0, "crossbow: the streak outlives the bolt")
+	trail._process(BoltTrail.LIFE * 0.5)
+	_check(trail.points() > 0 and not trail.is_queued_for_deletion(), "crossbow: and fades out, not all at once")
+	trail._process(BoltTrail.LIFE)
+	_check(trail.points() == 0 and trail.is_queued_for_deletion(), "crossbow: then it is gone")
 
 
 ## Rounds fired holding the trigger for `seconds`, with the barrels spun up `spin`.

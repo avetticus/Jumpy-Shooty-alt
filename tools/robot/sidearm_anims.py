@@ -8,21 +8,17 @@ and fingers, the gun's moving parts, and whatever the left hand brings to the gu
                      in, the cylinder flicked shut and one big slow spin forward
     Derringer        the barrels tip open and throw their empties, two rounds flipped in
                      off the thumb, snapped shut with a flick of the wrist
-    Flare Gun        broken open, the spent flare springs out, a new one pushed in, the
-                     wrist snaps it shut
-    Plasma Pistol    (overheated) the vent flap flies up, the gun is twirled twice to cool
-                     it, the left hand slaps the flap shut
     Akimbo           both cells flicked out sideways, the arms cross to push the guns down
                      on new cells, then uncross with both guns spinning together
 
-The game's side of each (what flies out, the glow, steam and smoke) is timed to these
+The game's side of each (what flies out, the glow and steam) is timed to these
 keys in game/combat/reload_fx.gd, and the sounds in game/audio/sfx_list.gd.
 """
 import numpy as np
 from m3 import norm, rx, rz, v
 from rig import FIST, GUN_REST, ZERO, _slerp_m, ease, keyed, merged
 import animations as A
-from weapons import DERRINGER_HINGE, FLARE_HINGE, PLASMA_VENT_PIVOT
+from weapons import DERRINGER_HINGE
 
 at, hand_at, moved, euler_of = A._at, A._hand_at, A._moved, A._euler_of
 PALM_L = A.PALM_L
@@ -319,109 +315,6 @@ def derringer(fp):
 
 
 # ---------------------------------------------------------------------------
-# Flare gun (1.1 s)
-
-FLARE = v(0.0, 0.062, -0.082)   # the middle of the flare, seated (gun space)
-
-
-def flare_gun(fp):
-    V = View(fp)
-    rest = V.rest_r
-    lift = V.right((0.0, 0.012, 0.0), (100.0, 4.0, 0.0), work=0.0)
-    snap = V.right((0.0, -0.01, 0.0), (68.0, 6.0, 0.0), -10.0)        # broken open with a snap of the wrist
-    show = V.right((-0.01, 0.0, 0.03), (98.0, 16.0, 0.0), 26.0)       # the breech turned up to the left hand
-    took = V.right((-0.006, -0.016, 0.026), (92.0, 15.0, 0.0), 24.0)  # the new flare pushed home
-    wind = V.right((0.0, -0.02, 0.01), (76.0, 8.0, 0.0), 6.0)
-    shut = V.right((0.0, 0.05, 0.0), (130.0, 6.0, 0.0), 4.0)          # the wrist snaps it shut
-    over = V.right((0.0, -0.01, 0.0), (84.0, 4.0, 0.0), work=0.0)
-    keys_r = [(0.0, rest), (0.04, lift), (0.11, snap, "out"), (0.18, moved(snap, (0.0, 0.008, 0.0), (74.0, 8.0, 0.0))), (0.30, show),
-              (0.54, show), (0.60, took, "out"), (0.67, show), (0.72, wind), (0.79, shut, "out"), (0.89, over), (0.98, rest), (1.1, rest)]
-    opened = -58.0
-    hinge = v(0.0, FLARE_HINGE[0], -FLARE_HINGE[1])
-    seat = hinge + rx(opened) @ (FLARE - hinge)   # where the flare sits with the barrel open
-    axis = rx(opened) @ v(0.0, 0.0, -1.0)         # the way into the open barrel
-
-    # The left hand holds the flare in its fist, nose down out of the bottom of it, and pushes it in from above.
-    def over_breech(back):
-        return V.fist_on(show, seat - axis * back, palm=(0.0, -0.53, 0.85), wrist=(-1.0, 0.15, 0.1))
-    keys_l = [(0.0, V.rest_l), (0.05, V.rest_l), (0.24, V.hip, "in"), (0.38, V.lift), (0.50, over_breech(0.15)), (0.60, over_breech(0.085), "in"),
-              (0.67, over_breech(0.14), "out"), (0.80, V.clear), (0.90, V.clear), (1.04, V.rest_l), (1.1, V.rest_l)]
-
-    def pose(t):
-        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
-        spec["fingers_r"] = "gun"
-        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.05, "wrap"), (0.16, "relaxed"), (0.28, "fist"), (0.58, "fist"),
-                                        (0.66, "relaxed", "out"), (0.9, "relaxed"), (1.04, "wrap")])
-        turn = at(t, [(0.0, 0.0), (0.06, 0.0), (0.12, opened - 8.0, "out"), (0.18, opened), (0.74, opened), (0.785, 0.0, "in")])
-        spec["vent"] = turn
-        spec["vent_pivot"] = FLARE_HINGE
-        spec.update(_hinged(turn, FLARE_HINGE))
-        spec["slide"] = 0.0
-        if not fp:
-            _body(spec, t, [(0.0, 0.0), (0.12, 4.0, "out"), (0.3, -4.0), (0.6, -7.0), (0.79, 3.0, "out"), (1.0, 0.0)],
-                  [(0.0, 0.0), (0.12, 4.0, "out"), (0.3, 0.0), (0.79, -4.0, "out"), (1.0, 0.0)])
-        if 0.12 <= t < 0.16:   # the spent one springs out of the breech (the game's own flying one takes over)
-            spec["mag"] = tuple(v(*spec["mag"]) - rx(turn) @ v(0.0, 0.0, -1.0) * at(t, [(0.12, 0.0), (0.16, 0.12, "linear")]))
-        elif 0.16 <= t < 0.60:   # the new one: in the left fist, then pushed down into the barrel
-            frames = A._frames(spec, V.space)
-            aim, grip = frames["gun"][0] @ GUN_REST, frames["gun"][1]
-            turn_h = frames["hand_l"][0]
-            # In the fist its nose points out of the bottom of the hand; on the way in it lines up with the barrel.
-            nose = turn_h @ v(0.0, 0.0, 1.0)
-            side = turn_h @ v(1.0, 0.0, 0.0)
-            in_fist = aim.T @ np.column_stack([np.cross(side, -nose), side, -nose])
-            u = at(t, [(0.16, 0.0), (0.47, 0.0), (0.60, 1.0, "in")])
-            middle = frames["fist_l"] + nose * 0.012
-            middle = middle + (grip + aim @ seat - middle) * u
-            _put(spec, aim, grip, middle, _slerp_m(in_fist, rx(opened), min(u * 2.5, 1.0)), FLARE)
-        return spec
-    return pose
-
-
-# ---------------------------------------------------------------------------
-# Plasma pistol, overheated (2.0 s): nothing goes in or out. The vent flap flies up, the
-# gun is twirled twice forward to cool it, and the left hand slaps the flap shut.
-
-FLAP = v(0.0, 0.099, 0.03)   # the top of the vent flap (gun space)
-
-
-def plasma_pistol(fp):
-    V = View(fp)
-    rest = V.rest_r
-    jolt = V.right((0.0, 0.03, 0.02), (112.0, 6.0, 0.0), -4.0, work=0.0)   # it kicks as it boils over
-    away = V.right((0.01, 0.0, -0.01), (100.0, 2.0, 0.0), -16.0)           # held out away from the body
-    low = V.right((0.01, -0.01, -0.02), (90.0, 2.0, 0.0), -4.0)
-    high = V.right((0.01, 0.025, -0.03), (96.0, 2.0, 0.0), -4.0)
-    catch = V.right((0.0, -0.022, 0.0), (85.0, 4.0, 0.0), V.cant, work=0.0)
-    level = V.right((0.0, 0.01, 0.0), (90.0, 6.0, 0.0), 4.0, work=0.6)     # offered to the left hand
-    slapped = moved(level, (0.0, -0.022, 0.0), (84.0, 6.0, 0.0))
-    keys_r = [(0.0, rest), (0.09, jolt, "out"), (0.26, away), (0.36, low), (0.56, high), (0.78, low), (1.0, high), (1.18, low),
-              (1.28, level), (1.44, level), (1.49, slapped, "out"), (1.60, level), (1.80, rest), (2.0, rest)]
-
-    def on_flap(off):
-        return V.palm_on(level, FLAP, (0.0, -1.0, 0.0), along=(1.0, 0.0, -0.3), off=off)   # from the left, across the top of the gun
-    shake = moved(V.out, (-0.02, 0.03, 0.0), (104.0, -20.0, 20.0))
-    keys_l = [(0.0, V.rest_l), (0.05, V.rest_l), (0.20, V.out, "out"), (0.30, shake), (0.40, V.out), (0.50, shake), (0.62, V.out),
-              (1.10, moved(V.out, (0.0, -0.03, 0.02))), (1.34, on_flap(0.12)), (1.45, on_flap(0.0), "in"), (1.52, on_flap(0.05), "out"),
-              (1.64, V.clear), (1.84, V.rest_l), (2.0, V.rest_l)]
-
-    def pose(t):
-        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
-        spec["fingers_r"] = hand_at(t, [(0.0, "gun"), (0.26, "gun"), (0.34, "trigger", "out"), (1.16, "trigger"), (1.26, "gun", "in")])
-        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.05, "wrap"), (0.16, "open", "out"), (0.62, "open"), (0.9, "relaxed"),
-                                        (1.3, "relaxed"), (1.42, "flat"), (1.52, "flat"), (1.66, "relaxed"), (1.84, "wrap")])
-        spec["vent"] = at(t, [(0.0, 0.0), (0.04, 0.0), (0.10, -68.0, "out"), (0.18, -54.0), (1.42, -54.0), (1.455, 0.0, "in")])
-        spec["vent_pivot"] = PLASMA_VENT_PIVOT
-        spec["slide"] = 0.0
-        _spin(spec, at(t, [(0.0, 0.0), (0.30, 0.0), (0.40, -70.0, "in"), (1.12, -650.0, "linear"), (1.24, -720.0, "out"), (2.0, -720.0)]))
-        if not fp:
-            _body(spec, t, [(0.0, 0.0), (0.1, 4.0, "out"), (0.3, 10.0), (1.1, 8.0), (1.45, -8.0, "in"), (1.7, -2.0), (1.9, 0.0)],
-                  [(0.0, 0.0), (0.1, -6.0, "out"), (0.3, -2.0), (1.2, -2.0), (1.45, 3.0), (1.8, 0.0)])
-        return spec
-    return pose
-
-
-# ---------------------------------------------------------------------------
 # Akimbo (2.0 s): a pistol in each fist. Both wrists flick outward and throw the cells out
 # to the sides, the arms cross low so each gun is pushed down on a new cell at the far
 # hip, and they uncross with both guns spinning forward together.
@@ -483,5 +376,4 @@ def akimbo(fp):
     return pose
 
 
-RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver, "derringer": derringer, "flare_gun": flare_gun,
-           "plasma_pistol": plasma_pistol}
+RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver, "derringer": derringer}
