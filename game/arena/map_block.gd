@@ -189,8 +189,16 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 
 const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch", "hull"]
 
+## Editor: how this block looks, in its own frame, for its map to draw merged with the
+## blocks round it (MapRoot.editor_draw): kind -> mesh arrays (MapMesher.build_arrays).
+## Empty while it is out of view.
+var editor_arrays := {}
+## Editor: drawn as a faint ghost (solid but not drawn), not in its kinds' colours.
+var editor_ghost := false
+
 var _fitting := false   # Size and Points are being matched to each other
-var _preview: MeshInstance3D
+var _preview: MeshInstance3D   # a mesh of its own: outside a map, or picked (see refresh_preview)
+var _drawn_by: MapRoot         # the map drawing it merged, or null
 var _triangles: TriangleMesh
 var _shaded_for := Basis()   # the world orientation the preview's face shading was made for
 
@@ -319,6 +327,13 @@ func move_face(face: int, reach: float, step: float) -> void:
 
 # ---------------------------------------------------------------------------
 # Editor preview (in the game the merged meshes take over)
+#
+# In the editor too a map draws its blocks merged, a few meshes for each stretch of it
+# (MapRoot.editor_draw): a mesh for each block of a map of thousands runs some graphics
+# drivers out of buffers, and Godot then crashes. A block gets a mesh of its own only
+# outside a map, or while the map tools have it picked (selected, or inside what is:
+# "map_tools_live", a list of instance ids). That one is quick to redraw while it is
+# dragged, and the editor draws its selection box round it.
 
 func _enter_tree() -> void:
 	if Engine.is_editor_hint():
@@ -326,11 +341,20 @@ func _enter_tree() -> void:
 		refresh_preview()
 
 
+func _exit_tree() -> void:
+	if _drawn_by:
+		_drawn_by.editor_forget(self)
+		_drawn_by = null
+
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSFORM_CHANGED and _preview != null:
-		# Moving needs nothing; turning changes which faces are shaded darker.
+	if what == NOTIFICATION_TRANSFORM_CHANGED and (_preview != null or _drawn_by != null):
+		# Turning changes which faces are shaded darker. Moving needs nothing of a block
+		# with a mesh of its own; one drawn merged is drawn again where it now is.
 		if not global_basis.orthonormalized().is_equal_approx(_shaded_for):
 			refresh_preview()
+		elif _drawn_by:
+			_drawn_by.editor_draw(self)
 
 
 func _changed() -> void:
@@ -344,40 +368,63 @@ func refresh_preview() -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree():
 		return
 	var root := MapRoot.of(self)
-	if _preview == null:
-		_preview = MeshInstance3D.new()
-		add_child(_preview, false, Node.INTERNAL_MODE_FRONT)
 	_shaded_for = global_basis.orthonormalized()
 	var piece := to_piece(Transform3D.IDENTITY)
 	piece.erase("hidden")
 	var shade := root.face_shade if root else Vector3.ONE
-	var meshes := MapMesher.build([piece], shade, _shaded_for)
-	var one_kind := meshes.size() == 1 and meshes.has(kind)
-	if one_kind:
-		_preview.mesh = meshes.get(kind)
-	else:
-		# Faces of other kinds (face_kinds): one surface for each kind, with its material.
-		var combined := ArrayMesh.new()
-		for k: String in meshes:
-			var arrays := (meshes[k] as ArrayMesh).surface_get_arrays(0)
-			combined.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
-			combined.surface_set_material(combined.get_surface_count() - 1, root.material_for(k) if root else MapRoot.fallback_material(k))
-		_preview.mesh = combined
+	var arrays := MapMesher.build_arrays([piece], shade, _shaded_for)
 	var shown := drawn or root == null or root.show_invisible_blocks
 	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
 		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
 	if shown and view_hides(self):
 		shown = false   # the map tools' Isolate Selection, or a layer put out of view
+	editor_ghost = not drawn
+	editor_arrays = arrays if shown else {}
+	_triangles = _triangles_of(editor_arrays)
+	var own := root == null or (Engine.get_meta(&"map_tools_live", {}) as Dictionary).has(get_instance_id())
+	if own:
+		_draw_own(root, arrays, shown)
+	elif _preview:
+		remove_child(_preview)
+		_preview.free()
+		_preview = null
+	var by: MapRoot = null if own else root
+	if _drawn_by and _drawn_by != by:
+		_drawn_by.editor_forget(self)
+	_drawn_by = by
+	if by:
+		by.editor_draw(self)
+	update_gizmos()
+
+
+## The block in a mesh of its own (a child of it): a surface for each kind, with its
+## material, or the ghost's for a block that is not drawn.
+func _draw_own(root: MapRoot, arrays: Dictionary, shown: bool) -> void:
+	if _preview == null:
+		_preview = MeshInstance3D.new()
+		add_child(_preview, false, Node.INTERNAL_MODE_FRONT)
+	var mesh := ArrayMesh.new()
+	for k: String in arrays:
+		var surface: Array = arrays[k]
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface, [], {}, MapMesher.surface_flags(surface))
+		var material: Material = MapRoot.ghost_material() if not drawn else (root.material_for(k) if root else MapRoot.fallback_material(k))
+		mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+	_preview.mesh = mesh
 	_preview.visible = shown
 	_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if not drawn:
-		_preview.material_override = MapRoot.ghost_material()
-	elif one_kind:
-		_preview.material_override = root.material_for(kind) if root else MapRoot.fallback_material(kind)
-	else:
-		_preview.material_override = null   # (each surface has its kind's)
-	_triangles = _preview.mesh.generate_triangle_mesh() if shown and _preview.mesh else null
-	update_gizmos()
+
+
+## What you click to select a block drawn with these arrays (in its own frame), or
+## null for none. (Made from the arrays themselves: reading a mesh back from the
+## graphics card is slow, and crashes on one the card had no room for.)
+static func _triangles_of(arrays: Dictionary) -> TriangleMesh:
+	var faces := PackedVector3Array()
+	for k in arrays:
+		faces.append_array((arrays[k] as Array)[Mesh.ARRAY_VERTEX])
+	if faces.is_empty():
+		return null
+	var triangles := TriangleMesh.new()
+	return triangles if triangles.create_from_faces(faces) else null
 
 
 ## Does the editor leave `node` out of view? The map tools' Layers can put a group out

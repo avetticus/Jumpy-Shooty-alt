@@ -1251,5 +1251,166 @@ func _palette_changed() -> void:
 		update_gizmos()
 
 
+# ---------------------------------------------------------------------------
+# Editor drawing: the blocks merged, as in the game. The map is cut into cubes
+# EDITOR_CUBE metres across; the blocks whose middles are in a cube are drawn in two
+# meshes, one for the drawn blocks (a surface for each kind) and one for the ghosts of
+# the solid-but-not-drawn ones. A block that changes or moves has its cube drawn again,
+# once a frame however many changed. (A mesh for each block ran some graphics drivers
+# out of buffers on a map of thousands, and Godot crashed: see MapBlock.)
+
+const EDITOR_CUBE := 32.0
+
+var _editor_cube_of := {}       # MapBlock -> Vector3i: the cube it is drawn in
+var _editor_cubes := {}         # Vector3i -> {MapBlock: true}
+var _editor_meshes := {}        # Vector3i -> [MeshInstance3D for the drawn, for the ghosts]
+var _editor_dirty := {}         # Vector3i -> true: to be drawn again
+var _editor_queued := false
+
+
+## Editor: draws `block` (its MapBlock.editor_arrays) merged with the blocks round it,
+## or again where it now is, as it now looks.
+func editor_draw(block: MapBlock) -> void:
+	var at := (global_transform.affine_inverse() * block.global_position)
+	var cube := Vector3i((at / EDITOR_CUBE).floor())
+	var was: Variant = _editor_cube_of.get(block)
+	if was != null and was != cube:
+		(_editor_cubes[was] as Dictionary).erase(block)
+		_editor_dirty[was] = true
+	_editor_cube_of[block] = cube
+	if not _editor_cubes.has(cube):
+		_editor_cubes[cube] = {}
+	_editor_cubes[cube][block] = true
+	_editor_dirty[cube] = true
+	_queue_editor_redraw()
+
+
+## Editor: `block` is no longer drawn merged (it left the map, or has a mesh of its own).
+func editor_forget(block: MapBlock) -> void:
+	var was: Variant = _editor_cube_of.get(block)
+	if was == null:
+		return
+	_editor_cube_of.erase(block)
+	(_editor_cubes[was] as Dictionary).erase(block)
+	_editor_dirty[was] = true
+	_queue_editor_redraw()
+
+
+## How many meshes the editor draws the merged blocks with (for the tests).
+func editor_mesh_count() -> int:
+	var n := 0
+	for pair: Array in _editor_meshes.values():
+		for m in pair:
+			if m != null:
+				n += 1
+	return n
+
+
+func _queue_editor_redraw() -> void:
+	if not _editor_queued:
+		_editor_queued = true
+		_editor_redraw.call_deferred()
+
+
+func _editor_redraw() -> void:
+	_editor_queued = false
+	if not is_inside_tree():
+		return   # (its blocks are drawn again when it is back: they come back with it)
+	var inverse := global_transform.affine_inverse()
+	for cube: Vector3i in _editor_dirty:
+		_editor_redraw_cube(cube, inverse)
+	_editor_dirty.clear()
+
+
+func _editor_redraw_cube(cube: Vector3i, inverse: Transform3D) -> void:
+	# lots[0]: the drawn blocks, lots[1]: the ghosts. Each kind -> [placed arrays, ...].
+	var lots := [{}, {}]
+	var blocks: Dictionary = _editor_cubes.get(cube, {})
+	for block: MapBlock in blocks:
+		if block.editor_arrays.is_empty():
+			continue
+		var xf := inverse * block.global_transform
+		var lot: Dictionary = lots[1 if block.editor_ghost else 0]
+		for kind: String in block.editor_arrays:
+			if not lot.has(kind):
+				lot[kind] = []
+			lot[kind].append(_placed(block.editor_arrays[kind], xf))
+	if blocks.is_empty():
+		_editor_cubes.erase(cube)
+	var pair: Array = _editor_meshes.get(cube, [null, null])
+	for i in 2:
+		var mesh := _merged(lots[i], i == 1)
+		if mesh == null:
+			if pair[i] != null:
+				(pair[i] as Node).queue_free()
+				pair[i] = null
+			continue
+		if pair[i] == null:
+			var instance := MeshInstance3D.new()
+			instance.name = "EditorCube_%d_%d_%d%s" % [cube.x, cube.y, cube.z, "_ghosts" if i == 1 else ""]
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if i == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			add_child(instance, false, Node.INTERNAL_MODE_FRONT)
+			pair[i] = instance
+		(pair[i] as MeshInstance3D).mesh = mesh
+	if pair[0] == null and pair[1] == null:
+		_editor_meshes.erase(cube)
+	else:
+		_editor_meshes[cube] = pair
+
+
+## One block's arrays for a kind (in its own frame), put where `xf` says.
+static func _placed(arrays: Array, xf: Transform3D) -> Array:
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	if xf.basis.is_conformal():
+		normals = Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * normals
+	else:
+		# Stretched: a normal goes by the inverse transpose, and needs its length back.
+		var turn := xf.basis.inverse().transposed()
+		var out := PackedVector3Array()
+		out.resize(normals.size())
+		for i in normals.size():
+			out[i] = (turn * normals[i]).normalized()
+		normals = out
+	return [xf * (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array), normals, arrays[Mesh.ARRAY_COLOR], arrays[Mesh.ARRAY_CUSTOM0]]
+
+
+## A mesh of these placed arrays (kind -> [placed, ...]), a surface for each kind: in
+## its kind's material, or all in the ghosts'. Null for none.
+func _merged(by_kind: Dictionary, ghosts: bool) -> ArrayMesh:
+	if by_kind.is_empty():
+		return null
+	var mesh := ArrayMesh.new()
+	for kind: String in by_kind:
+		var verts := PackedVector3Array()
+		var normals := PackedVector3Array()
+		var colors := PackedColorArray()
+		var custom := PackedFloat32Array()
+		var any_custom := false
+		for placed: Array in by_kind[kind]:
+			if placed[3] != null:
+				any_custom = true
+		for placed: Array in by_kind[kind]:
+			if any_custom:
+				if placed[3] != null:
+					custom.append_array(placed[3])
+				else:
+					var none := PackedFloat32Array()
+					none.resize((placed[0] as PackedVector3Array).size() * 4)
+					custom.append_array(none)
+			verts.append_array(placed[0])
+			normals.append_array(placed[1])
+			colors.append_array(placed[2])
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_COLOR] = colors
+		if any_custom:
+			arrays[Mesh.ARRAY_CUSTOM0] = custom
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
+		mesh.surface_set_material(mesh.get_surface_count() - 1, ghost_material() if ghosts else material_for(kind))
+	return mesh
+
+
 func _get_configuration_warnings() -> PackedStringArray:
 	return [] if palette else ["Give the map a palette (the colours of its block kinds)."]

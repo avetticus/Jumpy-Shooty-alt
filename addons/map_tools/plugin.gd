@@ -122,6 +122,7 @@ func _enter_tree() -> void:
 	get_undo_redo().history_changed.connect(_on_edited)   # this one fires when a step is first done
 	ctx.changed.connect(_on_context_changed)
 	EditorInterface.get_selection().selection_changed.connect(update_overlays)   # (the selected edges)
+	EditorInterface.get_selection().selection_changed.connect(_update_live)
 	EditorInterface.get_resource_filesystem().filesystem_changed.connect(_dock.refresh_prefabs)
 	_dock.refresh_prefabs()
 	_on_scene_changed(EditorInterface.get_edited_scene_root())
@@ -130,6 +131,8 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	scene_changed.disconnect(_on_scene_changed)
 	EditorInterface.get_selection().selection_changed.disconnect(update_overlays)
+	EditorInterface.get_selection().selection_changed.disconnect(_update_live)
+	_set_live({})
 	get_undo_redo().version_changed.disconnect(_on_edited)
 	get_undo_redo().history_changed.disconnect(_on_edited)
 	EditorInterface.get_resource_filesystem().filesystem_changed.disconnect(_dock.refresh_prefabs)
@@ -196,6 +199,43 @@ func _on_context_changed() -> void:
 
 func _selected() -> Array:
 	return EditorInterface.get_selection().get_selected_nodes()
+
+
+## The most blocks a selection gives meshes of their own. A map draws its blocks merged
+## in the editor (MapRoot.editor_draw); the picked ones get their own (MapBlock's
+## "map_tools_live"), so that dragging one redraws only it and the editor's selection
+## box goes round it. Past this many (a big group picked whole) the rest stay merged:
+## a mesh for each of thousands of blocks runs some graphics drivers out of buffers.
+const LIVE_MOST := 300
+
+
+## The selection changed: the blocks in it get meshes of their own, the ones that
+## left it go back to being drawn merged.
+func _update_live() -> void:
+	var live := {}
+	for n in _selected():
+		_gather_live(n, live)
+	_set_live(live)
+
+
+func _gather_live(node: Node, live: Dictionary) -> void:
+	if live.size() >= LIVE_MOST:
+		return
+	if node is MapBlock:
+		live[node.get_instance_id()] = true
+	for c in node.get_children():
+		_gather_live(c, live)
+
+
+func _set_live(live: Dictionary) -> void:
+	var was: Dictionary = Engine.get_meta(&"map_tools_live", {})
+	Engine.set_meta(&"map_tools_live", live)
+	for id: int in was.keys() + live.keys():
+		if was.has(id) == live.has(id):
+			continue
+		var block := instance_from_id(id) as MapBlock
+		if block and block.is_inside_tree():
+			block.refresh_preview()
 
 
 func _select(nodes: Array) -> void:

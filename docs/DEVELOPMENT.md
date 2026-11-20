@@ -902,6 +902,13 @@ practice mode on that map. In the game, all blocks of one kind are merged into a
 mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
 things needs no extra step.
 
+In the editor too a map draws its blocks merged, a few meshes for each 32 m cube of it
+(`MapRoot.editor_draw`); only the selected blocks (up to 300, counting those inside a
+selected group) get meshes of their own, so that they redraw quickly while dragged and
+the selection box goes round them. A mesh for every block ran some graphics drivers out
+of buffers on a map of thousands (Empyrean Tower has over 15,000), and Godot crashed
+opening it.
+
 The Construction Site's crane, the netting on its scaffold and steel, the cover in its
 yard and most of its dressing were written by `tools/arena/construction_site_revamp.gd`
 (run once; it is kept as a record and refuses to run again, like the Castle's). The

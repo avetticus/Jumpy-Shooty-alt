@@ -25,6 +25,22 @@ const BOX_FACES := [   # normal, then the two in-plane axes (u, v) with u x v = 
 
 ## kind -> ArrayMesh
 static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basis = Basis()) -> Dictionary:
+	var result := {}
+	var by_kind := build_arrays(pieces, shade, shade_basis)
+	for kind in by_kind:
+		var arrays: Array = by_kind[kind]
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
+		result[kind] = mesh
+	return result
+
+
+## kind -> the arrays for a mesh surface (Mesh.ARRAY_MAX long: corners, normals,
+## colours, and CUSTOM0 when a face's pattern is moved), as build() would put in its
+## mesh. Nothing is handed to the GPU: the editor keeps every block's arrays and
+## draws them merged (MapRoot's editor drawing), since a GPU mesh for each of a big
+## map's thousands of blocks runs some graphics drivers out of buffers.
+static func build_arrays(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basis = Basis()) -> Dictionary:
 	_shade = shade
 	_shade_basis = shade_basis
 	var by_kind := {}
@@ -57,9 +73,7 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 		arrays[Mesh.ARRAY_COLOR] = buf[2]
 		if buf[3] != null:
 			arrays[Mesh.ARRAY_CUSTOM0] = buf[3]
-		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, surface_flags(arrays))
-		result[kind] = mesh
+		result[kind] = arrays
 	return result
 
 
