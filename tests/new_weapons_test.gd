@@ -15,8 +15,8 @@ func _init() -> void:
 	var gg_src := FileAccess.get_file_as_string("res://game/match/gun_game.gd")
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
-	_check(batch.size() == 14, "14 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 38 and WeaponData.IDS[-1] == "karate", "38 weapons in all, Karate the last (%d)" % WeaponData.IDS.size())
+	_check(batch.size() == 8, "8 new weapons (%d)" % batch.size())
+	_check(WeaponData.IDS.size() == 30 and WeaponData.IDS[-1] == "energy_sword", "30 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
@@ -59,25 +59,6 @@ func _init() -> void:
 	_check(_shots_in(s, 1.0, 0.0) < _shots_in(WeaponState.new(mini), 1.0, 1.0) / 2, "minigun: spun down, it fires far slower")
 	_check(_shots_in(WeaponState.new(mini), 1.0, 1.0) >= 16, "minigun: spun up, about 20 rounds a second")
 
-	# Energy guns: never reload while you keep the battery from running flat; flat, they overheat.
-	for id in ["laser_rifle"]:
-		var w := WeaponData.by_id(id)
-		s = WeaponState.new(w)
-		for i in 5:
-			s.fire()
-			_step(s, w.fire_interval + 0.02)
-		_check(s.ammo == w.magazine - 5 and not s.is_reloading(), "%s: shooting drains the battery" % id)
-		_step(s, w.recharge_delay + 5.0 / w.recharge + 0.2)
-		_check(s.ammo == w.magazine, "%s: and it refills by itself a moment after" % id)
-		var guard := 0
-		while not s.is_reloading() and guard < 500:
-			s.fire()
-			_step(s, w.fire_interval + 0.02)
-			guard += 1
-		_check(s.is_reloading() and not s.can_fire(), "%s: run it flat and it overheats" % id)
-		_step(s, w.reload_time + 0.05)
-		_check(s.ammo == w.magazine and s.can_fire(), "%s: cooled down, full again" % id)
-
 	# The air cannon hurts nobody, but a full charge shoves hard enough to kill by the
 	# wall (more in tests/air_cannon_test.gd).
 	var air := WeaponData.by_id("air_cannon")
@@ -94,15 +75,11 @@ func _init() -> void:
 		if WeaponData.by_id(id).is_projectile():
 			looks_of[WeaponData.by_id(id).look()] = true
 	_check(looks_of.size() >= 5, "projectiles: five looks (%s)" % [looks_of.keys()])
-	var derringer := WeaponData.by_id("derringer")
-	_check(derringer.magazine == 2 and derringer.damage * 2.0 >= 100.0 and derringer.damage_at(30.0) * 2.0 < 50.0,
-		"derringer: both shots kill up close, not far away")
 	var amr := WeaponData.by_id("anti_materiel")
 	_check(amr.damage < 100.0 and amr.damage * amr.headshot_multiplier >= 100.0 and amr.structure_damage >= 5.0,
 		"anti-materiel: 95 to the body, a headshot kills, breaks walls")
 	_check(WeaponData.by_id("energy_sword").charge_damage * 2.0 >= 100.0 and WeaponData.by_id("energy_sword").charge_knockback < 17.5,
 		"energy sword: two full swings kill, but it never slams anyone into a wall")
-	_check(WeaponData.by_id("scythe").arc_degrees > WeaponData.by_id("bat").arc_degrees, "scythe: the widest swing")
 
 	# Gun Game: every rung a real gun, no repeats, ends on the knuckles, and the new guns are on it.
 	var seen := {}
@@ -111,7 +88,7 @@ func _init() -> void:
 		seen[id] = true
 	_check(ladder[-1] == "brass_knuckles", "gun game: ends with the knuckles")
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
-	_check(new_rungs >= 7, "gun game: climbs through the new guns too (%d)" % new_rungs)
+	_check(new_rungs >= 6, "gun game: climbs through the new guns too (%d)" % new_rungs)
 
 
 ## (Once the tree is up: a bolt has to fly in the world.)

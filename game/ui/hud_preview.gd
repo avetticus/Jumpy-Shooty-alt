@@ -13,7 +13,7 @@ const ZOOM := 2.0                    ## the close-up
 const SIDE := 330.0                  ## the close-up's column
 ## The feed's sample lines: [killer, victim, gun, headshot, yours].
 const FEED := [["YOU", "RIVET", "pistol", true, true], ["ORBIT", "NEEDLE", "shotgun", false, false],
-	["KESTREL", "ORBIT", "sniper", true, false], ["YOU", "BULWARK", "pistol", false, true]]
+	["KESTREL", "ORBIT", "anti_materiel", true, false], ["YOU", "BULWARK", "pistol", false, true]]
 const POINTS := [["KILL", 100], ["HEADSHOT", 60], ["SPEED 21 M/S", 85]]
 
 var third_person := false   ## which view's layout the miniature shows

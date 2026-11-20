@@ -843,7 +843,7 @@ def spawns(m):
 
 def pickups(m):
     for (p, w) in [
-        ((0, 0, 2.8), "shotgun"), ((5.4, 14.3, 5.4), "sniper"), ((37, 7, -32.5), "rifle"), ((43, 14, -32.5), "railgun"),
+        ((0, 0, 2.8), "shotgun"), ((5.4, 14.3, 5.4), "bolt_action"), ((37, 7, -32.5), "rifle"), ((43, 14, -32.5), "railgun"),
         ((-29, 0, -36), "smg"), ((-40, 4.3, -30), "break_action"), ((-36.5, 6, 42.5), "axe"), ((-24.6, 6, 38.6), "bat"),
         ((33.5, 1.2, 30.2), "grenade_launcher"), ((-35, 9, 0), "lever_action"), ((38.5, 0, 33), "brass_knuckles"),
         ((38, 0, -2), "lmg"), ((-12, 0, -20), "revolver"), ((10, 0, 20), "sword"), ((-10, 0, -40), "bolt_action"),

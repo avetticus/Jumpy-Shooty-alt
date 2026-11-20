@@ -14162,10 +14162,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.17, 0, -0.67)
 script = ExtResource("90_wpnsp")
 weapon = "shotgun"
 
-[node name="Sniper2" type="Marker3D" parent="WeaponSpawns" unique_id=461033293]
+[node name="BoltAction" type="Marker3D" parent="WeaponSpawns" unique_id=461033293]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.33, 10, -11.67)
 script = ExtResource("90_wpnsp")
-weapon = "sniper"
+weapon = "bolt_action"
 
 [node name="Minigun" type="Marker3D" parent="WeaponSpawns" unique_id=929758739]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.08, 10, 11.17)
@@ -14202,10 +14202,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.67, 5, -11)
 script = ExtResource("90_wpnsp")
 weapon = "bolt_action"
 
-[node name="Karate10" type="Marker3D" parent="WeaponSpawns" unique_id=420371994]
+[node name="BrassKnuckles2" type="Marker3D" parent="WeaponSpawns" unique_id=420371994]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.08, 0, 11.67)
 script = ExtResource("90_wpnsp")
-weapon = "karate"
+weapon = "brass_knuckles"
 
 [node name="LeverAction11" type="Marker3D" parent="WeaponSpawns" unique_id=907231737]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.83, 0, -11.42)

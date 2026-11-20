@@ -26,7 +26,7 @@ if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
 COMMON=(--scripted-input --scripted-fire --sync-log --sound-log --auto-return --switch-character --switch-weapon --quit-after=150)
 CHARACTERS=(needle vanguard)
-GUNS=(pistol shotgun rifle sniper)
+GUNS=(pistol shotgun rifle bolt_action)
 
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --character=needle --weapon=pistol --autostart="$PLAYERS" \
   --rules=kills:4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &

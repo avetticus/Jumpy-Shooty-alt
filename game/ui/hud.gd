@@ -1072,7 +1072,7 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.player_weapon(Net.my_id())
 	if KillcamMode.active():
-		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "SNIPERS ONLY", 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "ANTI-MATERIEL ONLY", 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "EVERY KILL SCORES ITS KILLCAM POINTS  ·  YOU HAVE %s" % KillcamMode.format(Match.points(Net.my_id())), 12,
 			Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
 		return

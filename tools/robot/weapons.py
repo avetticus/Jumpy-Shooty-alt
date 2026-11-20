@@ -3,7 +3,7 @@ right fist closes on the grip) and tied to the three gun bones:
 
   pistol        the gun itself (the bone is called "pistol" for history; every gun uses it)
   pistol_slide  the part that moves when the gun is worked: the pistol's slide, the
-                shotgun's pump, the rifle's charging handle, the sniper's bolt
+                shotgun's pump, the rifle's charging handle, the bolt-action's bolt
   pistol_mag    the magazine (the shotgun's: one shell, kept out of sight inside the
                 receiver until a reload brings it out)
 
@@ -29,11 +29,11 @@ import numpy as np
 from kit import Part, loft, rect, box, prism, ball
 from rig import BODY, GUN_REST
 
-IDS = ("pistol", "shotgun", "rifle", "sniper", "revolver", "machine_pistol", "break_action", "smg",
+IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action", "smg",
        "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
        # The third batch
-       "derringer", "air_cannon", "minigun",
-       "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel", "plasma_cannon")
+       "air_cannon", "minigun",
+       "battle_rifle", "nail_gun", "crossbow", "anti_materiel", "plasma_cannon")
 
 # Where the left fist holds each gun (gun space: the middle of the fist), and on which
 # bone: the shotgun's hand rides on the pump. Under a fore-end the hand is cupped, palm
@@ -43,7 +43,6 @@ IDS = ("pistol", "shotgun", "rifle", "sniper", "revolver", "machine_pistol", "br
 SUPPORT = {
     "shotgun": {"grip": (0.0, 0.027, -0.30), "on": "pistol_slide"},
     "rifle": {"grip": (0.0, 0.047, -0.235)},
-    "sniper": {"grip": (0.0, 0.030, -0.30)},
     "break_action": {"grip": (0.0, 0.025, -0.30), "on": "pistol_vent"},  # the fore-end swings down with the barrels
     "smg": {"grip": (0.0, -0.045, -0.215), "upright": True},            # the vertical foregrip
     "burst_rifle": {"grip": (0.0, 0.044, -0.25)},
@@ -56,7 +55,6 @@ SUPPORT = {
     "air_cannon": {"grip": (0.0, -0.045, -0.30), "upright": True},      # the front handle under the tank
     "minigun": {"grip": (0.0, -0.045, -0.30), "upright": True},         # the front handle under the barrels
     "battle_rifle": {"grip": (0.0, 0.043, -0.27)},
-    "laser_rifle": {"grip": (0.0, 0.046, -0.26)},
     "nail_gun": {"grip": (0.0, -0.045, -0.22), "upright": True},        # the vertical foregrip
     "crossbow": {"grip": (0.0, 0.044, -0.25)},
     "anti_materiel": {"grip": (0.0, 0.030, -0.32)},
@@ -414,32 +412,6 @@ def akimbo(mesh):
 DERRINGER_HINGE = (0.034, 0.042)   # (up, forward) of the grip: the barrels tip down about it
 
 
-def derringer(mesh):
-    """A pocket pistol, about 14 cm: two short barrels one over the other inside an armour
-    shroud with a lit slit between them, and a bird's-head grip. The barrels are its
-    vent: a reload tips them open on the hinge under the breech (DERRINGER_HINGE), and
-    its two rounds, on the magazine bone, show in the open breech."""
-    g = "derringer"
-    _add(mesh, g, "grip", "pistol", box(0.032, 0.09, 0.042, 0.011).rot(pitch=-24).move(0, -0.03, 0.022))
-    _add(mesh, g, "plate", "pistol", box(0.037, 0.05, 0.022, 0.006).rot(pitch=-24).move(0, -0.034, 0.024))
-    frame = _core([(-0.024, 0.014), (0.042, 0.014), (0.042, 0.034), (0.03, 0.034), (0.03, 0.092), (0.014, 0.092), (0.004, 0.066),
-                   (-0.008, 0.066), (-0.024, 0.05)], 0.032, 0.004)
-    _add(mesh, g, "dark", "pistol", frame + box(0.012, 0.01, 0.04).move(0, -0.012, -0.03))
-    block = _core([(0.03, 0.034), (0.128, 0.034), (0.135, 0.041), (0.135, 0.085), (0.128, 0.092), (0.03, 0.092)], 0.026, 0.004)
-    _vent(mesh, g, "dark", block)
-    _vent(mesh, g, "plate", _panels([(0.04, 0.067), (0.128, 0.067), (0.128, 0.088), (0.04, 0.088)], 0.0125, 0.004)
-          + _panels([(0.04, 0.038), (0.128, 0.038), (0.128, 0.059), (0.04, 0.059)], 0.0125, 0.004))
-    _vent(mesh, g, "glow", _panels([(0.04, 0.06), (0.13, 0.06), (0.13, 0.066), (0.04, 0.066)], 0.0128, 0.002, 0.0))
-    _vent(mesh, g, "steel", _tube(0.0105, 0.126, 0.138, 0.076, 8) + _tube(0.0105, 0.126, 0.138, 0.05, 8))
-    _vent(mesh, g, "detail", box(0.012, 0.005, 0.016).move(0, 0.0945, -0.06) + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.084)
-          + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.108))
-    _add(mesh, g, "detail", "pistol_slide", box(0.01, 0.026, 0.014, 0.003).rot(pitch=24).move(0, 0.07, 0.01))   # the hammer
-    # The two rounds: their bases stand a little proud of the breech (hidden by the frame until the barrels tip open).
-    for y in (0.077, 0.049):
-        _add(mesh, g, "steel", "pistol_mag", _tube(0.0085, 0.0255, 0.05, y, 8))
-        _add(mesh, g, "glow", "pistol_mag", _tube(0.0055, 0.0245, 0.0258, y, 8))
-
-
 # ---------------------------------------------------------------------------
 # Shotguns
 
@@ -727,31 +699,6 @@ def minigun(mesh):
     _ammo_box(mesh, g, 0.072, 0.1, 0.13, -0.05, -0.12)
 
 
-def laser_rifle(mesh):
-    """A laser rifle, about 85 cm: a smooth armour shell in two halves with a lit line
-    between them, a finned emitter at the front and a power cell behind the grip."""
-    g = "laser_rifle"
-    _add(mesh, g, "grip", "pistol", _grip(-16))
-    core = _run([_sec(0.044, 0.06, -0.08, 0.055, ch=0.016), _sec(0.05, 0.07, 0.1, 0.06, ch=0.02),
-                 _sec(0.044, 0.052, 0.5, 0.06, ch=0.016), _sec(0.03, 0.034, 0.6, 0.06, ch=0.012)])
-    sight = _core([(-0.02, 0.092), (0.14, 0.092), (0.14, 0.112), (0.0, 0.117), (-0.02, 0.108)], 0.026, 0.004)
-    _add(mesh, g, "dark", "pistol", core + sight + _guard(0.078))
-    # The upper armour panels are its vent part: they slide up and back off a lit core when it overheats.
-    _vent(mesh, g, "plate", _panels([(-0.062, 0.067), (0.1, 0.07), (0.5, 0.068), (0.578, 0.064), (0.5, 0.088), (0.1, 0.098),
-                                    (-0.062, 0.088)], 0.0235, 0.005, 0.003))
-    _add(mesh, g, "glow", "pistol", _panels([(0.0, 0.07), (0.48, 0.07), (0.48, 0.085), (0.0, 0.085)], 0.0215, 0.002, 0.0))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.022, 0.026), (0.1, 0.022), (0.5, 0.032), (0.578, 0.054), (0.5, 0.056), (0.1, 0.056), (-0.022, 0.052)], 0.0235, 0.005, 0.003))
-    _add(mesh, g, "glow", "pistol", _panels([(-0.022, 0.057), (0.56, 0.057), (0.56, 0.066), (-0.022, 0.066)], 0.024, 0.002, 0.0)
-         + _tube(0.016, 0.659, 0.667, 0.06, 8))
-    _add(mesh, g, "detail", "pistol", _slats(-0.056, 3, 0.024, 0.07, 0.086, 0.0285, t=0.009, lean=0.006, thick=0.003))
-    _add(mesh, g, "steel", "pistol", _tube(0.021, 0.6, 0.661, 0.06, 8))
-    _add(mesh, g, "detail", "pistol", _rings(0.0245, (0.61, 0.63), 0.009, 0.06, 8))
-    _add(mesh, g, "lens", "pistol", box(0.018, 0.012, 0.003).move(0, 0.103, -0.1405))
-    _stock(mesh, g, -0.26, 0.084, 0.082, -0.03, 0.042)
-    _add(mesh, g, "detail", "pistol_mag", box(0.034, 0.07, 0.07, 0.008).move(0, -0.005, 0.105))
-    _add(mesh, g, "glow", "pistol_mag", box(0.037, 0.03, 0.05).move(0, -0.01, 0.105))
-
-
 def nail_gun(mesh):
     """An industrial nail gun, about 60 cm: an armoured body with a pressure housing in the
     player's colour on top, a short steel nose, a long strip of nails slanting under it,
@@ -814,7 +761,7 @@ def lever_action(mesh):
 
 def bolt_action(mesh):
     """A bolt-action rifle, about 1 m, with iron sights: a full-length armour fore-end with
-    a lit line along it, and a bolt worked from the left side, like the sniper's."""
+    a lit line along it, and a bolt worked from the left side."""
     g = "bolt_action"
     _add(mesh, g, "grip", "pistol", _grip(-20, 0.038))
     receiver = _core([(-0.056, 0.036), (0.16, 0.036), (0.17, 0.046), (0.17, 0.078), (0.16, 0.086), (-0.03, 0.086), (-0.056, 0.07)], 0.042, 0.006)
@@ -833,28 +780,6 @@ def bolt_action(mesh):
     _stock(mesh, g, -0.275, 0.068, 0.064, -0.058, 0.046)
     _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.03, 0.06, 0.006).move(0, 0.01, -0.09))
     _bolt(mesh, g, -0.08, 0.06, -0.01, 0.013)
-
-
-def sniper(mesh):
-    """Bolt-action sniper rifle, about 1.1 m: a long thin barrel with a muzzle brake, a big
-    scope, a skeleton stock, a box cell and a bolt worked from the left side."""
-    g = "sniper"
-    _add(mesh, g, "grip", "pistol", _grip(-16))
-    receiver = _core([(-0.066, 0.032), (0.2, 0.032), (0.21, 0.044), (0.21, 0.08), (0.2, 0.088), (-0.04, 0.088), (-0.066, 0.072)], 0.046, 0.006)
-    brake = _run([_sec(0.04, 0.036, 0.795, 0.058, ch=0.011), _sec(0.04, 0.036, 0.862, 0.058, ch=0.011)])
-    _add(mesh, g, "dark", "pistol", receiver + brake + _guard(0.078))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.098, 0.05), (0.114, 0.063), (0.2, 0.063), (0.2, 0.083), (-0.03, 0.083),
-                                             (-0.046, 0.072)], 0.0225, 0.005)
-         + _run([_sec(0.052, 0.05, 0.215, 0.035, ch=0.015), _sec(0.052, 0.05, 0.44, 0.035, ch=0.015), _sec(0.036, 0.036, 0.47, 0.04, ch=0.01)]))
-    _add(mesh, g, "glow", "pistol", _panels([(0.108, 0.046), (0.202, 0.046), (0.202, 0.058), (0.122, 0.058)], 0.023, 0.002, 0.0))
-    _add(mesh, g, "accent", "pistol", _panels([(0.25, 0.04), (0.42, 0.04), (0.42, 0.05), (0.25, 0.05)], 0.0262, 0.002, 0.0)
-         + _panels([(0.812, 0.05), (0.846, 0.05), (0.846, 0.066), (0.812, 0.066)], 0.0202, 0.002, 0.0))
-    _vent(mesh, g, "dark", _slats(0.25, 5, 0.034, 0.018, 0.034, 0.0262, t=0.012, lean=0.006, thick=0.002))
-    _add(mesh, g, "steel", "pistol", _tube(0.013, 0.44, 0.80, 0.058, 6))
-    _add_scope(mesh, g, -0.06, 0.25, 0.128, 0.02, 0.029)
-    _stock(mesh, g, -0.25, 0.082, 0.088, -0.035, 0.042, open_frame=True)
-    _add_cell(mesh, g, 0.032, 0.075, 0.07, 0.0, -0.005, -0.10, 0.6)
-    _bolt(mesh, g, -0.088, 0.06, -0.02)
 
 
 def anti_materiel(mesh):
@@ -1030,12 +955,12 @@ def plasma_cannon(mesh):
     _add(mesh, g, "glow", "pistol_mag", box(0.043, 0.03, 0.05).move(0, -0.01, 0.11))
 
 
-BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "sniper": sniper, "revolver": revolver,
+BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "revolver": revolver,
          "machine_pistol": machine_pistol, "break_action": break_action, "smg": smg, "burst_rifle": burst_rifle,
          "lmg": lmg, "lever_action": lever_action, "bolt_action": bolt_action, "railgun": railgun,
          "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher, "akimbo": akimbo,
-         "derringer": derringer, "air_cannon": air_cannon, "minigun": minigun, "battle_rifle": battle_rifle,
-         "laser_rifle": laser_rifle, "nail_gun": nail_gun, "crossbow": crossbow, "anti_materiel": anti_materiel,
+         "air_cannon": air_cannon, "minigun": minigun, "battle_rifle": battle_rifle,
+         "nail_gun": nail_gun, "crossbow": crossbow, "anti_materiel": anti_materiel,
          "plasma_cannon": plasma_cannon}
 
 

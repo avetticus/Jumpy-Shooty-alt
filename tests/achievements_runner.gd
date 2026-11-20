@@ -120,7 +120,7 @@ func run() -> void:
 
 	print("  weapons, streaks and feats")
 	var before := Achievements.stat("sidearm_kills")
-	for weapon in ["shotgun", "rifle", "sniper", "rocket_launcher", "sword", "kick", "shotgun"]:
+	for weapon in ["shotgun", "rifle", "bolt_action", "rocket_launcher", "sword", "kick", "shotgun"]:
 		var k := _kill(1, bot, 0)
 		k.weapon = weapon
 		Match.kill_scored.emit(k)

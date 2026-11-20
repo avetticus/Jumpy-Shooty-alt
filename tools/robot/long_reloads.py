@@ -684,45 +684,6 @@ def minigun(gun, fp):
     return pose
 
 
-def laser_rifle(gun, fp):
-    """Overheated (nothing goes in or out): the armour panels fly open off the glowing core,
-    the left hand lets go of the hot gun and the right swings it down and through the air
-    twice to cool it, and the panels are slapped shut."""
-    L = Long(gun, fp)
-    rest = L.right(work=0.0)
-    jolt = L.right((0.0, 0.03, 0.02), (101.0, 5.0, 0.0), work=0.0)
-    # Muzzle down beside the leg, then swung forward and up (in first person, less far: it stays in view).
-    if fp:
-        down = L.right((0.02, -0.005, -0.02), (62.0, -4.0, 0.0), 0.0, work=0.0)
-        swept = L.right((0.03, 0.05, -0.09), (84.0, -8.0, 0.0), -8.0, work=0.0)
-    else:
-        down = L.right((0.12, -0.22, 0.03), (44.0, -6.0, 0.0), 0.0, work=0.0)
-        swept = L.right((0.14, -0.08, -0.08), (74.0, -10.0, 0.0), -8.0, work=0.0)
-    level = L.right((0.0, 0.0, 0.0), (92.0, 8.0, 0.0), -8.0)
-    slapped = L.right((0.025, 0.0, 0.0), (92.0, 5.0, 0.0), -3.0)
-    keys_r = [(0.0, rest), (0.10, jolt, "out"), (0.50, down), (0.84, swept, "out"), (1.18, down), (1.52, swept, "out"), (1.72, level), (1.8, level),
-              (1.85, slapped, "out"), (1.98, level), (2.24, rest), (2.5, rest)]
-    side = turn_of((1.0, 0.0, 0.0), (-0.35, -0.45, 0.8))
-    panel = v(-0.03, 0.08, -0.25)
-
-    def on_panel(off):
-        return ("gun", on_palm(panel - v(off, 0.0, 0.0), 0.0, side), side)
-    shaken = ("free", L.clear[1] + v(-0.03, 0.05, 0.0), rz(24.0) @ L.clear[2])
-    keys_l = [(0.0, L.rest_l), (0.06, L.rest_l), (0.24, L.clear, "out"), (0.36, shaken), (0.48, L.clear), (0.60, shaken), (0.74, L.clear),
-              (1.5, L.clear), (1.74, on_panel(0.14)), (1.84, on_panel(0.0), "in"), (1.94, on_panel(0.05), "out"), (2.2, L.rest_l), (2.5, L.rest_l)]
-    fingers = [(0.0, L.rest_fingers), (0.06, L.rest_fingers), (0.16, "open", "out"), (0.74, "open"), (1.0, "relaxed"), (1.6, "relaxed"),
-               (1.76, "flat"), (1.94, "flat"), (2.2, L.rest_fingers)]
-
-    def pose(t):
-        spec, _, _, _ = L.pose(t, keys_r, keys_l, fingers)
-        open_ = at(t, [(0.0, 0.0), (0.03, 0.0), (0.09, 1.25, "out"), (0.18, 1.0), (1.8, 1.0), (1.845, 0.0, "in")])
-        spec["vent_pos"] = (0.0, 0.014 * open_, 0.03 * open_)
-        L.body(spec, t, [(0.0, 0.0), (0.1, -4.0, "out"), (0.5, 12.0), (0.84, 4.0), (1.18, 12.0), (1.52, 4.0), (1.85, -6.0, "in"), (2.24, 0.0)],
-               [(0.0, 0.0), (0.1, -5.0, "out"), (0.5, 8.0), (0.84, 0.0), (1.18, 8.0), (1.52, 0.0), (1.85, 2.0), (2.24, 0.0)])
-        return spec
-    return pose
-
-
 # ---------------------------------------------------------------------------
 # Precision
 
@@ -871,47 +832,6 @@ def bolt_end(gun, fp):
         spec["slide"] = at(t, [(0.0, 0.09), (0.15, 0.09), (0.21, 0.0, "in")])
         spec["slide_turn"] = at(t, [(0.0, -70.0), (0.21, -70.0), (0.29, 0.0, "in")])
         L.body(spec, t, [(0.0, 0.0), (0.22, -7.0, "in"), (0.5, 0.0)], [(0.0, 0.0), (0.22, 4.0, "in"), (0.5, 0.0)])
-        return spec
-    return pose
-
-
-def sniper(gun, fp):
-    """The cell is shaken out and a new one pushed home; then the bolt: up, and ripped back
-    with the whole shoulder as the rifle is shoved forward, held a beat, slammed home and down."""
-    L = Long(gun, fp)
-    wk = 0.15 if fp else 0.7   # (worked on in the middle of the view, the left forearm would cover it)
-    C = Cell((0.0, -0.005, -0.10), (0.0, -1.0, 0.0), 0.0375)
-    rest = L.right(work=0.0)
-    dip = L.right((0.0, -0.014, 0.0), (86.0, 4.0, 0.0), work=0.0)
-    jerk = L.right((0.0, 0.035, 0.0), (104.0, 6.0, 0.0), -14.0, work=0.6)
-    hold = L.right((0.0, 0.0, 0.01), (97.0, 9.0, 0.0), -22.0)
-    knock = L.right((0.0, 0.035, 0.005), (102.0, 8.0, 0.0), -18.0)
-    level = L.right((0.0, 0.0, 0.0), (91.0, 7.0, 0.0), -8.0, work=wk)
-    lifted = L.right((0.0, 0.01, 0.0), (92.0, 7.0, 0.0), -14.0, work=wk)
-    pulled = L.right((0.02, 0.01, -0.06), (94.0, 3.0, 0.0), -20.0, work=wk)    # shoved forward as the bolt comes back
-    slammed = L.right((0.0, -0.004, 0.02), (89.0, 8.0, 0.0), -6.0, work=wk)
-    keys_r = [(0.0, rest), (0.06, dip), (0.14, jerk, "out"), (0.30, hold), (0.80, hold), (0.86, hold), (0.91, knock, "out"), (1.04, hold),
-              (1.2, level), (1.3, lifted), (1.46, pulled, "out"), (1.64, pulled), (1.73, slammed, "in"), (1.84, level), (2.12, rest), (2.4, rest)]
-    turn_keys, slide_keys, on_bolt = bolt_work((-0.088, 0.06, -0.02), 1.2, 1.3, 1.34, 1.46, 1.64, 1.72, 1.74, 1.82)
-    keys_l = [(0.0, L.rest_l), (0.08, L.rest_l), (0.40, L.belt, "in"), (0.66, C.hold(0.2)), (0.86, C.hold(0.0), "in"), (0.98, C.hold(0.04)),
-              (1.2, on_bolt), (1.84, on_bolt), (1.94, ("gun", v(-0.14, 0.04, 0.02), SIDE), "out"), (2.14, L.rest_l), (2.4, L.rest_l)]
-    fingers = [(0.0, "support"), (0.08, "support"), (0.25, "relaxed"), (0.40, "foregrip"), (0.86, "foregrip"), (0.96, "open"), (1.2, "pinch"),
-               (1.84, "pinch"), (1.92, "open", "out"), (2.04, "relaxed"), (2.14, "support")]
-
-    def pose(t):
-        spec, frame, fist, turn = L.pose(t, keys_r, keys_l, fingers)
-        spec["slide_turn"] = at(t, turn_keys)
-        spec["slide"] = at(t, slide_keys)
-        open_ = _open(t, 0.14, 0.88)
-        spec["vent_pos"] = (0.0, -0.003 * open_, 0.008 * open_)
-        if 0.11 <= t < 0.18:
-            C.thrown(spec, t, 0.11)
-        elif 0.18 <= t < 0.86:
-            C.carry(spec, frame, fist, turn)
-        L.body(spec, t, [(0.0, 0.0), (0.14, 6.0, "out"), (0.5, 2.0), (0.91, -7.0, "in"), (1.3, -2.0), (1.46, -16.0, "out"), (1.64, -17.0),
-                         (1.73, 4.0, "in"), (2.12, 0.0)],
-               [(0.0, 0.0), (0.14, -5.0, "out"), (0.5, 0.0), (0.91, -3.0), (1.46, -6.0, "out"), (1.73, 4.0, "in"), (2.12, 0.0)],
-               [(0.0, 0.0), (1.3, 0.0), (1.46, 7.0, "out"), (1.73, -2.0, "in"), (2.12, 0.0)])
         return spec
     return pose
 
@@ -1203,9 +1123,9 @@ def plasma_cannon(gun, fp):
 
 
 RELOADS = {"rocket_launcher": rocket_launcher, "grenade_launcher": grenades, "plasma_cannon": plasma_cannon,
-           "lever_action": lever_rounds, "bolt_action": bolt_rounds, "sniper": sniper, "anti_materiel": anti_materiel, "railgun": railgun,
+           "lever_action": lever_rounds, "bolt_action": bolt_rounds, "anti_materiel": anti_materiel, "railgun": railgun,
            "crossbow": crossbow, "smg": smg, "rifle": rifle, "burst_rifle": burst_rifle, "battle_rifle": battle_rifle, "nail_gun": nail_gun, "lmg": lmg,
-           "minigun": minigun, "laser_rifle": laser_rifle, "shotgun": shells, "break_action": break_action, "air_cannon": air_cannon}
+           "minigun": minigun, "shotgun": shells, "break_action": break_action, "air_cannon": air_cannon}
 FPS = {"air_cannon": 60, "smg": 60, "rifle": 60, "crossbow": 60, "rocket_launcher": 60}   # clips baked at more frames a second (rig.Clip): a part turning about its own middle
 # What ends a shell-at-a-time reload once the gun is full: {gun: (seconds, clip)}.
 ENDS = {"shotgun": (0.75, shotgun_end), "lever_action": (0.7, lever_end), "bolt_action": (0.55, bolt_end),

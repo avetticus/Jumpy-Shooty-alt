@@ -68,13 +68,13 @@ func _show_main() -> void:
 func _show_loadout() -> void:
 	var me := Net.my_id()
 	var race := Race.active
-	var deathmatch := Net.is_deathmatch() or GunGame.active() or KillcamMode.active()   # weapons come off the map, from the ladder, or it is snipers only
+	var deathmatch := Net.is_deathmatch() or GunGame.active() or KillcamMode.active()   # weapons come off the map, from the ladder, or it is anti-materiel rifles only
 	var only := LobbySettings.only_weapon()
 	var with_weapons := not race and not deathmatch and only == ""
 	_frame.clear(1040 if with_weapons else 520)
 	var note := "Your robot changes straight away." if race else "Changes apply the next time you respawn."
 	if deathmatch:
-		note += "  Weapons are found on the map." if Net.is_deathmatch() else ("  Killcam is snipers only." if KillcamMode.active() else "  Gun Game hands out the weapons.")
+		note += "  Weapons are found on the map." if Net.is_deathmatch() else ("  Killcam is anti-materiel rifles only." if KillcamMode.active() else "  Gun Game hands out the weapons.")
 	var dead := not race and not Match.is_alive(me)
 	if dead:
 		note = "Changes apply when you respawn."

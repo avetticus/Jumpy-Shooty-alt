@@ -19,7 +19,7 @@ extends RefCounted
 ##    was wound up) and round to ready again. The edge leads.
 ## A blow that lands freezes the swing for a moment (hit_stop) so the hit has weight.
 ## The timing is the same for every blow of a weapon (see impact_time and length), unless
-## a blow says otherwise (Karate's spinning kicks take longer to land than its jab).
+## a blow says otherwise (its own "pace").
 ##
 ## The weapon is animated, not the arms: each key says where the grip is and which
 ## way the blade points, in the "hold frame" (the chest's own space: +X right, +Y up,
@@ -339,123 +339,13 @@ const MOVES := {
 			"legs": [[1.6, 1.9, 0.05, 0.25], [-1.0, 0.1, 0.6, 1.3]],
 		},
 	},
-	"karate": {
-		# No weapon at all: fists up in a fighting guard, and a combo of six that runs on as long as you keep
-		# swinging (see "taps": each blow is the next one along, back to the first after a pause). A jab and a
-		# cross, a roundhouse kick, a left hook, a spinning back fist and a spinning hook kick. The heavy blow
-		# is a tornado kick: a hop, a whole turn in the air and the right foot round at head height. Off the
-		# ground: a helicopter kick, two turns with the right leg straight out.
-		# Kicks give "legs" (chambered, landing, and perhaps follow-through: see _leg_keys) and the foot
-		# that strikes ("limb", for its trail); the arms keep a guard or fling out for balance.
-		# Spinning blows give "turns" (+ to the left), and every blow its own "pace" against the weapon's.
-		"fists": true,
-		"ready": [Vector3(0.13, -0.1, -0.28), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.25, -1.0), 0.0, 0.0, 0.0],
-		"fp_ready": [Vector3(0.15, -0.12, -0.3), Vector3(0.0, 1.0, 0.15), Vector3(0.0, 0.0, -1.0), 0.0, 0.0, 0.0],
-		"taps": [
-			{   # jab: the left fist straight out, turning over as it lands
-				"wound": [Vector3(0.16, -0.08, -0.2), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.2, -0.04, 0.0],
-				"hit": [Vector3(0.1, -0.02, -0.56), Vector3(-1.0, 0.0, 0.05), Vector3(0.0, 0.0, -1.0), 0.45, 0.14, 0.0],
-				"end": [Vector3(0.11, -0.03, -0.52), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.45, 0.14, 0.0],
-				"fp_hit": [Vector3(0.1, -0.04, -0.56), Vector3(-1.0, 0.0, 0.05), Vector3(0.0, 0.0, -1.0), 0.35, 0.1, 0.0],
-				"fp_end": [Vector3(0.11, -0.05, -0.52), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.35, 0.1, 0.0],
-				"left": true,
-				"pace": 0.8,
-			},
-			{   # cross: the right fist from the chin, the hips and shoulders turning in behind it
-				"wound": [Vector3(0.2, -0.08, -0.12), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.45, -0.06, 0.0],
-				"hit": [Vector3(0.0, -0.02, -0.58), Vector3(-1.0, 0.0, 0.05), Vector3(0.0, 0.0, -1.0), 0.75, 0.24, 0.0],
-				"end": [Vector3(0.0, -0.03, -0.55), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.8, 0.24, 0.0],
-				"fp_hit": [Vector3(0.04, -0.04, -0.58), Vector3(-1.0, 0.0, 0.05), Vector3(0.0, 0.0, -1.0), 0.6, 0.18, 0.0],
-				"fp_end": [Vector3(0.04, -0.05, -0.55), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.6, 0.18, 0.0],
-				"pace": 0.9,
-			},
-			{   # roundhouse kick: the right knee up, the hips turned right over and the shin snapped round
-				"wound": [Vector3(0.14, -0.08, -0.26), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.35, -0.05, 0.0],
-				"hit": [Vector3(0.3, -0.3, 0.06), Vector3(0.0, 1.0, 0.3), Vector3(0.4, 0.0, -0.9), 1.0, -0.3, 0.0],
-				"end": [Vector3(0.26, -0.24, -0.02), Vector3(0.0, 1.0, 0.3), Vector3(0.4, 0.0, -0.9), 1.15, -0.28, 0.0],
-				"fp_hit": [Vector3(0.3, -0.24, -0.1), Vector3(0.0, 1.0, 0.3), Vector3(0.4, 0.0, -0.9), 0.6, -0.1, 0.0],
-				"fp_end": [Vector3(0.26, -0.2, -0.14), Vector3(0.0, 1.0, 0.3), Vector3(0.4, 0.0, -0.9), 0.7, -0.1, 0.0],
-				"legs": [[1.7, 2.2, -0.05, 0.25, 0.8, 0.0], [2.15, 0.1, -0.1, 0.15, 1.2, 0.0], [1.9, 0.6, -0.1, 0.15, 1.1, 0.0]],
-				"limb": "foot_r",
-				"way": Vector2(-1.0, 0.2),
-				"pace": 1.3,
-				"strike": 1.8,
-			},
-			{   # left hook: wide from the side, the body turning hard through it
-				"wound": [Vector3(0.34, -0.1, -0.06), Vector3(0.0, 1.0, 0.0), Vector3(0.4, 0.0, -0.92), -0.75, -0.05, 0.0],
-				"hit": [Vector3(0.0, -0.06, -0.44), Vector3(0.0, 1.0, 0.0), Vector3(-0.95, 0.0, -0.3), 0.45, 0.2, 0.0],
-				"end": [Vector3(-0.14, -0.08, -0.3), Vector3(0.0, 1.0, 0.0), Vector3(-0.8, 0.0, 0.6), 0.85, 0.14, 0.0],
-				"way": Vector2(-1.0, 0.0),
-				"left": true,
-				"pace": 0.9,
-			},
-			{   # spinning back fist: a whole turn to the right, the left arm flung out and whipped round level
-				"wound": [Vector3(0.3, -0.06, -0.1), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), -0.6, -0.05, 0.0],
-				"lead": [Vector3(0.5, 0.0, -0.1), Vector3(0.0, 1.0, 0.0), Vector3(0.2, 0.0, -0.98), -0.3, 0.0, 0.0],
-				"hit": [Vector3(0.08, 0.0, -0.54), Vector3(0.0, 1.0, 0.0), Vector3(-1.0, 0.0, 0.0), 0.3, 0.1, 0.0],
-				"end": [Vector3(-0.2, -0.02, -0.42), Vector3(0.0, 1.0, 0.0), Vector3(-0.7, 0.0, 0.7), 0.7, 0.1, 0.0],
-				"fp_lead": [Vector3(0.45, -0.04, -0.3), Vector3(0.0, 1.0, 0.0), Vector3(0.2, 0.0, -0.98), -0.3, 0.0, 0.0],
-				"way": Vector2(-1.0, 0.0),
-				"left": true,
-				"turns": -1.0,
-				"pace": 1.4,
-				"strike": 2.6,
-			},
-			{   # spinning hook kick: a whole turn to the right, the right leg straight and swept round high
-				"wound": [Vector3(0.14, -0.08, -0.26), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.4, -0.05, 0.0],
-				"hit": [Vector3(-0.1, -0.12, -0.2), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.6, -0.3, 0.0],
-				"end": [Vector3(-0.06, -0.1, -0.22), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.9, -0.25, 0.0],
-				"fp_hit": [Vector3(0.0, -0.12, -0.26), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.3, -0.1, 0.0],
-				"fp_end": [Vector3(0.02, -0.1, -0.28), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.4, -0.1, 0.0],
-				"legs": [[1.1, 1.8, 0.05, 0.3, 0.6, 0.0], [2.25, 0.05, -0.05, 0.15, 1.15, 0.0], [1.9, 0.35, -0.05, 0.15, 1.0, 0.0]],
-				"limb": "foot_r",
-				"way": Vector2(1.0, 0.1),
-				"turns": -1.0,
-				"pace": 1.6,
-				"strike": 3.0,
-			},
-		],
-		"heavy": {   # tornado kick: crouched low and coiled, then a hop and a whole turn, the right foot round at head height
-			"wound": [Vector3(0.2, -0.2, -0.14), Vector3(0.0, 1.0, 0.2), Vector3(0.4, -0.2, -0.9), -1.2, 0.15, 0.0],
-			"lead": [Vector3(0.36, 0.06, -0.06), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), -0.6, -0.1, 0.0],
-			"hit": [Vector3(0.0, -0.1, -0.24), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.4, -0.35, 0.0],
-			"end": [Vector3(0.04, -0.1, -0.24), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.7, -0.3, 0.0],
-			"fp_wound": [Vector3(0.22, -0.2, -0.24), Vector3(0.0, 1.0, 0.2), Vector3(0.4, -0.2, -0.9), -0.8, 0.1, 0.0],
-			"fp_lead": [Vector3(0.36, -0.02, -0.2), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), -0.4, -0.05, 0.0],
-			"fp_hit": [Vector3(0.04, -0.12, -0.28), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.3, -0.1, 0.0],
-			"fp_end": [Vector3(0.06, -0.12, -0.28), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.2, -1.0), -0.4, -0.1, 0.0],
-			"legs": [[0.6, 1.9, 1.3, 2.2, 0.3, 0.2], [2.35, 0.05, 0.9, 2.0, 1.05, 0.1], [2.0, 0.4, 0.7, 1.7, 0.9, 0.1]],
-			"limb": "foot_r",
-			"way": Vector2(1.0, 0.2),
-			"turns": -1.0,
-			"hop": 4.5,
-			"pace": 1.5,
-			"strike": 3.0,
-		},
-		# In mid-air: a helicopter kick. Two turns to the right, arms flung wide and the right leg straight out
-		# to the side, sweeping everything round you.
-		"air": {
-			"wound": [Vector3(0.48, 0.04, -0.12), Vector3(0.0, 1.0, 0.0), Vector3(0.3, 0.0, -0.95), -0.3, -0.1, 0.0],
-			"fp_wound": [Vector3(0.4, -0.06, -0.3), Vector3(0.0, 1.0, 0.0), Vector3(0.3, 0.0, -0.95), -0.2, -0.05, 0.0],
-			"hit": [Vector3(0.1, -0.02, -0.5), Vector3(0.0, 1.0, 0.0), Vector3(-1.0, 0.0, 0.0), 0.3, 0.1, 0.0],
-			"end": [Vector3(-0.16, -0.06, -0.36), Vector3(0.0, 1.0, 0.0), Vector3(-0.7, 0.0, 0.7), 0.6, 0.1, 0.0],
-			"legs": [[1.45, 0.15, 0.5, 1.7, 1.25, 0.25], [1.55, 0.0, 0.4, 1.9, 1.35, 0.2]],
-			"limb": "foot_r",
-			"axis": Vector3(0.0, 1.0, 0.0),
-			"turns": -2.0,
-			"wind": 0.75,
-		},
-	},
 }
 ## How long the blow, follow-through and recovery take, against the sword's.
 const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6, "brass_knuckles": 0.55, "spear": 0.85, "axe": 1.15, "bat": 1.1,
-	"scythe": 1.2, "mace": 1.05, "machete": 0.7, "wrench": 0.9, "energy_sword": 0.85,
-	"karate": 0.62}
-## The newer blades swing like one of the first seven: the machete and energy sword
-## cut like the longsword, the mace and wrench like the hammer, and the scythe sweeps
-## wide like the bat.
-const MOVES_LIKE := {"machete": "sword", "energy_sword": "sword", "mace": "hammer",
-	"wrench": "hammer", "scythe": "bat"}
+	"energy_sword": 0.85}
+## The newer blades swing like one of the first seven: the energy sword cuts like the
+## longsword.
+const MOVES_LIKE := {"energy_sword": "sword"}
 ## One-handed weapons: where the left fist is held, up in a guard.
 const GUARD := Vector3(-0.13, -0.1, -0.3)
 ## Which way each elbow points (down, out and a little back), in the hold frame.

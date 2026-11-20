@@ -111,14 +111,14 @@ const BOOST_FLIGHT := 1.6  ## about how long a boost crossing takes (seconds)
 
 ## Weapon pickups for Deathmatch: island -> [[weapon, x, y, z], ...] in the island's
 ## frame (y = 0 is its deck). The big guns sit up high: the rocket launcher on the
-## Keep's upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the
+## Keep's upper floor, the bolt-action rifle on the Citadel's wall walk, the railgun on the
 ## Broken Tower's lookout.
 const PICKUPS := {
 	"Hearth": [["rocket_launcher", -8.0, 3.0, -4.0], ["shotgun", -1.5, 0.0, 0.5], ["smg", 15.0, 0.0, 12.0], ["dagger", -14.0, 0.0, -12.0]],
 	"Shelf": [["rifle", 4.0, 0.0, 4.0], ["sword", -12.0, 0.0, 3.0]],
 	"Bluff": [["burst_rifle", 0.0, 0.0, -6.6],["grenade_launcher", -4.0, 0.0, 10.0]],
 	"Spire": [["akimbo", 3.0, 0.0, -3.0]],
-	"Citadel": [["sniper", -15.3, 5.0, -2.9], ["machine_pistol", 0.0, 0.0, 3.0]],
+	"Citadel": [["bolt_action", -15.3, 5.0, -2.9], ["machine_pistol", 0.0, 0.0, 3.0]],
 	"Garden": [["spear", 0.0, 0.0, -3.5], ["lever_action", 4.0, 0.0, 12.0]],
 	"Terrace": [["railgun", 4.5, 6.0, -1.4], ["axe", -6.0, 0.0, 12.0]],
 }

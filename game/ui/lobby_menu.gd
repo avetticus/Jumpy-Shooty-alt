@@ -789,10 +789,10 @@ func _refresh_rules() -> void:
 	if gun_game:
 		_rules_label.text = "Every kill moves you to the next of %d weapons. First to get a kill with the last one (brass knuckles) wins. Kicked to death: back one weapon." % GunGame.steps()
 	if killcam:
-		_rules_label.text = "Snipers only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
+		_rules_label.text = "Anti-materiel rifles only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
 			% [KillcamMode.format(KillcamMode.target()), KillcamMode.minutes(), KillcamMode.format(KillcamMode.BEST_BONUS)]
 		if Net.is_host():   # (the host's boxes below show the points and minutes)
-			_rules_label.text = "Snipers only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
+			_rules_label.text = "Anti-materiel rifles only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
 				% KillcamMode.format(KillcamMode.BEST_BONUS)
 	if golden:
 		_rules_label.text = "One player has the Golden Gun: one round, and whoever it hits dies. Kill them to take it. Everyone else has their own weapon. First to %d kills." % s.kills
@@ -811,7 +811,7 @@ func _refresh_rules() -> void:
 	_mode_pick.visible = not race and not golden
 	var only := LobbySettings.only_weapon()
 	if _weapon:
-		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
+		# No guns in a race; Gun Game hands them out; Killcam is anti-materiel rifles only; a Deathmatch
 		# finds them on the map; the host may have set one gun for everyone.
 		_weapon.set_allowed(LobbySettings.allowed_weapons())
 		var pick_weapon := not race and not gun_game and not killcam and not Net.is_deathmatch() and only == ""
@@ -821,7 +821,7 @@ func _refresh_rules() -> void:
 		if not pick_weapon:
 			_weapon_panel.close()
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
-			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
+			else ("Killcam is anti-materiel rifles only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
 			else ("Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up." if Net.is_deathmatch() \
 			else "One gun for everyone: the %s. The host picked it for this match." % WeaponData.name_of(only))))

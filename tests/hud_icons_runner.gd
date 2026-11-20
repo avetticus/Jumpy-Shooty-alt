@@ -45,14 +45,14 @@ func _check_icon() -> void:
 func _check_feed_and_death_screen() -> void:
 	var me := Net.my_id()
 	Net.players[me] = {"name": "You", "color": 0, "weapon": "rifle"}
-	Net.players[2] = {"name": "Sprocket", "color": 1, "weapon": "sniper"}
+	Net.players[2] = {"name": "Sprocket", "color": 1, "weapon": "anti_materiel"}
 	Net.players[3] = {"name": "Gizmo", "color": 2, "weapon": "shotgun"}
 	var hud := Hud.new()
 	add_child(hud)
 	await _frames(2)
 	# The host's word wins over the last hit seen here, either way.
 	hud.set("_last_head", {3: false, 2: true})
-	Match.death_fx[3] = {"with": "sniper", "head": true, "gib": false, "push": Vector3.ZERO, "dir": Vector3.ZERO}
+	Match.death_fx[3] = {"with": "anti_materiel", "head": true, "gib": false, "push": Vector3.ZERO, "dir": Vector3.ZERO}
 	hud.call("_on_died", 3, 2)
 	Match.death_fx[2] = {"with": "shotgun", "head": false, "gib": false, "push": Vector3.ZERO, "dir": Vector3.ZERO}
 	hud.call("_on_died", 2, 3)
@@ -65,7 +65,7 @@ func _check_feed_and_death_screen() -> void:
 	if heads != [true, false, true]:
 		_fails.append("feed headshots %s, expected [true, false, true] (death_fx first, the last hit when it is empty)" % [heads])
 	# The death screen, killed by a headshot.
-	Match.death_fx[me] = {"with": "sniper", "head": true, "gib": false, "push": Vector3.ZERO, "dir": Vector3.ZERO}
+	Match.death_fx[me] = {"with": "anti_materiel", "head": true, "gib": false, "push": Vector3.ZERO, "dir": Vector3.ZERO}
 	hud.set("_last_head", {me: false})
 	hud.call("_on_died", me, 2)
 	if not hud.get("_killed_by_head"):

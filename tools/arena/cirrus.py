@@ -1346,7 +1346,7 @@ def lecture_hall(m, g, accent, roof_kind):
     w = m.group("WeaponSpawns", g, grouped=False)
     m.weapon_in(w, (11.6, 0.6, 2.4), "break_action")
     m.weapon_in(w, (0, 0, ZT + 2.6), "shotgun")
-    m.weapon_in(w, (-12.4, BY, 8.2), "sniper")               # the booth
+    m.weapon_in(w, (-12.4, BY, 8.2), "bolt_action")               # the booth
 
 
 def labs(m, g, accent, roof_kind):
@@ -1384,7 +1384,7 @@ def labs(m, g, accent, roof_kind):
         m.bev(rf, "VentUnit", "equipment", (x, R, 8.6), (x + 3.4, R + 1.5, 11.4), 0.14)
         m.cyl(rf, "VentFan", "equipment_dark", (x + 1.7, R + 1.5, 10.0), 1.8, 0.12, sides=14, solid=False)
     m.lying_cyl(rf, "Duct", "equipment", (-3.6, R + 0.5, 10.0), 0.8, 3.4, axis="x", sides=10)
-    m.weapon_in(rf, (-6.0, R, 4.5), "laser_rifle")
+    m.weapon_in(rf, (-6.0, R, 4.5), "battle_rifle")
     # Ground: the corridor is z -1.2..3.4; three labs behind it, a glass front on each
     # beside its open doorway, and glass between the labs.
     gl = m.group("GroundLabs", b, grouped=False)
@@ -1440,7 +1440,7 @@ def labs(m, g, accent, roof_kind):
     m.spawn_in(sp, (-8.0, 0, -7.0), (0.0, -14.0))            # the plaza
     m.spawn_in(sp, (15.4, 0, 6.0), (15.4, -4.0))             # the east walkway, looking along it to the bridge
     w = m.group("WeaponSpawns", g, grouped=False)
-    m.weapon_in(w, (9.5, F2, 4.5), "derringer")
+    m.weapon_in(w, (9.5, F2, 4.5), "revolver")
     m.weapon_in(w, (0, 0, ZT + 2.6), "burst_rifle")
 
 

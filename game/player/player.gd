@@ -435,7 +435,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## any, numbered from 1; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
 	if GunGame.active() or KillcamMode.active():
-		return   # Gun Game hands out the weapons; Killcam is snipers only
+		return   # Gun Game hands out the weapons; Killcam is anti-materiel rifles only
 	var k := _weapon_slot(event, LobbySettings.weapon_groups().size()) if event else _dev_group
 	var step := 0
 	if event and event.is_action_pressed("weapon_next"):
@@ -700,7 +700,7 @@ func _update_melee(delta: float) -> void:
 		print("ANIM WIND %d" % peer_id)
 
 
-## Which tap comes next: taps take turns (the right, then the left; Karate goes on
+## Which tap comes next: taps take turns (the right, then the left; a longer combo goes on
 ## through its combo), starting from the first again after a pause.
 func _next_side() -> int:
 	var n := MeleeSwing.combo_length(robot.weapon) if robot and WeaponData.melee(robot.weapon) else 2
@@ -1930,7 +1930,7 @@ func _scripted_input(delta: float) -> void:
 			input.fire = true
 			if weapon and weapon.data.is_melee():
 				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
-				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a combo (Karate): a run of quick taps, then a full wind-up
+				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a longer combo: a run of quick taps, then a full wind-up
 					input.fire = fmod(t, 0.42) < 0.1 if fmod(t, 4.0) < 3.0 else fmod(t, 4.0) < 3.8
 			elif weapon and weapon.data.is_blast():
 				input.fire = fmod(t, 2.0) < 1.6   # the air cannon: charge it right up, then let go

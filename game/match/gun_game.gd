@@ -8,10 +8,10 @@ extends RefCounted
 ## The host keeps each player's place on the ladder in Match.scores ("level") and
 ## hands out the weapons (Net.host_set_weapon), so it works the same online and with bots.
 
-const LADDER := ["minigun", "smg", "laser_rifle", "rifle", "burst_rifle", "battle_rifle", "lmg",
+const LADDER := ["minigun", "smg", "rifle", "burst_rifle", "battle_rifle", "lmg",
 	"shotgun", "break_action", "lever_action", "crossbow", "bolt_action",
-	"sniper", "anti_materiel", "railgun", "rocket_launcher", "plasma_cannon", "grenade_launcher", "nail_gun",
-	"machine_pistol", "akimbo", "revolver", "pistol", "derringer", "brass_knuckles"]
+	"anti_materiel", "railgun", "rocket_launcher", "plasma_cannon", "grenade_launcher", "nail_gun",
+	"machine_pistol", "akimbo", "revolver", "pistol", "brass_knuckles"]
 const TIME_LIMIT := 20.0 * 60.0   ## seconds; if nobody finishes, the furthest along wins
 
 
@@ -42,7 +42,7 @@ const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Golden Gun", "Search 
 const MODE_BLURBS := [
 	"Everyone for themselves with the weapon they picked. First to the kill target, or the most kills when time runs out.",
 	"Every kill moves you to the next weapon on the ladder. First to get a kill with the last one wins; kicked to death, you go back one.",
-	"Snipers only, and style wins: every kill scores its killcam points for range, headshots, momentum, flicks and trickshots.",
+	"Anti-materiel rifles only, and style wins: every kill scores its killcam points for range, headshots, momentum, flicks and trickshots.",
 	"One player holds the Golden Gun: one round, and whoever it hits dies. Kill the holder to take it.",
 	"Two teams, no respawns in a round. The attackers plant a bomb on site A or B; the defenders stop them or defuse it.",
 	"Two teams. Take the other team's flag and bring it home to your own to score.",

@@ -12,7 +12,7 @@ extends Node
 ##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
 ## --color=N           Your colour in a free-for-all: a number in Net.PLAYER_COLORS (0 red, 1 blue, 2 green...).
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
-## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
+## --weapon=ID          Take this gun (pistol, shotgun, rifle, railgun) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
 ## --jetpack           Host / Practice / Vs Bots: everyone has the jetpack (the lobby setting; off by default).
