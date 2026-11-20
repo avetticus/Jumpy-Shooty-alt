@@ -3,7 +3,8 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/weapon_test.gd
 ##
 ## Every gun in the pickers exists and is sane; the shotgun kills in one shot up close
-## and not far away; the bolt-action kills with one headshot and two body shots; the railgun
+## and not far away; the bolt-action kills with one headshot and two body shots; the
+## lever-action kills with a headshot out to where its falloff starts; the railgun
 ## kills anyone in one hit and reloads after every shot (tests/railgun_test.gd shoots
 ## it through a wall); the rifle
 ## and pistol need several hits; magazines reload, and the shotgun's shell-by-shell
@@ -93,6 +94,12 @@ func _init() -> void:
 	_check(not rs.can_fire(), "railgun: not ready before the reload is done")
 	_step(rs, 0.1)
 	_check(rs.can_fire() and rs.ammo == 1, "railgun: ready again %.1f s after the shot" % rail.reload_time)
+
+	# The lever-action: a headshot kills a full-health player out to falloff_start; a body shot does not.
+	var lever := WeaponData.by_id("lever_action")
+	var full := _const_in(match_src, "MAX_HEALTH")
+	_check(lever.damage < full and lever.damage_at(lever.falloff_start) * lever.headshot_multiplier >= full,
+		"lever-action: a headshot kills out to %.0f m, a body shot does not" % lever.falloff_start)
 
 	var rifle := WeaponData.by_id("rifle")
 	_check(rifle.automatic and rifle.magazine == 30, "rifle: automatic, 30 rounds")

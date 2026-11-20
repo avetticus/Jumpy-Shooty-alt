@@ -421,8 +421,8 @@ static func lmg() -> WeaponData:
 ## Work the lever between shots; loads a round at a time.
 static func lever_action() -> WeaponData:
 	var w := _gun("lever_action", "Lever-Action Rifle", "Lever")
-	w.blurb = "Hard-hitting and quick to cycle: a headshot and a body shot kill. Loads a round at a time."
-	w.damage = 55.0
+	w.blurb = "Hard-hitting and quick to cycle: within 50 m a headshot kills, and so do two body shots. Loads a round at a time."
+	w.damage = 56.0   # x1.8 on the head: 100.8, a kill out to falloff_start
 	w.fire_interval = 0.72
 	w.magazine = 7
 	w.reload_time = 0.45
