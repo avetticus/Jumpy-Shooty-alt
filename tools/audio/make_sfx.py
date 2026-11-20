@@ -985,64 +985,6 @@ def blink():
     return finish(mix(snap, zip_, shimmer, (thump, 0.12)))
 
 
-def portal_open():
-    """A portal opening on a surface: a quick spun-up hum that settles into a
-    soft, wobbling tone, with a pop as it lands."""
-    rng = np.random.default_rng(9800)
-    pop = mix(lp(noise(rng, 0.05), 1500) * env(0.05, 0.01, 0.0005), sine_sweep(0.08, 260, 110, 0.012) * env(0.08, 0.02) * 0.7)
-    t = tt(0.5)
-    wobble = 1.0 + 0.03 * np.sin(2 * math.pi * 7.0 * t)
-    hum = np.sin(2 * math.pi * np.cumsum(330.0 * wobble) / SR) * bell_env(0.5, 0.18, 1.6) * 0.3
-    hum += np.sin(2 * math.pi * np.cumsum(495.0 * wobble) / SR) * bell_env(0.5, 0.2, 1.8) * 0.12
-    swirl = sweep_bp(noise(rng, 0.4), 400, 2200, 3.0) * bell_env(0.4, 0.25, 1.4) * 0.35
-    return finish(mix(pop, hum, swirl))
-
-
-def portal_through():
-    """Going through a portal: a deep whoomp, like air pulled through a doorway."""
-    rng = np.random.default_rng(9900)
-    whoomp = lp(noise(rng, 0.4), 700) * bell_env(0.4, 0.3, 1.5) * 0.8
-    drop = sine_sweep(0.3, 220, 70, 0.08) * env(0.3, 0.1) * 0.6
-    air = sweep_bp(noise(rng, 0.35), 3000, 500, 1.8) * bell_env(0.35, 0.2, 1.4) * 0.4
-    return finish(mix(whoomp, drop, air))
-
-
-def portal_shot():
-    """The portal gun firing: a short, round "thoomp" from the launcher on the wrist (a
-    pressurised charge let go), with a bright zip of the bolt leaving."""
-    rng = np.random.default_rng(9810)
-    thoomp = sine_sweep(0.16, 420, 120, 0.03) * env(0.16, 0.045, 0.001) * 0.9
-    puff = lp(noise(rng, 0.09), 1800) * env(0.09, 0.02, 0.0008) * 0.5
-    zip_ = sweep_bp(noise(rng, 0.14), 1400, 5200, 3.0, 0.7) * env(0.14, 0.05, 0.002) * 0.35
-    ring = np.sin(2 * math.pi * 660.0 * tt(0.2)) * env(0.2, 0.06, 0.002) * 0.12
-    return finish(mix(thoomp, puff, zip_, ring))
-
-
-def portal_close():
-    """A portal snapping shut: the hum pulled down and inward in a quarter of a second,
-    a breath of air drawn in after it and a soft pop as it goes."""
-    rng = np.random.default_rng(9820)
-    seconds = 0.3
-    t = tt(seconds)
-    p = np.clip(t / seconds, 0.0, 1.0)
-    f = 360.0 * (1.0 - 0.72 * p ** 1.5)
-    ph = 2 * math.pi * np.cumsum(f) / SR
-    hum = (np.sin(ph) + 0.35 * np.sin(1.5 * ph)) * (1.0 - p) ** 1.2 * np.clip(t / 0.01, 0.0, 1.0) * 0.4
-    suck = sweep_bp(noise(rng, 0.26), 2600, 420, 2.4, 0.8) * bell_env(0.26, 0.55, 1.6) * 0.5
-    pop = mix(lp(noise(rng, 0.04), 1300) * env(0.04, 0.008, 0.0005), sine_sweep(0.07, 200, 90, 0.012) * env(0.07, 0.018) * 0.8)
-    return finish(mix(hum, suck, (pop, 0.24, 0.7)))
-
-
-def portal_fizzle():
-    """A portal shot that does not take: the bolt spatters on the surface and dies. A
-    dull crackle falling away, no hum."""
-    rng = np.random.default_rng(9830)
-    crackle = hp(noise(rng, 0.22), 1800) * env(0.22, 0.05, 0.001) * (0.5 + 0.5 * np.sign(np.sin(2 * math.pi * 55.0 * tt(0.22) ** 0.8)))
-    drop = sweep_bp(noise(rng, 0.25), 1800, 300, 2.2, 0.7) * env(0.25, 0.07, 0.002) * 0.55
-    thud = sine_sweep(0.09, 170, 80, 0.02) * env(0.09, 0.022) * 0.45
-    return finish(mix(crackle * 0.45, drop, thud))
-
-
 # ---------------------------------------------------------------------------
 # Menus and match flow
 
@@ -1659,72 +1601,6 @@ def crane_stop():
 
 
 # ---------------------------------------------------------------------------
-# Empyrean Tower: the Portal Surge (see PortalSurgeEvent and MapRingGate). Wondrous,
-# never an alarm: nothing harsh, nothing that pulses fast.
-
-def surge_open():
-    """The ring gates powering up, about 2.4 s: a shimmer that rises (a D major chord's
-    notes climbing an octave, soft and glassy) over a mechanical whine as the gates'
-    machinery spins up, ending in a gentle bloom as the portals form."""
-    rng = np.random.default_rng(7301)
-    seconds = 2.4
-    t = tt(seconds)
-    p = np.clip(t / 2.0, 0.0, 1.0)
-    rise = p ** 1.6
-    shimmer = np.zeros_like(t)
-    for f, gain, lag in ((293.66, 1.0, 0.0), (369.99, 0.8, 0.12), (440.0, 0.7, 0.24), (587.33, 0.55, 0.36)):
-        fr = f * (1.0 + rise)                       # each note climbs an octave
-        ph = 2 * math.pi * np.cumsum(fr) / SR
-        swell = np.clip((t - lag) / 0.5, 0.0, 1.0) ** 1.5
-        shimmer += gain * swell * (np.sin(ph) + 0.25 * np.sin(2 * ph + 0.5)) * (0.8 + 0.2 * np.sin(2 * math.pi * 5.0 * t + lag * 9.0))
-    air = sweep_bp(noise(rng, seconds), 900.0, 5200.0, q=2.2, curve=1.5) * (0.15 + 0.85 * rise)
-    # The whine: a motor spinning up from 70 Hz to 420 Hz, dull steel rather than a siren.
-    wf = 70.0 + 350.0 * p ** 1.3
-    wph = 2 * math.pi * np.cumsum(wf) / SR
-    whine = np.sin(wph) + 0.4 * np.sin(2 * wph + 0.3) + 0.2 * np.sin(3 * wph + 1.2) + 0.1 * np.sin(5 * wph)
-    whine = lp(whine, 1800.0) * (0.25 + 0.75 * p) * (0.85 + 0.15 * np.sin(2 * math.pi * (4.0 + 10.0 * p) * t))
-    loud = np.clip(t / 0.25, 0.0, 1.0) * (0.25 + 0.75 * p ** 1.2) * np.clip((seconds - t) / 0.45, 0.0, 1.0) ** 0.8
-    x = (shimmer / np.max(np.abs(shimmer)) * 0.6 + air / np.max(np.abs(air)) * 0.3 + whine / np.max(np.abs(whine)) * 0.38) * loud
-    bloom = lp(noise(rng, 0.5), 900.0) * bell_env(0.5, 0.25, 1.6) * 0.35 + sine_sweep(0.5, 180.0, 90.0, 0.12) * env(0.5, 0.16, 0.02) * 0.4
-    return finish(mix(x, (bloom, 1.95, 0.6)), floor_db=-60.0, fade=0.08)
-
-
-def surge_close():
-    """The portals collapsing, about 2 s: a soft whoosh of air drawn inward and falling in
-    pitch, the gates' whine winding down under it. No thump at the end: it just goes."""
-    rng = np.random.default_rng(7302)
-    seconds = 2.1
-    t = tt(seconds)
-    p = np.clip(t / seconds, 0.0, 1.0)
-    whoosh = sweep_bp(noise(rng, seconds), 3200.0, 280.0, q=1.4, curve=0.7) * bell_env(seconds, 0.3, 1.5)
-    low = lp(noise(rng, seconds), 240.0) * bell_env(seconds, 0.45, 1.6) * 2.0
-    wf = 400.0 - 320.0 * p ** 0.7
-    wph = 2 * math.pi * np.cumsum(wf) / SR
-    whine = lp(np.sin(wph) + 0.35 * np.sin(2 * wph + 0.4) + 0.15 * np.sin(3 * wph), 1500.0) * (1.0 - p) ** 1.3 * np.clip(t / 0.1, 0.0, 1.0)
-    tail = np.sin(2 * math.pi * np.cumsum(880.0 - 440.0 * p) / SR) * (1.0 - p) ** 2 * np.clip(t / 0.15, 0.0, 1.0)
-    x = whoosh / np.max(np.abs(whoosh)) * 0.75 + low / np.max(np.abs(low)) * 0.3 + whine / np.max(np.abs(whine)) * 0.3 + tail * 0.1
-    return finish(x, floor_db=-58.0, fade=0.15)
-
-
-def gate_hum():
-    """An open ring gate, heard near it: a soft hum on D (146.8 Hz) with a fifth and an
-    octave, slowly beating, and a breath of air through the ring. Loops (4 s); each gate
-    plays its own, placed in the world, faded in and out by the gate."""
-    seconds = 4.0
-    rng = np.random.default_rng(7303)
-    t = tt(seconds)
-    step = 1.0 / seconds
-    x = np.zeros_like(t)
-    for f, gain in ((73.42, 0.5), (146.83, 1.0), (220.0, 0.5), (293.66, 0.4), (440.0, 0.14), (587.33, 0.08)):
-        for detune, share in ((0.0, 0.6), (0.25, 0.25), (-0.5, 0.15)):
-            fv = round((f + detune) / step) * step
-            x += gain * share * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
-    x *= 0.86 + 0.14 * np.sin(2 * math.pi * 0.5 * t)       # a slow breath, two a loop
-    air = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 1400.0)) ** 2) / 1.2))
-    return _looped(x / np.max(np.abs(x)) + 0.12 * air)
-
-
-# ---------------------------------------------------------------------------
 # Empyrean Tower's tiers: a quiet sound of its own in each (MapAmbientSound loops them,
 # placed in the room). Magic heard from the next room: soft, no attack, no voices, far
 # under the fighting. Every one loops: its tones are whole numbers of cycles long, its
@@ -1844,9 +1720,6 @@ def recipes():
     r = {}
     for make in (magic_engine, magic_library, magic_labs, magic_menagerie, magic_summoning, magic_observatory):
         r[make.__name__] = make
-    r["surge_open"] = surge_open
-    r["surge_close"] = surge_close
-    r["gate_hum"] = gate_hum
     r["terminal_hum"] = terminal_hum
     r["gravity_pad"] = gravity_pad
     r["bell_toll"] = bell_toll
@@ -1928,11 +1801,6 @@ def recipes():
     r["grapple_miss"] = grapple_miss
     r["grapple_taut"] = grapple_taut
     r["blink"] = blink
-    r["portal_open"] = portal_open
-    r["portal_through"] = portal_through
-    r["portal_shot"] = portal_shot
-    r["portal_close"] = portal_close
-    r["portal_fizzle"] = portal_fizzle
     for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select", "ui_materialize"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start

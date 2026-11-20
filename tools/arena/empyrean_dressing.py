@@ -10,7 +10,6 @@ import empyrean as E
 from empyrean import P, rot, ri, ro, rc, chord, TIER, L1, L2, L3, RS, ACCENT, ACCENT_RGB, NAMES, TOP
 
 GATE_Y = 1.87          # a ring gate's middle above the floor it stands on
-FRONTS = {}            # gate name -> the path of its "Front" marker (for the bots' links)
 
 
 def spot(m, parent, name, r, deg, y, face=None):
@@ -200,10 +199,11 @@ def machine(m, g, x0, x1, z0, z1, high, acc, pipes=True):
 # ---------------------------------------------------------------------------
 # Ring gates and the altar
 
-def gate(m, name, at, face, pair, acc, two_sided=True, link_to=None):
+def gate(m, name, at, face, pair, acc):
     """A ring gate standing on the floor at `at` (x, y, z), facing angle `face` (its front
-    looks that way). The ring is alloy and brass with rune marks; its frame is solid
-    (stand on it, hook it) except along the bottom, where you walk through."""
+    looks that way): scenery. The ring is alloy and brass with rune marks; its frame is
+    solid (stand on it, hook it) except along the bottom, where you walk through. (`pair`:
+    the gates were built in pairs; nothing opens in them.)"""
     g = m.group(name, "Gates", at=at, yaw=math.radians(face))
     m.cyl(g, "Plinth", "alloy_dark", (0, 0, 0), 5.2, 0.2, sides=24)
     m.block(g, "PlinthRune", acc, (0, 0.22, 0), (4.6, 0.05, 4.6), shape="tube", sides=24, inner=4.2, solid=False)
@@ -221,21 +221,12 @@ def gate(m, name, at, face, pair, acc, two_sided=True, link_to=None):
     for side in (-1, 1):       # feet: stone on one side, an alloy housing with a conduit on the other
         m.bev(g, "Foot", "stone_dark" if side < 0 else "alloy_dark", (side * 2.0 - 0.55, 0.2, -0.6), (side * 2.0 + 0.55, 1.5, 0.6), bevel=0.18)
         m.box(g, "FootLight", "glow" if side < 0 else "conduit", (side * 2.0 - 0.3, 0.5, 0.6), (side * 2.0 + 0.3, 0.62, 0.64), solid=False)
-    props = [("transform", xform(IDENTITY, (0, GATE_Y, 0))), ("pair", str(pair))]
-    if not two_sided:
-        props.append(("two_sided", "false"))
-    m.node("Gate", g, "gate", props)
-    FRONTS[name] = m.node("Front", g, None, [("transform", xform(IDENTITY, (0, 0.2, 2.4)))], type_="Marker3D")
-    if link_to:
-        m.node("Through", g, "link", [("transform", xform(IDENTITY, (0, 0.2, 2.4))), ("how", "5"), ("hook", 'NodePath("../Gate")'),
-                                      ("landing", 'NodePath("../../%s/Front")' % link_to)], type_="Marker3D")
     return g
 
 
 def altar(m, f):
     """The rune altar in the Summoning Chamber: a rune-circle dais, a stone and brass
-    pedestal with an alloy console top and holographic readouts. Hold interact here for
-    2 s to start the Portal Surge."""
+    pedestal with an alloy console top and holographic readouts (scenery)."""
     y0 = TIER * 4
     g = spot(m, f, "Altar", RS + 6.0, 75.0, y0)
     m.cyl(g, "Dais", "alloy_floor", (0, 0, 0), 7.0, 0.22, sides=24)
@@ -249,8 +240,6 @@ def altar(m, f):
         px, pz = math.sin(a) * 1.05, math.cos(a) * 1.05
         m.block(g, "Readout", "holo" if k % 2 else "holo_gold", (px, 2.0, pz), (0.8, 0.5, 0.03), cols=yaw_cols(a), solid=False)
         m.cyl(g, "ReadoutEmitter", "brass", (px * 0.8, 1.3, pz * 0.8), 0.14, 0.12, sides=6, solid=False)
-    m.node("MapTerminal", g, "terminal", [("transform", xform(IDENTITY, (0, 0.22, 0))), ("channel_time", "2.0"), ("range", "2.0"),
-                                          ("light", "Color(0.75, 0.5, 1, 1)"), ("event", 'NodePath("../../../PortalSurge")')])
     return g
 
 
@@ -807,16 +796,14 @@ def gates(m):
     m.folder("Gates")
     g1 = "GateEngine", "GateObservatory"
     g3 = "GateLabs", "GateSummoning"
-    # 1: Arcane Engine <-> Observatory. 3: Alchemy Labs <-> Summoning Chamber (bots know these two).
-    gate(m, g1[0], P(RS + 9.0, 141.0, 0.0), 51.0, 1, "accent_cyan", link_to=g1[1])
-    gate(m, g1[1], P(RS + 7.0, 135.0, TIER * 5), 45.0, 1, "accent_silver", link_to=g1[0])
-    gate(m, g3[0], P(RS + 9.4, 10.0, TIER * 2), 100.0, 3, "accent_green", link_to=g3[1])
-    gate(m, g3[1], P(RS + 8.8, 144.0, TIER * 4), 54.0, 3, "accent_violet", link_to=g3[0])
+    # 1: Arcane Engine <-> Observatory. 3: Alchemy Labs <-> Summoning Chamber.
+    gate(m, g1[0], P(RS + 9.0, 141.0, 0.0), 51.0, 1, "accent_cyan")
+    gate(m, g1[1], P(RS + 7.0, 135.0, TIER * 5), 45.0, 1, "accent_silver")
+    gate(m, g3[0], P(RS + 9.4, 10.0, TIER * 2), 100.0, 3, "accent_green")
+    gate(m, g3[1], P(RS + 8.8, 144.0, TIER * 4), 54.0, 3, "accent_violet")
     # 2: Grand Library <-> a still island. 4: Menagerie <-> another. Their far ends are built with the debris.
     gate(m, "GateLibrary", P(RS + 8.6, 8.0, TIER * 1), 98.0, 2, "accent_gold")
     gate(m, "GateMenagerie", P(RS + 8.6, 142.0, TIER * 3), 52.0, 4, "accent_teal")
-    m.node("PortalSurge", ".", "surge", [("open_time", "2.0"), ("duration", "30.0"), ("close_time", "2.0"), ("cooldown", "60.0"),
-                                         ("pulse_kinds", 'PackedStringArray("glow", "conduit")')], type_="Node")
 
 
 def spawns(m, isles):

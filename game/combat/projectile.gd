@@ -6,7 +6,6 @@ extends Node3D
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
 
 const BLEND := 0.12   ## seconds to slide from the muzzle onto the real flight path
-const SHOT_EXIT := 0.03   ## Portals.SHOT_EXIT: out of a portal this far in front of it
 
 var id := 0
 var weapon: WeaponData
@@ -153,41 +152,11 @@ func _dart(radius: float, length: float, color: Color, fletch: float) -> void:
 			add_child(fin)
 
 
-## A step from `from` to `to` (moving at `vel`) that goes into a portal (`gate`, from
-## Portals.crossing): where it ends up and how it is moving, [position, velocity], out
-## of the other portal with the rest of the step. Host and look use the same sum.
-static func through_portal(gate: Dictionary, from: Vector3, to: Vector3, vel: Vector3) -> Array:
-	# (Untyped, and SHOT_EXIT by value: Portal and Portals need the game's autoloads, and
-	# tests load this script without them.)
-	var into = gate.from
-	var out = gate.to
-	var rest: Vector3 = (to - from) * (1.0 - float(gate.t))
-	var v: Vector3 = into.carry(out, vel)
-	var at: Vector3 = into.carry_point(out, gate.at) + out.normal * SHOT_EXIT + into.carry(out, rest)
-	return [at, v]
-
-
 ## Where the host's copy would be after `t` seconds (the same sum, step by step).
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_vel.y -= weapon.projectile_gravity * delta
-	var to := _pos + _vel * delta
-	var gate := {}
-	# (Net by its path, not its name: tests load this script without the game's autoloads.)
-	var net := get_node_or_null("/root/Net")
-	var arena: Node = net.arena if net else null
-	var portals = arena.get("portals") if arena and is_instance_valid(arena) else null
-	if portals and arena.is_ancestor_of(self):
-		gate = portals.crossing(_pos, to)
-	if gate:
-		gate.from.ripple()
-		gate.to.ripple()
-		var through := through_portal(gate, _pos, to, _vel)
-		_pos = through[0]
-		_vel = through[1]
-		_offset = Vector3.ZERO   # (no more drawing it out of the muzzle)
-	else:
-		_pos = to
+	_pos += _vel * delta
 	var k := clampf(1.0 - _t / BLEND, 0.0, 1.0)
 	global_position = _pos + _offset * k
 	if _vel.length_squared() > 0.01:

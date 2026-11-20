@@ -16,8 +16,8 @@ is solid, adds a route or changes how the map plays.
    apart, a stair of floating treads winding off into nothing, and the tower's own top
    mirrored upside down under its root.
  - A MapMagicField, which makes the motes, books, pages, spirits, candles and the
-   runes in the stone answer to players within 4 m in plain sight, and livens it all
-   up during the Portal Surge. A quiet sound of its own in every tier (MapAmbientSound).
+   runes in the stone answer to players within 4 m in plain sight. A quiet sound of its
+   own in every tier (MapAmbientSound).
 
 See empyrean.py for the plan and the conventions."""
 import math
@@ -448,4 +448,4 @@ def enchant(m, folders):
     m.node("Ambience", g, "ambient", [("transform", xform(IDENTITY, (0, TIER * 5 + 9.0, 0))), ("sound", '"%s"' % SOUNDS[5]), ("reach", "34.0"), ("near", "9.0")])
     outside_motes(m)
     phantoms(m)
-    m.node("MagicField", ".", "field", [("event", 'NodePath("../PortalSurge")')], type_="Node")
+    m.node("MagicField", ".", "field", [], type_="Node")

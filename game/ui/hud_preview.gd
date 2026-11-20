@@ -75,7 +75,7 @@ func _fill_view() -> void:
 	v.character = Characters.name_of(Settings.character)
 	v.speed = 11.4
 	v.move_state = "SLIDE"
-	v.moves = [["GRAPPLE", "RMB", 1.0, false], ["DIVE", "Q", 0.35, false], ["FLIP", "SPACE", 1.0, false],
+	v.moves = [["GRAPPLE", "MMB", 1.0, false], ["DIVE", "Q", 0.35, false], ["FLIP", "SPACE", 1.0, false],
 		["GLIDE", "ALT", 1.0, false], ["SLIDE", "CTRL", 0.6, false], ["BOOST", "E", 1.0, false], ["KICK", "F", 1.0, false]]
 
 

@@ -69,12 +69,10 @@ var grapple := GRAPPLE_NO_TARGET
 var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
 var tether := 0.0
 ## The mobility tool (see Mobility), and for blink its charges (and how far the next
-## has come back), for the portal gun which of your portals are up and which is next.
+## has come back). The jetpack's fuel (everyone's, on Space: 1 = full).
 var mobility := Mobility.GRAPPLE
 var blink_charges := 0
 var blink_refill := 1.0
-var portals_up := [false, false]
-var portal_next := 0
 var jet_fuel := 1.0
 
 var _root: Control
@@ -253,11 +251,7 @@ func update_local(p: Player) -> void:
 	if p.blink:
 		blink_charges = p.blink.charges
 		blink_refill = p.blink.recharge_progress()
-	if p.portal_gun and Net.arena and Net.arena.portals:
-		portal_next = p.portal_gun.next_slot
-		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
-	if p.jetpack:
-		jet_fuel = p.jetpack.fuel
+	jet_fuel = p.jetpack.fuel if p.jetpack else 1.0   # (none in a race)
 	if not Mobility.is_grapple(mobility):
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
@@ -272,7 +266,7 @@ func update_local(p: Player) -> void:
 	else:
 		grapple = GRAPPLE_NO_TARGET
 	var mt := p.motor.tuning
-	v.moves = [[Mobility.hud_label(mobility), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING]]
+	v.moves = [[Mobility.hud_label(mobility), _key_label("grapple", "MMB"), p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING]]
 	if mt.ctrl_moves:   # Variant B: Ctrl dives forward and slides backward
 		v.moves.append(["DIVE", "CTRL", p.motor.dive_readiness(), false])
 	else:
@@ -714,36 +708,25 @@ static func _points_color(part: Array, i: int) -> Color:
 	return HudStyle.YELLOW if gold else HudStyle.WHITE
 
 
-## Under the crosshair ring: blink's charges (three short arcs, the next one filling
-## up), or the portal gun's two portals (filled when up, the next one to shoot ringed).
+## Under the crosshair ring: blink's charges (short arcs, the next one filling up), and
+## the jetpack's fuel while it is not full (an arc further out, orange when low).
 func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
-	match mobility:
-		Mobility.BLINK:
-			var each := 36.0
-			for i in Blink.CHARGES:
-				var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
-				HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
-				var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
-				if fill > 0.0:
-					var col := Color(Portal.COLORS[0], 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
-					HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
-		Mobility.JETPACK:   # fuel: an arc under the ring, orange when low
-			var span := 110.0
-			var from := 90.0 - span * 0.5
-			HudStyle.arc(ci, c, ring + 6.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
-			if jet_fuel > 0.01:
-				var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(Portal.COLORS[0], 0.95)
-				HudStyle.arc(ci, c, ring + 6.0, from, from + span * jet_fuel, col, 3.0)
-		Mobility.PORTAL:
-			for i in 2:
-				var at := c + Vector2((i * 2 - 1) * 9.0, ring + 12.0)
-				var col: Color = Portal.COLORS[i]
-				if portals_up[i]:
-					ci.draw_circle(at, 4.5, col)
-				else:
-					HudStyle.arc(ci, at, 4.5, 0, 360, Color(col, 0.6), 1.5)
-				if i == portal_next:
-					HudStyle.arc(ci, at, 7.5, 0, 360, Color(1, 1, 1, 0.8), 1.5)
+	if mobility == Mobility.BLINK:
+		var each := 36.0
+		for i in Blink.CHARGES:
+			var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
+			HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
+			var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
+			if fill > 0.0:
+				var col := Color(Blink.COLOR, 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
+				HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
+	if jet_fuel < 0.999:   # (a full tank shows nothing)
+		var span := 110.0
+		var from := 90.0 - span * 0.5
+		HudStyle.arc(ci, c, ring + 12.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
+		if jet_fuel > 0.01:
+			var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(Blink.COLOR, 0.95)
+			HudStyle.arc(ci, c, ring + 12.0, from, from + span * jet_fuel, col, 3.0)
 
 
 func _draw_cross() -> void:
@@ -1058,7 +1041,7 @@ const MOBILITY_ROW := 58.0
 
 
 ## While you wait to respawn: the mobility tool you come back with (the mobility
-## button, right mouse, goes on to the next).
+## button, middle mouse, goes on to the next).
 func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.pending_mobility()
 	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
@@ -1367,10 +1350,18 @@ func _weapon_label(id: int) -> String:
 	return WeaponData.by_id(gun).short_name if gun != "none" else "Unarmed"
 
 
-## The first key bound to `action`, as the HUD shows it ("ALT"), or `fallback`.
+## Mouse buttons as a move's keycap shows them.
+const MOUSE_KEYCAPS := {MOUSE_BUTTON_LEFT: "LMB", MOUSE_BUTTON_RIGHT: "RMB", MOUSE_BUTTON_MIDDLE: "MMB",
+	MOUSE_BUTTON_XBUTTON1: "M4", MOUSE_BUTTON_XBUTTON2: "M5", MOUSE_BUTTON_WHEEL_UP: "WHL UP", MOUSE_BUTTON_WHEEL_DOWN: "WHL DN"}
+
+
+## The first key bound to `action`, as the HUD shows it ("ALT", "MMB"), or `fallback`.
 func _key_label(action: String, fallback: String) -> String:
 	var list: Array = Settings.bindings.get(action, [])
 	if list.is_empty():
 		return fallback
+	var ev := Settings.binding_event(str(list[0]))
+	if ev is InputEventMouseButton:
+		return MOUSE_KEYCAPS.get(ev.button_index, fallback)   # (short: "MIDDLE MOUSE" would not fit the keycap)
 	var text := Settings.binding_text(str(list[0])).to_upper()
 	return text if text != "" else fallback

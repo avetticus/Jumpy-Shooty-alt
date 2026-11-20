@@ -12,7 +12,7 @@ func run() -> void:
 	game.start_practice("testing_grounds")
 	await _frames(30)
 	var arena = net.arena
-	_check(arena != null and arena.portals != null, "practice starts, with a place for portals")
+	_check(arena != null, "practice starts")
 	var me: Player = arena.local_player
 	_check(me.mobility == Mobility.BLINK and me.blink != null, "you have the blink you picked")
 	_check(net.player_mobility(net.my_id()) == Mobility.BLINK, "the lobby has it on record")
@@ -55,130 +55,90 @@ func run() -> void:
 		_check(space.intersect_ray(q).is_empty(), "...and on this side of it")
 
 	# --- Picking: refused while alive, taken while dead.
-	net.set_my_mobility(Mobility.PORTAL)
+	net.set_my_mobility(Mobility.GRAPPLE)
 	await _frames(3)
 	_check(net.player_loadout_mobility(net.my_id()) == Mobility.BLINK, "a pick while alive waits")
 	match_state._host_damage(9001, net.my_id(), 500.0)
 	await _frames(5)
 	_check(not match_state.is_alive(net.my_id()), "you died")
 	await _frames(5)
-	_check(net.player_loadout_mobility(net.my_id()) == Mobility.PORTAL, "dead: the pick made while alive is taken (%s)" % net.player_loadout_mobility(net.my_id()))
-	_check(me.mobility == Mobility.PORTAL and me.portal_gun != null and me.blink == null, "you now have the portal gun")
+	_check(net.player_loadout_mobility(net.my_id()) == Mobility.GRAPPLE, "dead: the pick made while alive is taken (%s)" % net.player_loadout_mobility(net.my_id()))
+	_check(me.mobility == Mobility.GRAPPLE and me.blink == null, "you now have the grappling hook")
 	await get_tree().create_timer(Match.RESPAWN_DELAY + 0.5).timeout
 	me = arena.local_player
-	_check(match_state.is_alive(net.my_id()) and me.mobility == Mobility.PORTAL, "and come back with it")
+	_check(match_state.is_alive(net.my_id()) and me.mobility == Mobility.GRAPPLE, "and come back with it")
+	_check(Mobility.IDS == [Mobility.GRAPPLE, Mobility.BLINK] and Mobility.valid("portal") == Mobility.GRAPPLE and Mobility.valid("jetpack") == Mobility.GRAPPLE,
+		"two tools to pick from; an old pick of a tool that is gone is the grappling hook")
 
-	# --- Portal gun: two floor portals, fall into one, out of the other.
-	var a := _open_spot(me, 16.0)
-	me.teleport(a[0], a[1])
-	await _physics(20)
-	me.input.pitch = deg_to_rad(-80.0)
-	me.input.grapple_pressed = true
-	await _physics(2)
-	var blue: Portal = arena.portals.get_portal(me.peer_id, 0)
-	_check(blue != null and blue.normal.y > 0.9, "aiming at the floor puts a blue portal there")
-	_check(me.portal_gun.next_slot == 1, "the next one is orange")
-	var far_spot: Vector3 = a[0] + a[2] * 14.0
-	await get_tree().create_timer(PortalGun.COOLDOWN + 0.05).timeout
-	var eye := me.eye_position()
-	me.input.mobility_dir = (far_spot - eye).normalized()
-	me.input.grapple_pressed = true
-	await _physics(2)
-	var orange: Portal = arena.portals.get_portal(me.peer_id, 1)
-	_check(orange != null and orange.global_position.distance_to(far_spot) < 1.5, "the next press puts an orange one where you aim")
-	if blue and orange:
-		# Stand on blue: out of orange, popping up.
-		me.teleport(blue.global_position + Vector3(0, 0.05, 0), me.input.yaw)
-		var trips := me.respawn_count()
-		await _physics(3)
-		_check(me.global_position.distance_to(orange.global_position) < 2.0, "stepping onto a portal brings you out of the other (%.1f m from it)" % me.global_position.distance_to(orange.global_position))
-		_check(me.velocity.y > 2.0, "coming out of a floor, you pop up (%.1f m/s)" % me.velocity.y)
-		_check(me.respawn_count() == trips + 1, "others are told it was a jump, not a run across the map")
-		await _physics(90)
-		_check(me.global_position.distance_to(orange.global_position) < 2.5, "landing back on it does not send you straight back")
-		# A wall portal: in through the floor, out of the wall, moving out of it.
-		var w := _wall_spot(me)
-		if not w.is_empty():
-			me.teleport(w[0], 0.0)
-			await _physics(10)
-			await get_tree().create_timer(PortalGun.COOLDOWN + 0.05).timeout
-			me.input.mobility_dir = w[1]
-			me.input.grapple_pressed = true
-			await _physics(2)
-			var on_wall: Portal = arena.portals.get_portal(me.peer_id, 0)
-			_check(on_wall != null and absf(on_wall.normal.y) < 0.3, "a portal on a wall stands upright")
-			_check(on_wall != null and on_wall.global_position.y - Portal.HALF_HEIGHT >= w[0].y - 0.1,
-				"...and clear of the floor")
-			if on_wall:
-				me.teleport(orange.global_position + Vector3(0, 0.05, 0), 0.0)
-				await _physics(3)
-				var out := me.velocity.dot(on_wall.normal)
-				_check(me.global_position.distance_to(on_wall.global_position) < 2.5 and out > 2.0,
-					"in through the floor, out of the wall, moving away from it (%.1f m/s)" % out)
-	# Too far apart: the new one closes the other.
-	var span_from: Vector3 = a[0]
-	arena.portals.place(me.peer_id, 0, span_from, Vector3.UP, Vector3.FORWARD)
-	arena.portals.place(me.peer_id, 1, span_from + Vector3(Portals.MAX_SPAN - 5.0, 0, 0), Vector3.UP, Vector3.FORWARD)
-	_check(arena.portals.get_portal(me.peer_id, 0) != null and arena.portals.get_portal(me.peer_id, 1) != null,
-		"two portals within %d m of each other both stay" % int(Portals.MAX_SPAN))
-	arena.portals.place(me.peer_id, 0, span_from + Vector3(Portals.MAX_SPAN - 5.0, 0, Portals.MAX_SPAN - 10.0), Vector3.UP, Vector3.FORWARD)
-	await _frames(2)
-	_check(arena.portals.get_portal(me.peer_id, 0) != null and arena.portals.get_portal(me.peer_id, 1) != null,
-		"moving one still in range keeps the pair")
-	arena.portals.place(me.peer_id, 1, span_from - Vector3(Portals.MAX_SPAN, 0, 0), Vector3.UP, Vector3.FORWARD)
-	await _frames(2)
-	_check(arena.portals.get_portal(me.peer_id, 1) != null and arena.portals.get_portal(me.peer_id, 0) == null,
-		"a portal put up too far from the other closes it")
-	# Your portals go when you die.
-	match_state._host_damage(9001, net.my_id(), 500.0)
-	await _frames(5)
-	_check(arena.portals.get_portal(me.peer_id, 0) == null and arena.portals.get_portal(me.peer_id, 1) == null,
-		"your portals go when you die")
-
-	# --- Carrying speed through: a wall facing +Z to a floor.
-	var pa := Portal.new()
-	pa.place(Vector3.ZERO, Vector3(0, 0, 1), Vector3.UP)
-	var pb := Portal.new()
-	pb.place(Vector3(10, 0, 0), Vector3.UP, Vector3(0, 0, -1))
-	var v := pa.carry(pb, Vector3(0, 0, -8))
-	_check(v.is_equal_approx(Vector3(0, 8, 0)), "running into a wall portal at 8 m/s, you come out of a floor going up at 8 (%s)" % v)
-	pa.free()
-	pb.free()
-
-	# --- Jetpack: holding the button lifts you off the ground and burns fuel; it refills.
-	await get_tree().create_timer(Match.RESPAWN_DELAY + 0.5).timeout
-	me = arena.local_player
-	me.set_mobility(Mobility.JETPACK)
+	# --- The jetpack: everyone has it, on Space held in mid-air.
+	_check(me.jetpack != null and me.motor.has_jetpack, "you have the jetpack as well as your mobility tool")
+	var hold_frames := int(me.motor.tuning.space_hold_time * Engine.physics_ticks_per_second)
 	var j := _open_spot(me, 6.0)
 	me.teleport(j[0], j[1])
 	await _physics(20)
 	var ground_y := me.global_position.y
 	DevArgs.drives_keys = true   # read the keys even though the mouse is not captured
-	Input.action_press("grapple")
-	await _physics(60)   # half a second at 120 Hz
-	Input.action_release("grapple")
+	# A tap of Space: a plain jump, no fuel burnt.
+	Input.action_press("jump")
+	await _physics(12)
+	Input.action_release("jump")
+	var top := await _top_over(120)
+	_check(top - ground_y > 0.8 and top - ground_y < 2.3, "a tap of Space is a plain jump (%.2f m up, the legs tucked)" % (top - ground_y))
+	_check(me.jetpack.fuel >= 0.999, "...and burns no fuel (%.2f)" % me.jetpack.fuel)
+	# Held through the jump but let go before the hold time: still a plain jump.
+	await _physics(30)
+	Input.action_press("jump")
+	await _physics(hold_frames - 6)
+	Input.action_release("jump")
+	top = await _top_over(120)
+	_check(me.jetpack.fuel >= 0.999 and top - ground_y < 2.3,
+		"held through the jump for under %.2f s: no fuel burnt (%.2f m up)" % [me.motor.tuning.space_hold_time, top - ground_y])
+	# Held on: the jetpack lights and carries you well above a jump.
+	await _physics(30)
+	Input.action_press("jump")
+	var lit := false
+	top = ground_y
+	for i in 84:
+		await get_tree().physics_frame
+		top = maxf(top, me.global_position.y)
+		if i < hold_frames - 4:
+			lit = lit or me.jetpack.on
+	_check(not lit, "the jetpack waits out the hold time after the jump")
+	_check(me.jetpack.on, "then, still holding Space in mid-air, it fires")
+	Input.action_release("jump")
 	await _physics(2)
-	DevArgs.drives_keys = false
-	_check(me.global_position.y > ground_y + 1.0, "holding the jetpack lifts you (%.1f m up)" % (me.global_position.y - ground_y))
-	_check(me.jetpack.fuel < 0.9, "and burns fuel (%.2f left)" % me.jetpack.fuel)
+	_check(top - ground_y > 3.0, "and lifts you well above a jump (%.1f m up)" % (top - ground_y))
+	_check(me.jetpack.fuel < 0.9, "burning fuel (%.2f left)" % me.jetpack.fuel)
 	_check(RobotAnimInput.jetpack_of(me._my_anim_flags()) == false, "others are told when it stops")
 	var low := me.jetpack.fuel
 	await get_tree().create_timer(1.5).timeout
 	_check(me.jetpack.fuel > low, "the fuel refills when you let go (%.2f)" % me.jetpack.fuel)
+	# Falling: a fresh press in mid-air (a flip), held on, flies it too.
+	await get_tree().create_timer(1.0).timeout
+	me.teleport(j[0] + Vector3(0, 12.0, 0), j[1])
+	await _physics(4)
+	Input.action_press("jump")
+	await _physics(hold_frames + 36)
+	var rising := me.velocity.y
+	var fell_jet := me.jetpack.on
+	Input.action_release("jump")
+	DevArgs.drives_keys = false
+	_check(fell_jet and rising > 0.0, "falling, hold Space: the jetpack catches you (rising at %.1f m/s)" % rising)
+	await _physics(240)
 
-	# --- Bots take a tool, and a race always has the grapple.
-	var id: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.PORTAL)
+	# --- Bots take a tool (and have the jetpack), and a race always has the grapple (and no jetpack).
+	var id: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.GRAPPLE)
 	await _frames(10)
 	var bot: Player = arena.get_player(id)
-	_check(bot != null and bot.mobility == Mobility.PORTAL and bot.portal_gun != null, "a bot can carry the portal gun")
+	_check(bot != null and bot.mobility == Mobility.GRAPPLE and bot.jetpack != null, "a bot can carry the grappling hook, and has the jetpack")
 	var id2: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.BLINK)
 	await _frames(10)
 	var bot2: Player = arena.get_player(id2)
-	_check(bot2 != null and bot2.mobility == Mobility.BLINK and bot2.blink != null, "a bot can carry blink")
-	var id3: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.JETPACK)
+	_check(bot2 != null and bot2.mobility == Mobility.BLINK and bot2.blink != null and bot2.jetpack != null, "a bot can carry blink, and has the jetpack")
+	var id3: int = net.add_bot(BotDifficulty.EXPERT, "", "portal")
 	await _frames(10)
 	var bot3: Player = arena.get_player(id3)
-	_check(bot3 != null and bot3.jetpack != null, "a bot can carry the jetpack")
+	_check(bot3 != null and Mobility.has(bot3.mobility), "a bot asked for a tool that is gone gets one there is (%s)" % (bot3.mobility if bot3 else "none"))
 	net.remove_bot(id)
 	net.remove_bot(id2)
 	net.remove_bot(id3)
@@ -188,9 +148,21 @@ func run() -> void:
 	arena = net.arena
 	_check(arena != null and arena.local_player != null and arena.local_player.mobility == Mobility.GRAPPLE,
 		"a race always has the grapple (picked: %s)" % net.player_loadout_mobility(net.my_id()))
+	_check(arena != null and arena.local_player != null and arena.local_player.jetpack == null and not arena.local_player.motor.has_jetpack,
+		"and no jetpack: the courses are the grapple's")
 
 	print("PASS" if _ok else "FAIL")
 	get_tree().quit(0 if _ok else 1)
+
+
+## The highest the local player's feet get over the next `n` physics steps.
+func _top_over(n: int) -> float:
+	var me: Player = Net.arena.local_player
+	var top := me.global_position.y
+	for i in n:
+		await get_tree().physics_frame
+		top = maxf(top, me.global_position.y)
+	return top
 
 
 ## A spot on the floor with `length` metres of clear, flat floor ahead: [feet, yaw, direction].

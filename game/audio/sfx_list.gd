@@ -21,8 +21,7 @@ const VOLUME := {
 	"wall_run": -12.0, "wall_jump": -10.0, "vault": -12.0, "ledge_climb": -11.0,
 	"crouch": -18.0, "stand": -18.0,
 	"grapple_fire": -10.0, "grapple_attach": -10.0, "grapple_release": -12.0, "grapple_miss": -12.0, "grapple_taut": -8.0,
-	"blink": -9.0, "portal_open": -10.0, "portal_through": -8.0,
-	"portal_shot": -11.0, "portal_close": -11.0, "portal_fizzle": -13.0,
+	"blink": -9.0,
 	"ui_hover": -20.0, "ui_click": -12.0, "ui_confirm": -10.0, "ui_back": -12.0,
 	"ui_toggle": -13.0, "ui_tick": -20.0, "ui_select": -12.0,
 	"ui_materialize": -21.0,   # (quiet: stepping through the robots plays it again and again)
@@ -90,11 +89,7 @@ const VOLUME := {
 	"lever_pull": -8.0, "crane_start": -9.0, "crane_motor": -13.0, "crane_stop": -8.0,
 	# The Haunted House (HauntEvent: the warning, the shift and the house settling; MapGhost: a moan).
 	"haunt_warn": -10.0, "haunt_shift": -12.0, "haunt_settle": -11.0, "ghost_moan": -12.0,
-	# Empyrean Tower's Portal Surge (PortalSurgeEvent plays the swell as the ring gates
-	# open and the whoosh as they collapse, all over the map but under the fighting;
-	# each open MapRingGate hums by itself, placed in the world, and that one loops).
-	"surge_open": -9.0, "surge_close": -11.0, "gate_hum": -14.0,
-	# ...and the quiet sound of each of its tiers (MapAmbientSound loops them in the
+	# Empyrean Tower: the quiet sound of each of its tiers (MapAmbientSound loops them in the
 	# room: magic heard from next door, far under everything else).
 	"magic_engine": -21.0, "magic_library": -23.0, "magic_labs": -22.0, "magic_menagerie": -24.0, "magic_summoning": -20.0,
 	"magic_observatory": -24.0,

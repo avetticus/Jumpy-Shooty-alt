@@ -26,8 +26,7 @@ var interact := false      ## interact is down (a MapTerminal takes the press; s
 ## Optional: which way the rocket boots push (bots aim them). Left at zero, they push
 ## toward your WASD direction as seen from where you look, or straight where you look.
 var boost_dir := Vector3.ZERO
-## Optional: which way blink goes or the portal gun shoots (bots aim them). Left at
-## zero, they go where you look.
+## Optional: which way blink goes (bots aim it). Left at zero, it goes where you look.
 var mobility_dir := Vector3.ZERO
 ## Optional crosshair ray (third person aims from the camera, not the eyes).
 ## Left at zero, aiming uses the eyes plus yaw and pitch.

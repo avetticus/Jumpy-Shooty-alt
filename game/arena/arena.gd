@@ -22,8 +22,6 @@ var gates: Array = []
 var pickups: Array = []
 ## Deathmatch: the map's power-ups (ItemPickup), in the order of their index.
 var items: Array = []
-## Everyone's portals (portal gun: see Portals).
-var portals: Portals
 ## Team modes: the flags, bomb sites and bomb (see Teams), or null.
 var objectives: ObjectiveProps
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
@@ -66,9 +64,6 @@ func _ready() -> void:
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
-	portals = Portals.new()
-	portals.name = "Portals"
-	add_child(portals)
 	hud = Hud.new()
 	add_child(hud)
 	pause_menu = PauseMenu.new()
@@ -197,7 +192,6 @@ func on_snapshot(sender: int, remote_time: float, data: PackedFloat32Array) -> v
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
-	portals.clear(victim)   # your portals go when you die
 	var p := get_player(victim)
 	if p:
 		var shown := p.visual.visible
@@ -250,15 +244,13 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 		local_player.shake(clampf(1.0 - d / (w.splash_radius * 5.0), 0.0, 1.0))
 
 
-func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array, vias: Array) -> void:
+func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
 		return  # we (or our bot) already drew this shot the moment it was fired
 	if p:
 		p.show_shot()
-	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
-	if portals:
-		portals.shots_through(vias)
+	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter))
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
 
 
@@ -325,7 +317,6 @@ func _sync_players() -> void:
 			p.queue_free()
 		elif not Match.is_alive((p as Player).peer_id) and (p as Player).alive:
 			(p as Player).set_dead()  # joined while they were dead
-	portals.prune()
 	_sync_spectator()
 	hud.set_players(Net.players)
 
@@ -463,7 +454,6 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
 	if gone.is_empty():
 		return
-	portals.remove_in(gone)
 	for p in players_root.get_children():
 		var player := p as Player
 		if not player.is_local or player.motor == null or not player.motor.grapple.attached:
