@@ -316,21 +316,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"derringer":   # two short barrels over a bird's-head grip
 			shapes = [[Vector2(0, 0), Vector2(15, 0), Vector2(15, 5.5), Vector2(6, 5.5), Vector2(4, 9), Vector2(0.5, 9),
 				Vector2(2, 5), Vector2(0, 5)], [Vector2(5, -1.5), Vector2(15, -1.5), Vector2(15, -0.5), Vector2(5, -0.5)]]
-		"flare_gun":   # a fat, short barrel
-			shapes = [[Vector2(0, 2), Vector2(6, 2), Vector2(6, -1), Vector2(24, -1), Vector2(24, 5), Vector2(10, 5),
-				Vector2(8, 11), Vector2(4, 11), Vector2(5, 5), Vector2(0, 5)]]
-		"plasma_pistol":   # a rounded shell, coils showing through, an emitter at the front
-			shapes = [[Vector2(0, 1), Vector2(3, -1), Vector2(19, -1), Vector2(22, 1.5), Vector2(19, 4), Vector2(9, 4),
-				Vector2(8, 10), Vector2(4, 10), Vector2(5, 4), Vector2(0, 4)],
-				[Vector2(22, 0.5), Vector2(25, 0.5), Vector2(25, 2.5), Vector2(22, 2.5)]]
-		"auto_shotgun":   # a boxy shotgun with a drum under it
-			shapes = [[Vector2(0, 1), Vector2(9, 0), Vector2(38, 0), Vector2(38, 3), Vector2(22, 3.5), Vector2(12, 4.5),
-				Vector2(11, 9), Vector2(8, 9), Vector2(9, 4.5), Vector2(0, 6)],
-				[Vector2(13, 4), Vector2(21, 4), Vector2(23, 7), Vector2(21, 11), Vector2(13, 11), Vector2(12, 7)]]
-		"slug_shotgun":   # a pump gun with a sight on top
-			shapes = [[Vector2(0, 1), Vector2(9, 0), Vector2(40, 0), Vector2(40, 3), Vector2(13, 4), Vector2(11, 9),
-				Vector2(8, 9), Vector2(9, 4), Vector2(0, 6)], [Vector2(19, 4), Vector2(29, 4), Vector2(29, 7), Vector2(19, 7)],
-				[Vector2(10, -3), Vector2(15, -3), Vector2(15, 0), Vector2(10, 0)]]
 		"air_cannon":   # a wide barrel flaring into a bell, the tank underneath
 			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(30, -1), Vector2(36, -4), Vector2(36, 8), Vector2(30, 5),
 				Vector2(12, 5), Vector2(11, 10), Vector2(8, 10), Vector2(9, 5), Vector2(0, 6)],
@@ -361,22 +346,10 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 				Vector2(54, 4.5), Vector2(50, 4.5), Vector2(50, 3), Vector2(28, 3.5), Vector2(26, 5), Vector2(19, 5),
 				Vector2(19, 10), Vector2(15, 10), Vector2(15, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 7)],
 				[Vector2(10, -4), Vector2(25, -4), Vector2(25, 0), Vector2(10, 0)]]
-		"harpoon_gun":   # a launch tube with the barbed harpoon out of the front
-			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(32, 0), Vector2(32, 4), Vector2(12, 4), Vector2(11, 9),
-				Vector2(8, 9), Vector2(9, 4), Vector2(0, 6)], [Vector2(32, 1.5), Vector2(40, 1.5), Vector2(40, 2.5), Vector2(32, 2.5)],
-				[Vector2(39, -1), Vector2(46, 2), Vector2(39, 5), Vector2(41, 2)]]
-		"mortar":   # a fat, short tube with a base plate
-			shapes = [[Vector2(-2, -3), Vector2(1, -3), Vector2(1, -1), Vector2(36, -1), Vector2(36, 7), Vector2(1, 7),
-				Vector2(1, 9), Vector2(-2, 9)], [Vector2(12, 7), Vector2(15, 7), Vector2(15, 12), Vector2(12, 12)],
-				[Vector2(22, 7), Vector2(25, 7), Vector2(25, 11), Vector2(22, 11)]]
 		"plasma_cannon":   # a bulky body round a round chamber, rings down the barrel
 			shapes = [[Vector2(0, 1), Vector2(8, -1), Vector2(22, -1), Vector2(22, 6), Vector2(12, 6), Vector2(11, 11),
 				Vector2(8, 11), Vector2(9, 6), Vector2(0, 6)], [Vector2(22, 1), Vector2(38, 1), Vector2(38, 4), Vector2(22, 4)],
 				[Vector2(26, -0.5), Vector2(28, -0.5), Vector2(28, 5.5), Vector2(26, 5.5)], [Vector2(32, -0.5), Vector2(34, -0.5), Vector2(34, 5.5), Vector2(32, 5.5)]]
-		"katana":   # a long, slightly curved blade, a round guard
-			shapes = [[Vector2(0, 3), Vector2(11, 3), Vector2(11, 5), Vector2(0, 5)],
-				[Vector2(11, 0.5), Vector2(13, 0.5), Vector2(13, 7.5), Vector2(11, 7.5)],
-				[Vector2(13, 3), Vector2(30, 2.6), Vector2(42, 1.4), Vector2(47, 0.4), Vector2(42, 3), Vector2(30, 4.8), Vector2(13, 5)]]
 		"scythe":   # a long haft and the blade hooked forward and down
 			shapes = [[Vector2(0, 3.2), Vector2(40, 3.2), Vector2(40, 4.8), Vector2(0, 4.8)],
 				[Vector2(38, 3), Vector2(41, 1), Vector2(44, 4), Vector2(45, 10), Vector2(43, 15), Vector2(42, 9), Vector2(39, 5)]]
@@ -396,11 +369,6 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 2.5), Vector2(10, 2.5), Vector2(10, 5.5), Vector2(0, 5.5)],
 				[Vector2(10, 1.5), Vector2(12, 1.5), Vector2(12, 6.5), Vector2(10, 6.5)],
 				[Vector2(12, 2.6), Vector2(39, 2.6), Vector2(42, 4), Vector2(39, 5.4), Vector2(12, 5.4)]]
-		"claws":   # a knuckle guard and three long blades
-			shapes = [[Vector2(0, 0), Vector2(6, 0), Vector2(6, 9), Vector2(0, 9)],
-				[Vector2(6, 0.5), Vector2(22, 0.5), Vector2(26, 1.2), Vector2(22, 1.9), Vector2(6, 1.9)],
-				[Vector2(6, 3.8), Vector2(24, 3.8), Vector2(28, 4.5), Vector2(24, 5.2), Vector2(6, 5.2)],
-				[Vector2(6, 7.1), Vector2(22, 7.1), Vector2(26, 7.8), Vector2(22, 8.5), Vector2(6, 8.5)]]
 
 		"karate":   # a fist, knuckles up, with its wrap
 			shapes = [[Vector2(2, 0), Vector2(16, 0), Vector2(19, 2), Vector2(19, 9), Vector2(16, 11), Vector2(2, 11)],
@@ -429,10 +397,9 @@ static func weapon_width(id: String) -> float:
 		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
 		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
 		"brass_knuckles": 18.0, "spear": 54.0, "axe": 34.0, "bat": 38.0,
-		"derringer": 15.0, "flare_gun": 24.0, "plasma_pistol": 25.0, "auto_shotgun": 38.0, "slug_shotgun": 40.0,
-		"air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "laser_rifle": 41.0, "nail_gun": 28.0, "crossbow": 40.0,
-		"anti_materiel": 54.0, "harpoon_gun": 46.0, "mortar": 36.0, "plasma_cannon": 38.0, "katana": 47.0, "scythe": 45.0,
-		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "claws": 28.0, "karate": 25.0}.get(id, 22.0)
+		"derringer": 15.0, "air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "laser_rifle": 41.0, "nail_gun": 28.0, "crossbow": 40.0,
+		"anti_materiel": 54.0, "plasma_cannon": 38.0, "scythe": 45.0,
+		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "karate": 25.0}.get(id, 22.0)
 
 
 ## Widths at size 1 of the icons below.

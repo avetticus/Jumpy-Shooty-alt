@@ -21,7 +21,7 @@ extends RefCounted
 ##          new one, in the left hand, while the old one is still in the gun)
 ##   hot:   the spent cell leaves still glowing
 ##   charge: seconds the lit parts take to build back up once the new cell is home (left out: at once)
-##   smoke: the spent one trails smoke (a flare)      both: a gun in each hand, and both do it
+##   both:  a gun in each hand, and both do it
 ##   heat:  no reload at all: the gun has overheated at this time, glows hot and cools
 ##          until `seat`; steam: [from, to] it steams from `steam_at` (gun space)
 const GUNS := {
@@ -31,14 +31,9 @@ const GUNS := {
 	"revolver": {"eject": 0.38, "seat": 0.94, "shells": 6, "throw": Vector3(-1.3, 0.3, 0.7), "spin": Vector3(9.0, 4.0, 12.0), "lift": 0.9},
 	"derringer": {"eject": 0.16, "hide": [0.17, 0.38], "seat": 0.80, "shells": 2, "throw": Vector3(-0.4, 1.3, 1.5),
 		"spin": Vector3(12.0, 3.0, 8.0), "lift": 1.0},
-	"flare_gun": {"eject": 0.14, "hide": [0.155, 0.30], "seat": 0.60, "throw": Vector3(-0.6, 1.5, 1.3), "spin": Vector3(9.0, 2.0, 5.0),
-		"lift": 1.0, "smoke": true},
-	"plasma_pistol": {"heat": 0.08, "seat": 1.50, "steam": [0.10, 1.40], "steam_at": Vector3(0.0, 0.10, 0.03)},
 	"shotgun": {"hide": [0.34, 0.47], "seat": 0.27},
-	"slug_shotgun": {"hide": [0.374, 0.517], "seat": 0.297},
 	"break_action": {"eject": 0.17, "hide": [0.18, 0.46], "seat": 0.77, "shells": 2, "shell": [0.012, 0.058, Color(0.8, 0.2, 0.12)],
 		"throw": Vector3(0.3, 1.6, 2.4), "spin": Vector3(12.0, 2.0, 5.0), "lift": 1.4},
-	"auto_shotgun": {"eject": 0.16, "hide": [0.17, 0.5], "seat": 1.2, "throw": Vector3(0.0, -1.2, 0.3), "spin": Vector3(5.0, 0.5, 1.0), "lift": 0.0},
 	"air_cannon": {"eject": 0.37, "hide": [0.38, 0.6], "seat": 1.22, "throw": Vector3(-0.7, -0.9, 0.2), "spin": Vector3(1.0, 0.5, 12.0), "lift": 0.2,
 		"steam": [1.26, 1.5], "steam_at": Vector3(-0.04, 0.08, -0.04)},
 	"smg": {"eject": 0.11, "hide": [0.12, 0.36], "seat": 0.70, "throw": Vector3(0.3, -3.0, 0.4), "spin": Vector3(10.0, 3.0, 16.0)},
@@ -57,10 +52,8 @@ const GUNS := {
 	"railgun": {"eject": 0.30, "hide": [0.31, 0.82], "seat": 1.60, "hot": true, "throw": Vector3(-0.4, -1.4, 1.4), "spin": Vector3(9.0, 3.0, 6.0),
 		"lift": 1.0, "steam": [0.42, 1.8], "steam_at": Vector3(0.0, 0.11, -0.5)},
 	"crossbow": {"hide": [0.0, 0.28], "seat": 0.56},
-	"harpoon_gun": {"hide": [0.0, 0.24], "seat": 0.93},
 	"rocket_launcher": {"hide": [0.0, 0.2], "seat": 0.96},
 	"grenade_launcher": {"seat": 0.3},
-	"mortar": {"hide": [0.0, 0.3], "seat": 1.2},
 	"plasma_cannon": {"eject": 0.30, "hide": [0.31, 0.8], "seat": 1.6, "charge": 0.6, "hot": true, "throw": Vector3(-0.5, -1.0, 1.6),
 		"spin": Vector3(8.0, 3.0, 6.0), "lift": 1.4, "steam": [0.34, 1.2], "steam_at": Vector3(0.0, 0.0, 0.11)},
 	"akimbo": {"eject": 0.14, "hide": [0.155, 0.58], "seat": 0.71, "throw": Vector3(0.3, -2.8, 0.5), "spin": Vector3(10.0, 3.0, 16.0), "both": true},
@@ -162,9 +155,7 @@ static func _throw(model: RobotModel, look: String, g: Dictionary, side: String,
 		throw.x = -throw.x   # the left gun throws to the left
 	var lift: float = g.get("lift", LIFT)
 	if not g.has("shells"):
-		var spent := SpentCell.spawn(parent, cell[0], Transform3D(bone.basis, at), gun * (GUN_REST * throw) + Vector3.UP * lift + inherit, g.spin)
-		if g.get("smoke", false):
-			spent.smoke = 1.1
+		SpentCell.spawn(parent, cell[0], Transform3D(bone.basis, at), gun * (GUN_REST * throw) + Vector3.UP * lift + inherit, g.spin)
 		return
 	for i in int(g.shells):
 		var jitter := Vector3(randf_range(-0.5, 0.5), randf_range(-0.4, 0.4), randf_range(-0.4, 0.5))

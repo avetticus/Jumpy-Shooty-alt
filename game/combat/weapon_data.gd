@@ -21,39 +21,39 @@ enum Kind { HITSCAN, MELEE, PROJECTILE }
 ## The weapons in groups, as the pickers show them (and the number keys pick them while
 ## you wait to respawn: 1 for sidearms, 2 for shotguns... pressing again goes through the group).
 const GROUPS := [
-	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "flare_gun", "plasma_pistol"]],
-	["Shotguns", ["shotgun", "break_action", "auto_shotgun", "slug_shotgun", "air_cannon"]],
+	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo", "derringer"]],
+	["Shotguns", ["shotgun", "break_action", "air_cannon"]],
 	["Rifles", ["smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "laser_rifle", "nail_gun"]],
-	["Marksman", ["lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun"]],
-	["Explosives", ["rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon"]],
+	["Marksman", ["lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel"]],
+	["Explosives", ["rocket_launcher", "grenade_launcher", "plasma_cannon"]],
 	["Melee", ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-		"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]],
+		"scythe", "mace", "machete", "wrench", "energy_sword", "karate"]],
 ]
 ## Every weapon a player can pick, in the order the pickers show them.
-const IDS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "flare_gun", "plasma_pistol",
-	"shotgun", "break_action", "auto_shotgun", "slug_shotgun", "air_cannon",
+const IDS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer",
+	"shotgun", "break_action", "air_cannon",
 	"smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
-	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun",
-	"rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon",
+	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel",
+	"rocket_launcher", "grenade_launcher", "plasma_cannon",
 	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
+	"scythe", "mace", "machete", "wrench", "energy_sword", "karate"]
 const MELEE := ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
-const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "flare_gun", "plasma_pistol",
-	"shotgun", "break_action", "auto_shotgun", "slug_shotgun", "air_cannon",
+	"scythe", "mace", "machete", "wrench", "energy_sword", "karate"]
+const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer",
+	"shotgun", "break_action", "air_cannon",
 	"smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
-	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun",
-	"rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon"]
+	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel",
+	"rocket_launcher", "grenade_launcher", "plasma_cannon"]
 ## The third batch of weapons: see the bottom of this file.
-const BATCH_3 := ["derringer", "flare_gun", "plasma_pistol", "auto_shotgun", "slug_shotgun", "air_cannon",
-	"minigun", "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel", "harpoon_gun",
-	"mortar", "plasma_cannon", "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+const BATCH_3 := ["derringer", "air_cannon",
+	"minigun", "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel",
+	"plasma_cannon", "scythe", "mace", "machete", "wrench", "energy_sword"]
 ## Weapons nobody picks: a mode hands them out (the Golden Gun, see GoldenGun). Real
 ## weapons all the same (has(), by_id()), but never in IDS, so no picker shows them.
 const HIDDEN := ["golden_gun"]
 ## Guns held like the pistol (in both hands round the grip, no stock): they use the
 ## pistol's poses, with their own reload and firing clips.
-const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol", "golden_gun"]
+const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "golden_gun"]
 
 @export var id := "pistol"
 @export var display_name := "Pistol"
@@ -98,8 +98,6 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 ## and it overheats for `reload_time` seconds.
 @export var recharge := 0.0
 @export var recharge_delay := 0.5
-## A hit pulls the target toward the shooter instead of pushing it away (the harpoon).
-@export var pull := false
 ## The colour of the tracer (alpha 0: the usual warm yellow).
 @export var tracer_color := Color(0, 0, 0, 0)
 ## Looks, sounds and moves like this weapon (its model, clips and sounds): "" for its own.
@@ -117,7 +115,7 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 @export var splash_inner := 1.0
 @export var self_damage := 0.4
 @export var fuse := 6.0               ## seconds before it blows up in mid-air anyway
-## How it looks in flight: rocket, grenade, flare, orb, nail, bolt or shell (see look()).
+## How it looks in flight: rocket, grenade, orb, nail or bolt (see look()).
 @export var projectile_look := ""
 ## False for a dart (a nail, a bolt): it only hurts whoever it hits, with no blast.
 @export var explosive := true
@@ -770,10 +768,6 @@ static func _make(weapon_id: String) -> WeaponData:
 		"axe": return axe()
 		"bat": return bat()
 		"derringer": return derringer()
-		"flare_gun": return flare_gun()
-		"plasma_pistol": return plasma_pistol()
-		"auto_shotgun": return auto_shotgun()
-		"slug_shotgun": return slug_shotgun()
 		"air_cannon": return air_cannon()
 		"minigun": return minigun()
 		"battle_rifle": return battle_rifle()
@@ -781,16 +775,12 @@ static func _make(weapon_id: String) -> WeaponData:
 		"nail_gun": return nail_gun()
 		"crossbow": return crossbow()
 		"anti_materiel": return anti_materiel()
-		"harpoon_gun": return harpoon_gun()
-		"mortar": return mortar()
 		"plasma_cannon": return plasma_cannon()
-		"katana": return katana()
 		"scythe": return scythe()
 		"mace": return mace()
 		"machete": return machete()
 		"wrench": return wrench()
 		"energy_sword": return energy_sword()
-		"claws": return claws()
 		"karate": return karate()
 	return pistol()
 
@@ -840,10 +830,9 @@ func damage_at(distance: float) -> float:
 
 
 # ---------------------------------------------------------------------------
-# The third batch: twenty-two more (BATCH_3). Each plays its own way: a new rhythm
-# (the minigun's spin-up, the energy guns' self-filling battery), a new kind of hit
-# (the harpoon's pull, the air cannon's shove), a new projectile (flares, nails,
-# bolts, mortar shells, plasma) or a new blade.
+# The third batch: fourteen more (BATCH_3). Each plays its own way: a new rhythm
+# (the minigun's spin-up, the laser rifle's self-filling battery), a new kind of hit
+# (the air cannon's shove), a new projectile (nails, bolts, plasma) or a new blade.
 
 ## Two barrels in the palm of your hand: both rounds to the body kill, up close.
 static func derringer() -> WeaponData:
@@ -862,97 +851,6 @@ static func derringer() -> WeaponData:
 	w.knockback = 3.5
 	w.knockback_up = 0.5
 	w.move_bonus = 1.1
-	return w
-
-
-## A burning flare in a gentle arc: a small blast that lights up where it lands.
-static func flare_gun() -> WeaponData:
-	var w := _gun("flare_gun", "Flare Gun", "Flare Gun")
-	w.kind = Kind.PROJECTILE
-	w.projectile_look = "flare"
-	w.blurb = "Lobs a burning flare in a gentle arc: a direct hit takes over half your health, and it lights the place up. One at a time."
-	w.damage = 60.0
-	w.fire_interval = 0.5
-	w.magazine = 1
-	w.reload_time = 1.1
-	w.max_range = 300.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.0
-	w.structure_damage = 0.8
-	w.projectile_speed = 38.0
-	w.projectile_gravity = 7.0
-	w.splash_radius = 2.0
-	w.splash_inner = 0.4
-	w.self_damage = 0.3
-	w.fuse = 4.0
-	w.crosshair = "ring"
-	w.kick = 1.8
-	w.knockback = 6.0
-	w.knockback_up = 2.0
-	w.tracer_color = Color(1.0, 0.25, 0.15)
-	return w
-
-
-## Never reloads: the battery fills itself back up between shots.
-static func plasma_pistol() -> WeaponData:
-	var w := _gun("plasma_pistol", "Plasma Pistol", "Plasma")
-	w.blurb = "Never needs reloading: the battery refills itself whenever you stop shooting. Empty it and it overheats for 2 s."
-	w.damage = 16.0
-	w.fire_interval = 0.15
-	w.magazine = 15
-	w.reload_time = 2.0
-	w.recharge = 8.0
-	w.recharge_delay = 0.6
-	w.spread_degrees = 0.3
-	w.headshot_multiplier = 1.5
-	w.kick = 0.7
-	w.knockback = 1.2
-	w.tracer_color = Color(0.4, 1.0, 0.45)
-	return w
-
-
-## Semi-automatic with a ten-round drum: three quick blasts up close.
-static func auto_shotgun() -> WeaponData:
-	var w := _gun("auto_shotgun", "Auto Shotgun", "Auto Shotgun")
-	w.blurb = "Semi-auto with a 10-shell drum: blast as fast as you can click. Two hits take anyone up close. Swaps the whole drum."
-	w.damage = 8.0
-	w.pellets = 8
-	w.fire_interval = 0.3
-	w.magazine = 10
-	w.reload_time = 2.6
-	w.max_range = 55.0
-	w.spread_degrees = 5.0
-	w.falloff_start = 6.0
-	w.falloff_end = 18.0
-	w.falloff_min = 0.25
-	w.headshot_multiplier = 1.25
-	w.crosshair = "spread"
-	w.kick = 1.8
-	w.knockback = 0.9
-	w.knockback_up = 0.2
-	w.move_bonus = 0.97
-	return w
-
-
-## A pump-action shotgun loaded with solid slugs: one accurate, heavy round.
-static func slug_shotgun() -> WeaponData:
-	var w := _gun("slug_shotgun", "Slug Shotgun", "Slugs")
-	w.blurb = "A pump shotgun firing one solid slug: accurate and heavy. A headshot kills within 25 m. Loads a shell at a time."
-	w.damage = 70.0
-	w.fire_interval = 0.9
-	w.magazine = 5
-	w.reload_time = 0.55
-	w.reload_per_round = true
-	w.max_range = 150.0
-	w.spread_degrees = 0.35
-	w.falloff_start = 25.0
-	w.falloff_end = 55.0
-	w.falloff_min = 0.4
-	w.headshot_multiplier = 1.5
-	w.structure_damage = 2.2
-	w.kick = 2.6
-	w.knockback = 8.0
-	w.knockback_up = 1.5
 	return w
 
 
@@ -1114,52 +1012,6 @@ static func anti_materiel() -> WeaponData:
 	return w
 
 
-## Spears someone and reels them in.
-static func harpoon_gun() -> WeaponData:
-	var w := _gun("harpoon_gun", "Harpoon Gun", "Harpoon")
-	w.blurb = "Spears the target and reels them in: 35 damage and they come flying to you. Within 40 m, one harpoon at a time."
-	w.damage = 35.0
-	w.pull = true
-	w.fire_interval = 0.6
-	w.magazine = 1
-	w.reload_time = 1.2
-	w.max_range = 40.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.5
-	w.kick = 1.8
-	w.knockback = 16.0     # toward you (pull)
-	w.knockback_up = 3.0
-	w.tracer_color = Color(0.75, 0.8, 0.85)
-	return w
-
-
-## A heavy shell in a high arc: the biggest blast of all.
-static func mortar() -> WeaponData:
-	var w := _gun("mortar", "Mortar", "Mortar")
-	w.kind = Kind.PROJECTILE
-	w.projectile_look = "shell"
-	w.blurb = "Lobs a heavy shell in a high arc: the biggest blast of all, but hard to aim up close. One shell at a time."
-	w.damage = 120.0
-	w.fire_interval = 1.5
-	w.magazine = 1
-	w.reload_time = 1.8
-	w.max_range = 400.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.0
-	w.structure_damage = 3.5
-	w.projectile_speed = 26.0
-	w.projectile_gravity = 20.0
-	w.splash_radius = 6.5
-	w.splash_inner = 1.5
-	w.self_damage = 0.4
-	w.crosshair = "ring"
-	w.kick = 3.0
-	w.knockback = 18.0
-	w.knockback_up = 8.0
-	w.move_bonus = 0.9
-	return w
-
-
 ## Full-auto balls of plasma: slow enough to dodge, and each one bursts.
 static func plasma_cannon() -> WeaponData:
 	var w := _gun("plasma_cannon", "Plasma Cannon", "Plasma Cannon")
@@ -1186,29 +1038,6 @@ static func plasma_cannon() -> WeaponData:
 	w.knockback = 9.0
 	w.knockback_up = 3.0
 	w.tracer_color = Color(0.45, 0.7, 1.0)
-	return w
-
-
-## A light, curved blade in both hands: the quickest two-handed wind-up, and a long lunge.
-static func katana() -> WeaponData:
-	var w := _melee("katana", "Katana")
-	w.blurb = "Two-handed, light and fast: the quickest two-handed wind-up, and a full swing lunges you far."
-	w.two_handed = true
-	w.damage = 14.0
-	w.charge_damage = 46.0
-	w.structure_damage = 1.2
-	w.fire_interval = 0.45
-	w.windup = 0.07
-	w.charge_time = 0.5
-	w.max_range = 3.2
-	w.arc_degrees = 50.0
-	w.lunge = 7.0
-	w.knockback = 3.0
-	w.knockback_up = 1.0
-	w.charge_knockback = 20.0
-	w.charge_knockback_up = 4.0
-	w.kick = 0.9
-	w.move_bonus = 1.1
 	return w
 
 
@@ -1319,29 +1148,6 @@ static func energy_sword() -> WeaponData:
 	w.charge_knockback_up = 1.0
 	w.kick = 0.6
 	w.move_bonus = 1.08
-	return w
-
-
-## Blades on both fists: the fastest swings there are, double damage in the back.
-static func claws() -> WeaponData:
-	var w := _melee("claws", "Wrist Claws")
-	w.short_name = "Claws"
-	w.blurb = "Three blades on each fist: the fastest swings of all, double damage in the back, and quick on your feet."
-	w.damage = 9.0
-	w.charge_damage = 28.0
-	w.fire_interval = 0.25
-	w.windup = 0.04
-	w.charge_time = 0.3
-	w.max_range = 2.3
-	w.arc_degrees = 50.0
-	w.lunge = 5.0
-	w.knockback = 2.0
-	w.knockback_up = 0.8
-	w.charge_knockback = 10.0
-	w.charge_knockback_up = 2.0
-	w.backstab_multiplier = 2.0
-	w.kick = 0.6
-	w.move_bonus = 1.16
 	return w
 
 

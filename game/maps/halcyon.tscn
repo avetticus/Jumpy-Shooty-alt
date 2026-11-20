@@ -19780,7 +19780,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -6, 45)
 script = ExtResource("4_weapon")
 weapon = "hammer"
 
-[node name="PlasmaPistol" type="Marker3D" parent="WeaponSpawns"]
+[node name="Pistol" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6, 24)
 script = ExtResource("4_weapon")
-weapon = "plasma_pistol"
+weapon = "pistol"

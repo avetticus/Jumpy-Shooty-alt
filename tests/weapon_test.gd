@@ -17,7 +17,7 @@ const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## The blades held in one hand (the rest take both).
-const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
+const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "karate"]
 
 var _ok := true
 

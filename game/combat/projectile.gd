@@ -1,6 +1,6 @@
 class_name Projectile
 extends Node3D
-## A rocket, grenade, flare, mortar shell, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
+## A rocket, grenade, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
 ## of the same flight in Match and decides where it blows up; this one is the look:
 ## a body with a glowing tail and a trail of smoke, flying the same path (the same
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
@@ -33,16 +33,12 @@ func _build(color: Color) -> void:
 	match weapon.look():
 		"rocket":
 			_rocket(color)
-		"flare":
-			_glowing(0.06, Color(1.0, 0.35, 0.2), 6.0, Color(1.0, 0.4, 0.25), 3.0, 9.0)
 		"orb":
 			_glowing(0.16, Color(0.45, 0.7, 1.0), 4.0, Color(0.5, 0.75, 1.0), 2.0, 5.0)
 		"nail":
 			_dart(0.006, 0.16, color, 0.0)
 		"bolt":
 			_dart(0.012, 0.55, color, 0.07)
-		"shell":
-			_shell(color, 0.11)
 		_:
 			_shell(color, 0.07)
 
@@ -103,7 +99,7 @@ func _rocket(color: Color) -> void:
 	_lamp(Color(1.0, 0.6, 0.25), 1.6, 4.0, Vector3(0, 0, 0.24))
 
 
-## A grenade (or a mortar shell): a ball in the player's colour.
+## A grenade: a ball in the player's colour.
 func _shell(color: Color, radius: float) -> void:
 	var body := MeshInstance3D.new()
 	var ball := SphereMesh.new()
@@ -117,7 +113,7 @@ func _shell(color: Color, radius: float) -> void:
 	_light_ball(radius * 0.7, color, 4.0)
 
 
-## A flare or a ball of plasma: all light, and it lights up what it passes.
+## A ball of plasma: all light, and it lights up what it passes.
 func _glowing(radius: float, color: Color, energy: float, light: Color, light_energy: float, reach: float) -> void:
 	_light_ball(radius, color, energy)
 	_light_ball(radius * 1.8, Color(color, 0.35), energy * 0.5)
