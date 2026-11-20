@@ -218,43 +218,52 @@ func _loadout_menu() -> void:
 func _mobility() -> void:
 	print("  allowed mobility")
 	_expect(LobbySettings.clean({}).get("mobility") == [], "a missing mobility setting means any tool")
-	_expect(LobbySettings.normalized_mobility(["jetpack", "nonsense", "grapple"]) == ["grapple", "jetpack"], "mobility ids are cleaned and ordered")
-	_expect(LobbySettings.normalized_mobility(["blink", "grapple2"]) == ["grapple", "blink"], "a saved list with the old Grappling Hook 2 id keeps it, as the Grappling Hook")
+	_expect(LobbySettings.normalized_mobility(["blink", "nonsense"]) == ["blink"], "mobility ids are cleaned")
+	_expect(LobbySettings.normalized_mobility(["blink", "nonsense", "grapple"]) == [], "...and both tools is any tool")
+	_expect(LobbySettings.normalized_mobility(["grapple2"]) == ["grapple"], "a saved list with the old Grappling Hook 2 id keeps it, as the Grappling Hook")
+	# Settings saved when the slot had four tools (two have left it since: those ids are no tool now).
+	_expect(LobbySettings.clean({"mobility": ["portal", "jetpack"]}).get("mobility") == [], "an old saved list of tools that are gone means any tool")
+	_expect(LobbySettings.clean({"mobility": ["blink", "portal", "jetpack"]}).get("mobility") == ["blink"], "...and an old list keeps the tools that are still there")
 	Net.start_offline("Host", "needle", "pistol", "portal")
+	_expect(Net.player_loadout_mobility(1) == "grapple", "an old saved pick of a tool that is gone is the grappling hook")
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")
 	s["mode"] = "kills"
 	s["weapons"] = []
-	s["mobility"] = ["blink", "jetpack"]
+	s["mobility"] = ["blink"]
 	Net.set_match_settings(s)
-	_expect(Net.player_loadout_mobility(1) == "blink", "the host's portal gun is not allowed, so it gets the first allowed tool")
+	_expect(Net.player_loadout_mobility(1) == "blink", "the host's grapple is not allowed, so it gets the allowed tool")
 	_expect(Net.pending_mobility() == "blink", "the pause menu would show the allowed tool")
 	Net.set_my_mobility("grapple")
 	_expect(Net.player_loadout_mobility(1) == "blink", "picking a tool that is not allowed changes nothing")
-	Net.set_my_mobility("jetpack")
-	_expect(Net.player_loadout_mobility(1) == "jetpack", "picking an allowed tool works")
 	Net.host_add_player(2, "Client", "orbit", "rifle", "grapple")
 	_expect(Net.player_loadout_mobility(2) == "blink", "a player who joins with a tool that is not allowed gets an allowed one")
 	Net._apply_mobility(2, "portal")
-	_expect(Net.player_loadout_mobility(2) == "blink", "a client asking for a tool that is not allowed is refused")
-	_expect(LobbySettings.next_mobility("blink") == "jetpack" and LobbySettings.next_mobility("jetpack") == "blink",
-		"the death screen's mobility button goes through the allowed tools only")
+	_expect(Net.player_loadout_mobility(2) == "blink", "a client asking for a tool that is gone is refused")
+	_expect(LobbySettings.only_mobility() == "blink" and LobbySettings.next_mobility("blink") == "blink", "one tool: everyone has it, and the mobility button changes nothing")
 	var ok := true
 	for i in 12:
 		var id := Net.add_bot(1)
-		ok = ok and Net.player_loadout_mobility(id) in ["blink", "jetpack"]
+		ok = ok and Net.player_loadout_mobility(id) == "blink"
 		Net.remove_bot(id)
-	_expect(ok, "bots take a mobility tool at random from the allowed ones")
+	_expect(ok, "bots take the allowed tool")
 	var forced := Net.add_bot(1, "", "grapple")
 	_expect(Net.player_loadout_mobility(forced) == "blink", "a --bot-mobility that is not allowed gives way to an allowed one")
 	Net.remove_bot(forced)
 	s = Net.match_settings.duplicate()
-	s["mobility"] = ["jetpack"]
+	s["mobility"] = []
 	Net.set_match_settings(s)
-	_expect(Net.player_loadout_mobility(1) == "jetpack" and Net.player_loadout_mobility(2) == "jetpack" and LobbySettings.only_mobility() == "jetpack",
-		"one tool: everyone is given it")
-	_expect(LobbySettings.next_mobility("jetpack") == "jetpack", "one tool: the mobility button changes nothing")
+	Net.set_my_mobility("grapple")
+	_expect(Net.player_loadout_mobility(1) == "grapple", "any tool: picking one works")
+	_expect(LobbySettings.next_mobility("grapple") == "blink" and LobbySettings.next_mobility("blink") == "grapple",
+		"the death screen's mobility button goes from one tool to the other")
+	var picks := {}
+	for i in 24:
+		var id := Net.add_bot(1)
+		picks[Net.player_loadout_mobility(id)] = true
+		Net.remove_bot(id)
+	_expect(picks.keys().all(func(m): return m in Mobility.IDS) and picks.size() == 2, "bots take a mobility tool at random (%s)" % [picks.keys()])
 	s = Net.match_settings.duplicate()
 	s["mobility"] = ["blink"]
 	s["game"] = "dm"
@@ -267,12 +276,14 @@ func _mobility() -> void:
 	_expect(not LobbySettings.mobility_apply() and LobbySettings.allowed_mobility() == Mobility.IDS, "a race ignores the setting (always the grapple)")
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")
-	s["mobility"] = ["grapple", "blink"]
+	s["mobility"] = ["grapple"]
 	Net.set_match_settings(s)
-	var picker := MobilityPicker.new("portal", LobbySettings.allowed_mobility())
-	_expect(picker.allowed() == ["grapple", "blink"] and picker._buttons["portal"].disabled and not picker._buttons["blink"].disabled,
+	var picker := MobilityPicker.new("blink", LobbySettings.allowed_mobility())
+	_expect(picker.allowed() == ["grapple"] and picker._buttons["blink"].disabled and not picker._buttons["grapple"].disabled,
 		"the mobility picker greys out tools that are not allowed")
 	picker.free()
+	s["mobility"] = []
+	Net.set_match_settings(s)
 	var c := AllowedMobilityPicker.new(["grapple", "blink"])
 	var got := []
 	c.changed.connect(func(ids: Array): got.append(ids))

@@ -6,6 +6,8 @@ extends RefCounted
 ## Energy weapons (WeaponData.recharge) never reload: the battery refills itself a
 ## moment after the last shot, and emptying it overheats the gun (a reload, of sorts).
 ## The minigun (WeaponData.spin_up) fires slower until its barrels are spun up.
+## Blades and blasts (the air cannon) never run dry: only the time between swings or
+## blasts holds them back.
 
 var data: WeaponData
 var ammo := 0
@@ -72,8 +74,8 @@ func hold_off(seconds: float) -> void:
 
 
 func can_fire() -> bool:
-	if data.is_melee():
-		return _cooldown <= 0.0   # a blade never runs dry
+	if data.is_melee() or data.is_blast():
+		return _cooldown <= 0.0   # a blade (or the air) never runs dry
 	if _cooldown > 0.0 or ammo <= 0:
 		return false
 	return data.reload_per_round or not is_reloading()
@@ -85,7 +87,7 @@ func fire() -> bool:
 		if ammo <= 0:
 			start_reload()
 		return false
-	if data.is_melee():
+	if data.is_melee() or data.is_blast():
 		_cooldown = data.fire_interval
 		return true
 	_reload_left = 0.0   # a shell-by-shell reload stops for the shot
@@ -98,7 +100,7 @@ func fire() -> bool:
 
 
 func start_reload() -> void:
-	if data.is_melee() or is_reloading() or ammo >= data.magazine:
+	if data.is_melee() or data.is_blast() or is_reloading() or ammo >= data.magazine:
 		return
 	_reload_left = data.reload_time
 

@@ -9,9 +9,9 @@ extends RefCounted
 ## hands out the weapons (Net.host_set_weapon), so it works the same online and with bots.
 
 const LADDER := ["minigun", "smg", "laser_rifle", "rifle", "burst_rifle", "battle_rifle", "lmg",
-	"auto_shotgun", "shotgun", "break_action", "slug_shotgun", "lever_action", "crossbow", "bolt_action",
+	"shotgun", "break_action", "lever_action", "crossbow", "bolt_action",
 	"sniper", "anti_materiel", "railgun", "rocket_launcher", "plasma_cannon", "grenade_launcher", "nail_gun",
-	"machine_pistol", "akimbo", "plasma_pistol", "revolver", "pistol", "derringer", "brass_knuckles"]
+	"machine_pistol", "akimbo", "revolver", "pistol", "derringer", "brass_knuckles"]
 const TIME_LIMIT := 20.0 * 60.0   ## seconds; if nobody finishes, the furthest along wins
 
 

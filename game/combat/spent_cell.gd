@@ -13,9 +13,7 @@ const LEVEL := 1         ## physics layer 1: the level
 
 var velocity := Vector3.ZERO
 var spin := Vector3.ZERO   # radians a second about its own axes
-var smoke := 0.0           # seconds it trails smoke for (a spent flare)
 var _age := 0.0
-var _puff := 0.0
 var _resting := false
 var _clinked := false
 
@@ -40,13 +38,6 @@ func _process(delta: float) -> void:
 		return
 	if _age > LIFE - FADE:
 		scale = Vector3.ONE * maxf((LIFE - _age) / FADE, 0.01)
-	if smoke > 0.0:
-		smoke -= delta
-		_puff -= delta
-		if _puff <= 0.0:
-			_puff = 0.04
-			ReloadPuff.spawn(get_parent(), global_position, Vector3(randf_range(-0.15, 0.15), 0.5, randf_range(-0.15, 0.15)),
-				Color(0.5, 0.48, 0.46, 0.45), 0.015, 0.6)
 	if _resting:
 		return
 	velocity.y -= GRAVITY * delta

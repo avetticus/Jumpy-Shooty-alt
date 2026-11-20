@@ -40,10 +40,13 @@ extends RefCounted
 ##             stick to it for wall_sit_time, then slide slowly down it while you keep
 ##             pushing. Let go to drop off; jump to kick off it (a wall jump).
 ##
+## The jetpack (everyone's, see Jetpack): Space held in mid-air flies it, once held
+## tuning.space_hold_time there, counted from the press or from the jump it made (see
+## space_jet). A tap is still a jump, a wall jump or a flip.
+##
 ## MovementTuning's mechanic switches change some of this (Variant B, for A/B testing):
-## no glides; Space held in the air flies the jetpack (see space_jet); legs tucked in
-## the air without a key; Ctrl (or Q) dives forward, slides on your back going
-## backward, and crouches otherwise; a stronger brake in the air; a sideways speed
+## legs tucked in the air without a key; Ctrl (or Q) dives forward, slides on your back
+## going backward, and crouches otherwise; a stronger brake in the air; a sideways speed
 ## limit. (space_boost, mid-air Space firing the rocket boots, is there but off.)
 ## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
 ## _hang): hang_time seconds per time in the air, refilled like the glide.
@@ -104,7 +107,7 @@ var _zone_to := -1.0         # the zone it is easing to (below 0: not known yet,
 var _zone_t := 1.0
 
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
-## Set when the body was just moved somewhere new (blink, a portal): the next step
+## Set when the body was just moved somewhere new (a blink): the next step
 ## does not count the floor it was standing on before.
 var warped := false
 
@@ -141,10 +144,15 @@ var _slam_used := false       # a ground slam has been done this time in the air
 var _slam_time := 0.0         # seconds this slam has lasted
 var _slam_from := 0.0         # the height it started at
 var _slam_landing := -1.0     # a slam just landed, from this many metres up (taken by take_slam_landing), or -1
-var has_jetpack := false      ## set every step by the player (tuning.space_boost: a held Space flies it)
-var space_jet := false        ## tuning.space_boost: Space is held in the air for the jetpack (Player flies it)
-var _space_tap := -1.0        # with the jetpack: seconds a mid-air Space press has been held (a tap boosts), or -1
-var _jump_held_for := 0.0     # seconds Space has been held since it was pressed
+var has_jetpack := false      ## set every step by the player: it has the jetpack (everyone does, but not in a race)
+## The jetpack is wanted now (Player flies it): Space held in mid-air for
+## tuning.space_hold_time, counted from the press or from the jump or wall jump it made
+## (so a plain jump, a wall jump or a flip burns no fuel unless you keep holding), and
+## only in a plain jump, fall, flip or dive: not on the rope, on a wall, in a glide, a
+## vault or a slam.
+var space_jet := false
+var _space_tap := -1.0        # tuning.space_boost: seconds a mid-air Space press has been held (a tap boosts), or -1
+var _jet_hold := 0.0          # seconds Space has been held in mid-air since it was pressed (or since its jump)
 var _auto_tuck := false       # tuning.always_tuck: tucked by itself this step (not by the crouch key)
 var _sit_left := 0.0          # seconds of sticking left on this wall sit (then it slides)
 var _sat_wall := Vector3.ZERO # the last wall sat on this time in the air (one sit per wall)
@@ -179,11 +187,15 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	hanging = false
 	if input.jump_pressed:
 		_jump_buffer = t.jump_buffer
-		_jump_held_for = 0.0
 	else:
 		_jump_buffer = max(_jump_buffer - delta, 0.0)
-		_jump_held_for = _jump_held_for + delta if input.jump_held else 0.0
-	space_jet = t.space_jetpack and has_jetpack and input.jump_held and not grounded and _jump_held_for >= t.space_hold_time
+	# The jetpack's hold (see space_jet): a fresh press, letting go or the floor start it again.
+	if input.jump_pressed or not input.jump_held or grounded:
+		_jet_hold = 0.0
+	else:
+		_jet_hold += delta
+	var jetting := space_jet   # (the jetpack is flying this step: the boots do not tip up for a held Space)
+	space_jet = false          # (worked out again at the end of the step)
 	_since_slide_boost += delta
 	_since_wall += delta
 	_since_dive += delta
@@ -427,6 +439,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			else:
 				vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 
+	if jumping or wall_jump or rope_jump:
+		_jet_hold = 0.0   # (a jump pressed a moment ago, buffered: the jetpack's hold starts from the jump)
 	if jumping:
 		vel.y = t.jump_velocity
 		_jump_buffer = 0.0
@@ -456,7 +470,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 				_since_ground = t.coyote_time + 1.0   # pulled off the floor
 
 	if input.boost_pressed and since_boost >= t.boost_cooldown:
-		vel = _boost(vel, input, grounded)
+		vel = _boost(vel, input, grounded, not jetting)   # (flying the jetpack, a held Space is its, not a tip up)
 
 	if _knock != Vector3.ZERO:
 		if state == State.GLIDE:
@@ -478,10 +492,13 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if grapple.attached:
 		grapple.correct_position(body)
 	_ease_eye(delta)
+	space_jet = has_jetpack and input.jump_held and _jet_hold >= t.space_hold_time and not body.is_on_floor() \
+		and not grapple.attached and state in [State.AIR, State.FLIP, State.DIVE]
 
 
 ## Rocket boots: a burst toward where you push (see the top of this file).
-## tip_up: holding jump tips it upward (not for a burst fired by the jump key itself).
+## tip_up: holding jump tips it upward (not for a burst fired by the jump key itself, nor
+## while a held jump flies the jetpack).
 func _boost(vel: Vector3, input: PlayerInput, grounded: bool, tip_up: bool = true) -> Vector3:
 	var t := tuning
 	if state == State.GLIDE:
@@ -595,7 +612,7 @@ func reset() -> void:
 	_slam_landing = -1.0
 	space_jet = false
 	_space_tap = -1.0
-	_jump_held_for = 0.0
+	_jet_hold = 0.0
 	_auto_tuck = false
 	_sit_left = 0.0
 	_sat_wall = Vector3.ZERO
@@ -862,8 +879,8 @@ func _wall_sit(vel: Vector3, delta: float) -> Vector3:
 
 
 ## tuning.space_boost: does Space fire the rocket boots this step? A mid-air press
-## does at once; with tuning.space_jetpack and the jetpack, only a tap does (let go
-## within space_hold_time, still in the air), since holding it flies the jetpack (space_jet).
+## does at once; with the jetpack, only a tap does (let go within space_hold_time,
+## still in the air), since holding it flies the jetpack (space_jet).
 func _space_boost(mid_air_jump: bool, input: PlayerInput, grounded: bool, delta: float) -> bool:
 	var t := tuning
 	if not t.space_boost:
@@ -878,7 +895,7 @@ func _space_boost(mid_air_jump: bool, input: PlayerInput, grounded: bool, delta:
 			_space_tap = -1.0   # a hold: the jetpack's
 	if mid_air_jump:
 		_jump_buffer = 0.0
-		if has_jetpack and t.space_jetpack:
+		if has_jetpack:
 			_space_tap = 0.0
 		else:
 			fire = true
@@ -1195,7 +1212,7 @@ func _wish_dir(input: PlayerInput) -> Vector3:
 
 
 ## tuning.max_speed (Variant B): sideways speed never goes past it, whatever got you
-## there (boosts, swings, knockback, portals, the jetpack). Falling is not limited here.
+## there (boosts, swings, knockback, the jetpack). Falling is not limited here.
 func _cap_speed(vel: Vector3) -> Vector3:
 	var top := tuning.max_speed
 	if top <= 0.0:

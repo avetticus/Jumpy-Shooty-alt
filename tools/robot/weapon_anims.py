@@ -30,10 +30,10 @@ from weapons import SUPPORT
 
 LONG = ("shotgun", "rifle", "sniper", "break_action", "smg", "burst_rifle", "lmg", "lever_action",
         "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
-        "auto_shotgun", "slug_shotgun", "air_cannon", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
-        "crossbow", "anti_materiel", "harpoon_gun", "mortar", "plasma_cannon")
+        "air_cannon", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
+        "crossbow", "anti_materiel", "plasma_cannon")
 # Sidearms held like the pistol: they keep its poses but have their own reloads.
-SIDEARMS = ("revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol")
+SIDEARMS = ("revolver", "machine_pistol", "derringer")
 
 # How each long gun is held, reloaded and worked after a shot.
 #   hold: whose hold it copies; reload: mag (drop the magazine, with "handle": charge or
@@ -56,9 +56,6 @@ SPEC = {
     "rocket_launcher": {"hold": "rocket_launcher", "reload": "rocket"},
     "grenade_launcher": {"hold": "shotgun", "reload": "drum"},
     # The third batch (each copies a hold and a way of reloading from the guns above)
-    "auto_shotgun": {"hold": "shotgun", "reload": "mag", "handle": "charge", "handle_at": (-0.032, 0.07, -0.10),
-                     "mag_hold": (0.0, -0.07, -0.12)},
-    "slug_shotgun": {"hold": "shotgun", "reload": "shell", "fire": "pump"},
     "air_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, 0.0, -0.16)},
     "minigun": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
     "battle_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.035, 0.07, -0.12)},
@@ -67,8 +64,6 @@ SPEC = {
     "crossbow": {"hold": "rifle", "reload": "top"},
     "anti_materiel": {"hold": "sniper", "reload": "mag", "handle": "bolt", "fire": "bolt", "bolt": (-0.092, 0.065, -0.02),
                       "mag_hold": (0.0, -0.03, -0.12)},
-    "harpoon_gun": {"hold": "rifle", "reload": "rocket", "grab": (0.0, 0.065, -0.45)},
-    "mortar": {"hold": "rocket_launcher", "reload": "rocket", "grab": (0.0, 0.115, -0.45)},
     "plasma_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, -0.005, 0.11)},
 }
 
@@ -105,12 +100,11 @@ REACH = 0.462    # how far from its shoulder the left wrist is at most (the arm 
 RELOAD = {"shotgun": 0.5, "rifle": 1.9, "sniper": 2.4, "break_action": 1.7, "smg": 1.6, "burst_rifle": 2.0,
           "lmg": 3.6, "lever_action": 0.45, "bolt_action": 0.5, "railgun": 2.6, "rocket_launcher": 1.5,
           "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4,
-          "derringer": 1.4, "flare_gun": 1.1, "plasma_pistol": 2.0, "auto_shotgun": 2.6, "slug_shotgun": 0.55,
-          "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "laser_rifle": 2.5, "nail_gun": 2.0, "crossbow": 1.3,
-          "anti_materiel": 3.2, "harpoon_gun": 1.2, "mortar": 1.8, "plasma_cannon": 2.4}
+          "derringer": 1.4, "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "laser_rifle": 2.5, "nail_gun": 2.0, "crossbow": 1.3,
+          "anti_materiel": 3.2, "plasma_cannon": 2.4}
 FIRE = {"shotgun": 0.6, "sniper": 1.1, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5,
-        "slug_shotgun": 0.7, "anti_materiel": 1.8}
-LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher", "slug_shotgun")   # a round at a time
+        "anti_materiel": 1.8}
+LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher")   # a round at a time
 # The left hand under a fore-end: palm up, the fingers across under the gun and up its
 # right side (the fist's turn, relative to the gun's). A gun held by an upright handle
 # (weapons.SUPPORT: "upright") is held as the forearm comes, like a second grip.

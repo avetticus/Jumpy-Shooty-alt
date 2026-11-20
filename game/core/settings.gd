@@ -70,7 +70,7 @@ var _applied_fullscreen := false
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
-var mobility: String = Mobility.default_id()       # the tool on the mobility button: a grappling hook, the portal gun, blink or the jetpack (see Mobility)
+var mobility: String = Mobility.default_id()       # the tool on the mobility button: the grappling hook or blink (see Mobility)
 var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
 var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)
 var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
@@ -386,7 +386,7 @@ const ACTIONS := [
 	["move_back", "Move back", ["key:%d" % KEY_S]],
 	["move_left", "Move left", ["key:%d" % KEY_A]],
 	["move_right", "Move right", ["key:%d" % KEY_D]],
-	["jump", "Jump (again in mid-air to flip)", ["key:%d" % KEY_SPACE]],
+	["jump", "Jump (mid-air: flip; hold: jetpack)", ["key:%d" % KEY_SPACE]],
 	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
 	["glide", "Glide (hold in mid-air)", ["key:%d" % KEY_ALT]],
 	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
@@ -394,7 +394,7 @@ const ACTIONS := [
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
-	["grapple", "Mobility (grapple, portal, blink, jetpack)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["grapple", "Mobility (grapple or blink)", ["mouse:%d" % MOUSE_BUTTON_MIDDLE]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],
@@ -415,7 +415,8 @@ const MAX_BINDS := 2
 const CAN_SHARE := [["sprint", "glide"]]
 ## Saved bindings older than this are brought up to date as they load (see _load_bindings).
 ## 2: the glide moved from Shift to Alt, which Dive gave up.
-const BINDINGS_VERSION := 2
+## 3: the mobility button moved from right mouse to middle mouse (see _mobility_to_middle).
+const BINDINGS_VERSION := 3
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -467,7 +468,28 @@ func _load_bindings(cfg: ConfigFile) -> void:
 				if binding_event(str(b)) and not list.has(str(b)) and list.size() < MAX_BINDS:
 					list.append(str(b))
 			bindings[a[0]] = list
+	if version < 3:
+		_mobility_to_middle(cfg.has_section_key("bindings", "grapple"))
 	_apply_bindings()
+
+
+## Bindings saved before version 3: the mobility button was on right mouse (the default
+## then, so only saved if you changed it), and it is on middle mouse now. A right mouse
+## it had moves to middle mouse; with nothing saved for it, it takes the new default.
+## Only if you had put middle mouse on something else does it keep right mouse instead,
+## as it was, so nothing you chose is taken from you.
+func _mobility_to_middle(saved: bool) -> void:
+	var right := "mouse:%d" % MOUSE_BUTTON_RIGHT
+	var middle := "mouse:%d" % MOUSE_BUTTON_MIDDLE
+	var middle_taken := false
+	for a in ACTIONS:
+		if a[0] != "grapple" and (bindings[a[0]] as Array).has(middle):
+			middle_taken = true
+	var list: Array = (bindings["grapple"] as Array).duplicate() if saved else [right]   # (nothing saved: it had the old default)
+	var i := list.find(right)
+	if i >= 0 and not middle_taken and not list.has(middle):
+		list[i] = middle
+	bindings["grapple"] = list
 
 
 func _save_bindings(cfg: ConfigFile) -> void:

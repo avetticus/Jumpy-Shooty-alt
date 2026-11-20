@@ -344,6 +344,34 @@ func cell_at(body: Object, point: Vector3, normal: Vector3) -> int:
 	return panel.first + i.x + n.x * (i.y + n.y * i.z)
 
 
+## Every cell a straight line from `a` to `b` passes through that can still take damage,
+## as [cell, metres from `a` to where the line goes into it]: what a shot that goes
+## through everything (the railgun) hits. Found from the cells' boxes, not the physics,
+## so a cell counts wherever it is on its panel (and wherever its mover has taken it).
+func cells_along(a: Vector3, b: Vector3) -> Array:
+	var found := []
+	for panel: Dictionary in panels:
+		var xf := _panel_xf(panel)
+		var to_local := xf.affine_inverse()
+		var la := to_local * a
+		var lb := to_local * b
+		var size: Vector3 = panel.size
+		if AABB(-size * 0.5, size).intersects_segment(la, lb) == null:
+			continue
+		var n: Vector3i = panel.n
+		for k in n.z:
+			for j in n.y:
+				for i in n.x:
+					var c: int = panel.first + i + n.x * (j + n.y * k)
+					var cell: Dictionary = cells[c]
+					if cell.protected or cell.stage >= BROKEN:
+						continue
+					var into: Variant = _local_box(panel, Vector3i(i, j, k)).intersects_segment(la, lb)
+					if into != null:
+						found.append([c, a.distance_to(xf * (into as Vector3))])
+	return found
+
+
 ## What a cell is made of, for sounds and rubble (a BlockMaterials name).
 func material_of(c: int) -> String:
 	return panels[cells[c].panel].material

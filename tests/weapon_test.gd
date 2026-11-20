@@ -3,7 +3,9 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/weapon_test.gd
 ##
 ## Every gun in the pickers exists and is sane; the shotgun kills in one shot up close
-## and not far away; the sniper kills with one headshot and two body shots; the rifle
+## and not far away; the sniper kills with one headshot and two body shots; the railgun
+## kills anyone in one hit and reloads after every shot (tests/railgun_test.gd shoots
+## it through a wall); the rifle
 ## and pistol need several hits; magazines reload, and the shotgun's shell-by-shell
 ## reload can be cut short by firing. Melee weapons: never run dry, have reach and
 ## an arc; every swing is charged (a tap is weak and cannot slam anyone into a wall, a
@@ -17,7 +19,7 @@ const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## The blades held in one hand (the rest take both).
-const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
+const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "karate"]
 
 var _ok := true
 
@@ -40,6 +42,9 @@ func _init() -> void:
 			_check(w.charge_damage * w.backstab_multiplier < 100.0, "%s: no blow kills a healthy player outright" % id)
 			_check(w.charge_of(0.0) == 0.0 and w.charge_of(w.charge_time) == 1.0 and w.charge_of(99.0) == 1.0, "%s: wound up after charge_time" % id)
 			_check(w.two_handed == (id not in ONE_HANDED), "%s: two-handed unless it is a one-handed blade" % id)
+		elif w.is_blast():   # the air cannon (more in tests/air_cannon_test.gd)
+			_check(w.magazine == 0 and w.reload_time == 0.0 and w.fire_interval > 0.0 and w.cone_degrees > 0.0 and w.charge_time > 0.0,
+				"%s: no ammo and no reload, a gap between blasts, a cone and a charge" % id)
 		else:
 			_check(w.magazine > 0 and w.fire_interval > 0.0 and w.reload_time > 0.0 and w.pellets > 0,
 				"%s: magazine, fire interval, reload and pellets are positive" % id)
@@ -70,6 +75,24 @@ func _init() -> void:
 	_check(sniper.damage * sniper.headshot_multiplier >= 100.0, "sniper: a headshot kills")
 	_check(sniper.damage < 100.0 and sniper.damage * 2.0 >= 100.0, "sniper: two body shots kill, one does not")
 	_check(sniper.spread_degrees == 0.0, "sniper: no wobble")
+
+	# The railgun: a hit kills anyone (even overhealed, at any range), the slug goes
+	# through everything, and it reloads after every shot. (Match is an autoload: its
+	# health limits are read from its source.)
+	var rail := WeaponData.by_id("railgun")
+	var match_src := FileAccess.get_file_as_string("res://game/match/match_state.gd")
+	var overheal := _const_in(match_src, "MAX_OVERHEAL")
+	_check(overheal >= _const_in(match_src, "MAX_HEALTH") and rail.damage_at(rail.max_range) >= overheal,
+		"railgun: one hit kills anyone, overhealed or not, at any range (%.0f against %.0f)" % [rail.damage_at(rail.max_range), overheal])
+	_check(rail.pierce and rail.spread_degrees == 0.0 and rail.structure_damage > 0.0, "railgun: goes through everything, damaging walls on the way")
+	_check(rail.magazine == 1 and is_equal_approx(rail.reload_time, 1.5), "railgun: one shot, then a 1.5 s reload")
+	_check(rail.fire_interval <= rail.reload_time, "railgun: the reload sets the pace, not fire_interval")
+	var rs := WeaponState.new(rail)
+	_check(rs.fire() and rs.is_reloading() and not rs.can_fire(), "railgun: reloads by itself straight after the shot")
+	_step(rs, rail.reload_time - 0.05)
+	_check(not rs.can_fire(), "railgun: not ready before the reload is done")
+	_step(rs, 0.1)
+	_check(rs.can_fire() and rs.ammo == 1, "railgun: ready again %.1f s after the shot" % rail.reload_time)
 
 	var rifle := WeaponData.by_id("rifle")
 	_check(rifle.automatic and rifle.magazine == 30, "rifle: automatic, 30 rounds")
@@ -345,6 +368,15 @@ func _bone(rig: RobotRig, pose: RobotPose, bone: String) -> Transform3D:
 		var i: int = rig.bones[b]
 		t = t * Transform3D(Basis(pose.rot[i]), pose.pos[i])
 	return t
+
+
+## A `const NAME := number` from a script's source (an autoload's, which a --script run does not have).
+func _const_in(src: String, name: String) -> float:
+	var at := src.find("const %s := " % name)
+	if at < 0:
+		return NAN
+	at += ("const %s := " % name).length()
+	return src.substr(at, src.find("\n", at) - at).to_float()
 
 
 func _step(s: WeaponState, seconds: float) -> void:

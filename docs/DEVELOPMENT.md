@@ -68,7 +68,8 @@ Quick checks:
   pick means B), every player gets their own copy, Practice and Vs Bots start you and
   every bot on it, and no movement switch is left in the menus;
 - Variant B movement (`tests/movement_b_test.gd`), against the plain numbers: the same
-  running and jump, legs tucked in the air, Space for flips and the jetpack, Ctrl dives,
+  running and jump, legs tucked in the air, Space for flips and the jetpack (not before
+  it has been held a moment in the air), Ctrl dives,
   back-slides and crouches, the wall sit, the air brake and the speed limit;
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
@@ -95,6 +96,10 @@ Quick checks:
   leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
+- the air cannon (`tests/air_cannon_test.gd`): no damage to anyone or anything, no ammo
+  or reload, full charge in 1.5 s, a charged blast shoves far harder than a tap (and a
+  tap never hurts anyone on a wall), and the cone takes in only who is in front, within
+  its angle and reach and in sight;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
   for exists;
 - the portrait banner (`tests/portrait_test.gd`, with `--fixed-fps 60`): the 3D is drawn
@@ -151,15 +156,13 @@ Quick checks:
 - Empyrean Tower (`tests/empyrean_test.gd`): no two faces that would flicker, the river
   of magic clear of everything in the shaft, how it asks to be drawn, no bounds and the burn layer, the gravity
   zones, force fields that stop nothing, spawn points (none sees the altar) and pickups,
-  the altar, four pairs of gates and the lifts, only the glass breaks, and on the bots'
+  the altar and the ring gates (scenery) and the lifts, only the glass breaks, and on the bots'
   navigation mesh every tier from its neighbours, every storey, the docking ring and the
   altar from six directions; and in a real Practice match
   (`tests/empyrean_play_test.gd`): gravity through a doorway, a lift ride, the magic
   answering to you (stirred when you stand in it, at rest while you sneak, never through a
-  wall, through glass), the whole
-  Portal Surge (what cancels the hold, both ways through a gate with speed carried, a
-  rocket flying straight through, the portal gun beside it, closing after 30 s, the
-  cooldown), and the three deaths (the core, the burn layer, not flying off);
+  wall, through glass), walking through a ring gate, and the three deaths (the core, the
+  burn layer, not flying off);
 - menu layout (`tests/ui_layout_test.gd`): builds every menu page (main menu and its
   pages, the four Settings tabs, lobby, results, pause, loadout) at 18 window sizes
   and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
@@ -190,30 +193,19 @@ Quick checks:
   or the news of the respawn gets here first, when killed again before any snapshot
   from the new life, after a new robot or gun while waiting to see them back, and
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
+- the mobility slot and the jetpack (`tests/mobility_test.gd`), in a real Practice match:
+  blink (range, a wall, its charge), picking a tool (refused while alive, taken while
+  dead; the grapple and blink, an old pick of a tool that is gone is the grapple), and
+  everyone's jetpack on Space (a tap is a plain jump and burns nothing, nor does holding
+  it through the jump for less than `space_hold_time`; held on in mid-air it fires,
+  lifts you and burns fuel that refills; held in a fall it catches you); bots carry a
+  tool and the jetpack; a race has the grapple and no jetpack;
 - the game boots into practice mode on every map without script errors.
 
-- shooting through portals and portals on moving parts (`tests/portal_shot_test.gd`), in a
-  real Practice match: a pistol shot into blue hits a dummy out of orange with the damage
-  for the whole way and a tracer through both, a rocket (host and look) does too, a lone
-  portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
-  the same spot from a message, and closes when the part goes;
-- the portal gun (`tests/portal_gun_test.gd`), in a real Practice match on the Construction
-  Site: where portals go (flat on a flat wall; on the ribs of a container, on a beam, with
-  nothing through the face and a collar behind; moved in from an edge and a corner, off a
-  crate, clear of the floor; none on a post too narrow, which fizzles), opening and
-  closing (springs open, the replaced one closes and is gone), and going through (a 45 m/s
-  fall comes out at full speed, the same spot on the other oval, the look carried up and
-  down, on your feet wall to wall, straight back in, drawn onto a floor portal, shots
-  ripple it); and online (`tests/run_portal_sync_test.sh`: a host and two clients on a
-  bad network all shooting portals; every copy has every portal in the same place with
-  the same collar, and sees the others' guns fire);
-- see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
-  what lies straight on through the other (wall to wall, wall to floor, from the side and
-  above), a portal behind you, seen from behind its wall or without its partner opens no
-  view, at most four at once (the nearest), sized to the portal on screen, and the portal
-  cameras see plain faces and your whole body, never a window (headless: the maths only;
-  `tools/screenshot.sh` with the portal gun to see it);
-
+- the railgun (`tests/railgun_test.gd`), in a real Practice match: through a wall a pistol
+  round stops at, its slug kills a dummy outright, its tracer runs its whole range and it
+  never hurts the one who fired it (`tests/destruction_test.gd` checks that a line through
+  walls finds every breakable piece on it);
 - the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
   only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
@@ -457,7 +449,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (a lobby setting, so clients play to it too; default 5,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |
-| `--map-event=SEC` | Start the map's events (Halcyon's low gravity, Empyrean Tower's Portal Surge) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
+| `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
 | `--eager-terminal` | Bots go for a map terminal whenever one is ready and they have nobody to fight (normally they only try now and then) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
@@ -626,11 +618,11 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
   to make. See "Maps of flying islands" below.
 - **MapLever** and **CraneEvent** nodes (Construction Site): a lever players throw with
   Interact, and the tower crane it works. See "The crane" below.
-- **MapGravityZone**, **MapHazard**, **MapLiftWell**, **MapRingGate**, **PortalSurgeEvent**,
+- **MapGravityZone**, **MapHazard**, **MapLiftWell**,
   **OrbitEvent** and **MapDrone** nodes (Empyrean Tower): a place with its own gravity, a
-  block that kills, a tractor-beam lift, a ring gate and the event that opens the gates,
+  block that kills, a tractor-beam lift,
   the clock that turns orbiting islands, and a drone that is only scenery. See "Empyrean
-  Tower" and "Gravity zones, hazards, lifts and ring gates" below.
+  Tower" and "Gravity zones, hazards and lifts" below.
 - **HauntProp**, **HauntEvent** and **MapGhost** nodes (Haunted House): furniture that
   floats, shifts to new places and vanishes, the clock that haunts it, and a ghost that is
   only scenery. See "Haunted House" below.
@@ -810,8 +802,7 @@ The scripts behind this:
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
-| `game/arena/portals.gd`, `portal.gd`, `portal_fit.gd`, `portal_window.gdshader`, `portal_rim.gdshader` | The portal gun's portals: who has which and moving players through (`Portals`), one portal's look and animations (`Portal`), and fitting a portal to the surface it is shot at (`PortalFit`: moved off edges and obstacles, stood on what sticks out). Blocks that are drawn but not solid (ribs, signs, rails) count through `MapRoot.decor_relief`, so decoration on a map needs nothing special to keep out of portals |
-| `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
+| `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/haunt_prop.gd`, `haunt_event.gd`, `map_ghost.gd` | Furniture that floats, shifts and vanishes, doorways that come and go, the clock that moves them, and the ghosts (Haunted House; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `game/arena/map_piece.gd`, `map_stairs.gd` (stairs and ramps), `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
@@ -1063,10 +1054,10 @@ sensor masts on the eaves, and the debris field. Three chunks orbit (MapIslands 
 
 Four tractor-beam lifts: LiftA in the shaft from the Engine to the Menagerie, LiftB in the
 shaft from the Labs to the Observatory, LiftC outside from the Engine's west balcony to
-the Labs', LiftD outside from the docking ring to the Observatory's. The rune altar (a
-MapTerminal with Channel Time 2) stands in the middle of the Summoning Chamber and starts
-the Portal Surge: eight MapRingGates in four pairs (1 Engine and Observatory, 2 Library
-and a debris island, 3 Labs and Summoning Chamber, 4 Menagerie and another island).
+the Labs', LiftD outside from the docking ring to the Observatory's. The rune altar stands
+in the middle of the Summoning Chamber, and eight ring gates (Engine, Observatory, Library
+and a debris island, Labs, Summoning Chamber, Menagerie and another island); both are
+scenery.
 
 It was laid out by `python3 tools/arena/build_arena_maps.py empyrean` (the structure is
 `tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`, and the
@@ -1184,7 +1175,7 @@ scene the script checks that nothing that moves ends up in a wall, a spawn point
 pickup, an always-open doorway or another prop, in any layout and on the way between
 them; `tests/haunted_house_test.gd` checks the real thing.
 
-### Gravity zones, hazards, lifts and ring gates
+### Gravity zones, hazards and lifts
 
 Five things Empyrean Tower added that any map can use. All are in `game/arena/`.
 
@@ -1226,23 +1217,6 @@ emitter rings from MapBlocks (the lower one under 0.25 m high). For bots, add a
 each floor to get off at, its **Landing** a Marker3D on that floor beside the beam: a
 bot takes it when its goal is 12 m or more above it and the beam is near on its own floor.
 
-**Ring gates and the Portal Surge.** A **MapRingGate** marks the middle of a ring's
-opening, its z axis square to the ring; two gates with the same **Pair** are joined. A
-**PortalSurgeEvent** in the scene opens every pair: **Open Time** (2 s), **Duration**
-(30 s), **Close Time** (2 s), **Cooldown** (60 s). Point a MapTerminal's Event at it (give
-the terminal a Channel Time for a hold, and a **Light** colour). While the gates are fully
-open the event hands their portals to the arena's `Portals` node
-(`Portals.set_map_pairs`), which moves players through with the portal gun's own maths:
-speed carried and turned, facing out of the far gate. Map pairs belong to no player, so
-the gun's rules never apply to them (no `MAX_SPAN`, nothing closes them but the event)
-and they never touch a player's own pair. Projectiles are not moved. A gate standing
-free has a portal facing each way (**Two Sided**); untick it for one against a wall. The
-gate draws its emitter nodes and the portal's surface and hums; the ring, its plinth and
-its solid frame are MapBlocks round it (leave the bottom of the ring open to walk
-through). For bots, a MapJumpLink with How set to Gate in front of a gate, **Hook** the
-gate, Landing a marker in front of the other one: they step through when it is open and
-saves them 25 m or more.
-
 **Orbiting islands.** Give a **MapIsland** an **Orbit** (degrees a second) and a **Pivot**
 and add an **OrbitEvent** node to the scene: for as long as a match runs it goes round,
 carrying riders, pickups and grapple points, in the same place on every copy (the host
@@ -1274,7 +1248,7 @@ copy of the game runs it by itself.
   **that face the player** flare (so a wall's far side never lights). Every living
   player and bot counts, yours too; the dead, spectators and anyone crouched and moving
   no faster than a crouch-walk do not (`MapMagicField.noticed`). Its **Event** is the
-  map event that livens everything up while it runs (the Portal Surge here).
+  map event that livens everything up while it runs (none on Empyrean Tower now).
   Boxes are sorted into bands of height so each player is compared with few of them;
   with 16 players spread through the tower a look takes about 1.6 ms.
 - **MapAmbientSound** (`map_ambient_sound.gd`): a quiet loop that belongs to a place.
@@ -1416,7 +1390,7 @@ PackedInt32Array, PackedStringArray) that a scene sets on a node whose script do
 run in the editor: the value is there when you play from the editor and gone in the
 exported game. v0.1.48 shipped that way, with a lever that clacked and a crane with no
 stops, and Cirrus and Empyrean Tower had been losing their lit, flaring and pulsing
-kinds the same way (LayoutEvent and PortalSurgeEvent use typed arrays now too). Give a
+kinds the same way (LayoutEvent uses typed arrays now too). Give a
 new map script's list settings a typed array; `tests/map_scene_test.gd` fails if a map
 scene sets a packed array on a node whose script is not a `@tool` script. To look at
 an exported copy: `godot --headless --export-pack "Windows Desktop" out.pck`, then
@@ -1433,7 +1407,7 @@ why it is not a MapMover (a mover is solid, carries riders and runs off the race
 so plain movers are for race maps; in an arena the one kind of mover is a MapIsland,
 below, which runs off its LayoutEvent's, OrbitEvent's or CraneEvent's clock). MapHazard was race-only
 when Halcyon was built, so its pit uses the Kill Height and its decks are joined by fixed
-ramps (hazards work in arenas now: see "Gravity zones, hazards, lifts and ring gates").
+ramps (hazards work in arenas now: see "Gravity zones, hazards and lifts").
 
 ### Maps of flying islands
 
@@ -1950,12 +1924,7 @@ Cirrus's clock has six sounds of its own (`clock_tick`, `clock_tock`, `bell_toll
 `layout_rise`, `island_move`, `bridge_lock`), played by its LayoutEvent. The tick is the
 quietest sound in the game on purpose.
 
-The portal gun has five (`portal_open`, `portal_through`, and `portal_shot` for the bolt
-leaving the gun, `portal_close` as a portal snaps shut, `portal_fizzle` for a shot at a
-surface that takes no portal).
-
-Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_hum`,
-which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop
+Each of Empyrean Tower's tiers has a quiet loop
 of its own (`magic_engine`, `magic_library`, `magic_labs`, `magic_menagerie`,
 `magic_summoning`, `magic_observatory`), played in the room by a MapAmbientSound.
 

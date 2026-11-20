@@ -92,6 +92,16 @@ static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, b
 		HudStyle.edged_rect(ci, bar, HudStyle.DIM)
 		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(v.swing, 0.0, 1.0), bar.size.y)), HudStyle.WHITE if v.swing >= 1.0 else HudStyle.ORANGE)
 		HudStyle.label(ci, Vector2(right, bottom - 6.0), "F  KICK" if v.gun == "none" else "LMB  SWING", 10, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_RIGHT)
+	elif v.blast:   # the air cannon: no ammo, a charge bar (orange as it refills after a blast)
+		var charging := v.charge >= 0.0
+		HudStyle.text(ci, Vector2(right, bottom - 52.0), ("%d%%" % roundi(v.charge * 100.0)) if charging else v.weapon.to_upper(), 34,
+			HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+		var bar := Rect2(right - 150.0, bottom - 28.0, 150.0, 8.0)
+		HudStyle.edged_rect(ci, bar, HudStyle.DIM)
+		var fill := v.charge if charging else (clampf(v.swing, 0.0, 1.0) if v.swing < 1.0 else 0.0)
+		var col := (HudStyle.WHITE if v.charge >= 1.0 else HudStyle.CYAN) if charging else HudStyle.ORANGE
+		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * fill, bar.size.y)), col)
+		HudStyle.label(ci, Vector2(right, bottom - 6.0), v.weapon.to_upper() + "  ·  HOLD LMB, LET GO", 10, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_RIGHT)
 	else:
 		_draw_ammo(ci, v, right, bottom)
 

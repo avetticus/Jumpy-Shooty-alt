@@ -146,7 +146,7 @@ func _check_hud_draws() -> void:
 	v.weapon = "Rifle"
 	v.spread_px = 14.0
 	v.ready = 0.5
-	v.moves = [["GRAPPLE", "RMB", 1.0, true], ["DIVE", "Q", 0.3, false], ["FLIP", "SPACE", 1.0, false], ["KICK", "F", 0.0, false]]
+	v.moves = [["GRAPPLE", "MMB", 1.0, true], ["DIVE", "Q", 0.3, false], ["FLIP", "SPACE", 1.0, false], ["KICK", "F", 0.0, false]]
 	var frames := 0
 	for scale in [0.75, 1.25]:
 		for on in [false, true]:

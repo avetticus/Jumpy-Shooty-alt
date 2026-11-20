@@ -1,9 +1,10 @@
 class_name Jetpack
 extends RefCounted
-## Jetpack: hold the mobility button to fly. It lifts you up to RISE_SPEED and
-## pushes you a little toward WASD, burning fuel as it goes. Fuel comes back when you
-## let go: slowly in the air, fast once you stand on the ground. Run dry and it cuts
-## out until it has refilled a little (RESTART).
+## Jetpack: everyone has one. Hold Space in mid-air to fly (after a jump or a fall:
+## MovementController.space_jet says when). It lifts you up to RISE_SPEED and pushes
+## you a little toward WASD, burning fuel as it goes. Fuel comes back when you let go:
+## slowly in the air, fast once you stand on the ground. Run dry and it cuts out until
+## it has refilled a little (RESTART). None in a race.
 
 const THRUST := 42.0        ## upward push, m/s² (gravity is 22, so a net climb)
 const RISE_SPEED := 7.5     ## it stops adding upward speed past this
@@ -29,7 +30,8 @@ func readiness() -> float:
 	return fuel
 
 
-## One physics step. `held`: the mobility button is down. Returns the new velocity.
+## One physics step. `held`: Space is held in mid-air (MovementController.space_jet).
+## Returns the new velocity.
 func step(vel: Vector3, held: bool, grounded: bool, wish: Vector3, delta: float) -> Vector3:
 	if _dry and fuel >= RESTART:
 		_dry = false

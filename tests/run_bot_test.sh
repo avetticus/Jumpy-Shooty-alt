@@ -14,7 +14,7 @@
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
 #  - a melee bot (sword) rushes in winding its swing up, lands blows and knocks you back
-#  - a blink bot blinks, and a portal-gun bot puts portals up and goes through them
+#  - a blink bot blinks; bots fly the jetpack (Space held in mid-air) now and then
 #  - sounds: your gun, steps, jumps and hit markers play in your head; the bot's shots,
 #    impacts and steps play placed in the world
 #  - there are no script errors
@@ -51,11 +51,9 @@ timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill
 # A sword bot (Hard) against a player who moves on its own.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --bot-mobility=grapple --time-limit=40 --quit-after=45 \
   > "$OUT/bot_melee.log" 2>&1 &
-# An Expert bot with blink, and one with the portal gun.
-for tool in blink portal; do
-  timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility="$tool" --time-limit=40 --quit-after=45 \
-    > "$OUT/bot_$tool.log" 2>&1 &
-done
+# An Expert bot with blink.
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility=blink --time-limit=40 --quit-after=45 \
+  > "$OUT/bot_blink.log" 2>&1 &
 wait || true
 
 python3 - "$OUT" <<'EOF'
@@ -199,15 +197,11 @@ if not blinks:
 if re.search(r"^GRAPPLE|^ROPE SELF 9001 on", log, re.M):
     print("  FAIL: the blink bot used a grapple"); fail = True
 
-log = read("portal")
-placed = re.findall(r"^PORTAL 1 9001 (\d)", log, re.M)
-through = re.findall(r"^PORTAL_THROUGH 9001 ", log, re.M)
-print(f"Portal  portals {len(placed)} (blue {placed.count('0')}, orange {placed.count('1')})  trips {len(through)}  "
-      f"shots {len(re.findall(r'^SHOT 9001 ', log, re.M))}  errors {log.count('SCRIPT ERROR')}")
-if log.count("SCRIPT ERROR"):
-    print("  FAIL: script errors"); fail = True
-if not placed:
-    print("  note: the portal bot found no spot for a portal this time (it needs its target in sight and far off)")
+# Every bot has the jetpack (Space held in mid-air): it flies it now and then.
+jets = sum(len(re.findall(r"^JETPACK 9001", read(n), re.M)) for n in ("blink", "fight", "3"))
+print(f"Jetpack bursts {jets} (Expert bots: blink, fight, level 3)")
+if not jets:
+    print("  note: no Expert bot flew the jetpack this time (it needs higher ground to reach, a far target in sight, or a hit to dodge)")
 
 print("BOT TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)

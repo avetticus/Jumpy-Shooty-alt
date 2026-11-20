@@ -11,9 +11,6 @@
 [ext_resource type="Script" path="res://game/arena/map_gravity_zone.gd" id="9_zone"]
 [ext_resource type="Script" path="res://game/arena/map_hazard.gd" id="10_hazard"]
 [ext_resource type="Script" path="res://game/arena/map_lift_well.gd" id="11_lift"]
-[ext_resource type="Script" path="res://game/arena/map_ring_gate.gd" id="12_gate"]
-[ext_resource type="Script" path="res://game/arena/portal_surge_event.gd" id="13_surge"]
-[ext_resource type="Script" path="res://game/arena/map_terminal.gd" id="14_terminal"]
 [ext_resource type="Script" path="res://game/arena/orbit_event.gd" id="15_orbit"]
 [ext_resource type="Script" path="res://game/arena/map_drone.gd" id="16_drone"]
 [ext_resource type="Script" path="res://game/arena/map_magic.gd" id="17_magic"]
@@ -35421,14 +35418,6 @@ kind = "brass"
 solid = false
 sides = 6
 
-[node name="MapTerminal" type="Node3D" parent="SummoningChamber/Altar"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
-script = ExtResource("14_terminal")
-channel_time = 2.0
-range = 2.0
-light = Color(0.75, 0.5, 1, 1)
-event = NodePath("../../../PortalSurge")
-
 [node name="Circle" type="Node3D" parent="SummoningChamber/Circles"]
 transform = Transform3D(0.8829, 0, 0.4695, 0, 1, 0, -0.4695, 0, 0.8829, 6.1031, 122, 11.4783)
 metadata/_edit_group_ = true
@@ -45693,21 +45682,6 @@ size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
 
-[node name="Gate" type="Node3D" parent="Gates/GateEngine"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 1
-
-[node name="Front" type="Marker3D" parent="Gates/GateEngine"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
-[node name="Through" type="Marker3D" parent="Gates/GateEngine"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-script = ExtResource("8_link")
-how = 5
-hook = NodePath("../Gate")
-landing = NodePath("../../GateObservatory/Front")
-
 [node name="GateObservatory" type="Node3D" parent="Gates"]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, 10.6066, 152.5, -10.6066)
 metadata/_edit_group_ = true
@@ -45887,21 +45861,6 @@ script = ExtResource("2_block")
 size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
-
-[node name="Gate" type="Node3D" parent="Gates/GateObservatory"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 1
-
-[node name="Front" type="Marker3D" parent="Gates/GateObservatory"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
-[node name="Through" type="Marker3D" parent="Gates/GateObservatory"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-script = ExtResource("8_link")
-how = 5
-hook = NodePath("../Gate")
-landing = NodePath("../../GateEngine/Front")
 
 [node name="GateLabs" type="Node3D" parent="Gates"]
 transform = Transform3D(-0.1736, 0, 0.9848, 0, 1, 0, -0.9848, 0, -0.1736, 3.0215, 61, 17.1357)
@@ -46083,21 +46042,6 @@ size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
 
-[node name="Gate" type="Node3D" parent="Gates/GateLabs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 3
-
-[node name="Front" type="Marker3D" parent="Gates/GateLabs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
-[node name="Through" type="Marker3D" parent="Gates/GateLabs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-script = ExtResource("8_link")
-how = 5
-hook = NodePath("../Gate")
-landing = NodePath("../../GateSummoning/Front")
-
 [node name="GateSummoning" type="Node3D" parent="Gates"]
 transform = Transform3D(0.5878, 0, 0.809, 0, 1, 0, -0.809, 0, 0.5878, 9.8748, 122, -13.5915)
 metadata/_edit_group_ = true
@@ -46277,21 +46221,6 @@ script = ExtResource("2_block")
 size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
-
-[node name="Gate" type="Node3D" parent="Gates/GateSummoning"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 3
-
-[node name="Front" type="Marker3D" parent="Gates/GateSummoning"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
-[node name="Through" type="Marker3D" parent="Gates/GateSummoning"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-script = ExtResource("8_link")
-how = 5
-hook = NodePath("../Gate")
-landing = NodePath("../../GateLabs/Front")
 
 [node name="GateLibrary" type="Node3D" parent="Gates"]
 transform = Transform3D(-0.1392, 0, 0.9903, 0, 1, 0, -0.9903, 0, -0.1392, 2.3103, 30.5, 16.4384)
@@ -46473,14 +46402,6 @@ size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
 
-[node name="Gate" type="Node3D" parent="Gates/GateLibrary"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 2
-
-[node name="Front" type="Marker3D" parent="Gates/GateLibrary"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
 [node name="GateMenagerie" type="Node3D" parent="Gates"]
 transform = Transform3D(0.6157, 0, 0.788, 0, 1, 0, -0.788, 0, 0.6157, 10.22, 91.5, -13.081)
 metadata/_edit_group_ = true
@@ -46660,22 +46581,6 @@ script = ExtResource("2_block")
 size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
-
-[node name="Gate" type="Node3D" parent="Gates/GateMenagerie"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 4
-
-[node name="Front" type="Marker3D" parent="Gates/GateMenagerie"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
-[node name="PortalSurge" type="Node" parent="."]
-script = ExtResource("13_surge")
-open_time = 2.0
-duration = 30.0
-close_time = 2.0
-cooldown = 60.0
-pulse_kinds = Array[String](["glow", "conduit"])
 
 [node name="Debris" type="Node3D" parent="."]
 
@@ -46946,14 +46851,6 @@ size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
 
-[node name="Gate" type="Node3D" parent="Gates/GateLibraryFar"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 2
-
-[node name="Front" type="Marker3D" parent="Gates/GateLibraryFar"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
-
 [node name="IsleMenagerieFar" type="Node3D" parent="Debris"]
 transform = Transform3D(-0.9659, 0, 0.2588, 0, 1, 0, -0.2588, 0, -0.9659, 20.7055, 112, -77.2741)
 metadata/_edit_group_ = true
@@ -47220,14 +47117,6 @@ script = ExtResource("2_block")
 size = Vector3(0.6, 0.12, 0.04)
 kind = "conduit"
 solid = false
-
-[node name="Gate" type="Node3D" parent="Gates/GateMenagerieFar"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.87, 0)
-script = ExtResource("12_gate")
-pair = 4
-
-[node name="Front" type="Marker3D" parent="Gates/GateMenagerieFar"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 
 [node name="Ways" type="Node3D" parent="Debris"]
 
@@ -50949,15 +50838,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.0838, 49.6, -11.8177)
 script = ExtResource("4_weapon")
 weapon = "crossbow"
 
-[node name="AutoShotgun11" type="Marker3D" parent="WeaponSpawns"]
+[node name="BreakAction11" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.8356, 61.1, 5.047)
 script = ExtResource("4_weapon")
-weapon = "auto_shotgun"
+weapon = "break_action"
 
-[node name="PlasmaPistol12" type="Marker3D" parent="WeaponSpawns"]
+[node name="Pistol12" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3363, 73.8, 20.1564)
 script = ExtResource("4_weapon")
-weapon = "plasma_pistol"
+weapon = "pistol"
 
 [node name="NailGun13" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8093, 67.45, 12.8735)
@@ -50999,10 +50888,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.6987, 152.6, 9.6609)
 script = ExtResource("4_weapon")
 weapon = "bolt_action"
 
-[node name="HarpoonGun21" type="Marker3D" parent="WeaponSpawns"]
+[node name="Crossbow21" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.8512, 91.6, 19.5016)
 script = ExtResource("4_weapon")
-weapon = "harpoon_gun"
+weapon = "crossbow"
 
 [node name="GrenadeLauncher22" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 185.7, 20.7)
@@ -121652,4 +121541,3 @@ draw_range = 220
 
 [node name="MagicField" type="Node" parent="."]
 script = ExtResource("19_field")
-event = NodePath("../PortalSurge")

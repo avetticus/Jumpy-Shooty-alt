@@ -21,8 +21,7 @@ const VOLUME := {
 	"wall_run": -12.0, "wall_jump": -10.0, "vault": -12.0, "ledge_climb": -11.0,
 	"crouch": -18.0, "stand": -18.0,
 	"grapple_fire": -10.0, "grapple_attach": -10.0, "grapple_release": -12.0, "grapple_miss": -12.0, "grapple_taut": -8.0,
-	"blink": -9.0, "portal_open": -10.0, "portal_through": -8.0,
-	"portal_shot": -11.0, "portal_close": -11.0, "portal_fizzle": -13.0,
+	"blink": -9.0,
 	"ui_hover": -20.0, "ui_click": -12.0, "ui_confirm": -10.0, "ui_back": -12.0,
 	"ui_toggle": -13.0, "ui_tick": -20.0, "ui_select": -12.0,
 	"ui_materialize": -21.0,   # (quiet: stepping through the robots plays it again and again)
@@ -56,10 +55,6 @@ const VOLUME := {
 	"gun_spin": -14.0, "gun_toss": -17.0, "cell_clink": -15.0, "vent_hiss": -13.0, "charge_hum": -11.0, "barrel_spin": -12.0,
 	# The third batch
 	"fire_derringer": -4.0, "fire_derringer_fp": -4.0, "far_derringer": -7.5, "equip_derringer": -10.0,
-	"fire_flare_gun": -5.0, "fire_flare_gun_fp": -5.0, "far_flare_gun": -8.5, "equip_flare_gun": -10.0,
-	"fire_plasma_pistol": -6.0, "fire_plasma_pistol_fp": -6.0, "far_plasma_pistol": -9.5, "equip_plasma_pistol": -10.0,
-	"fire_auto_shotgun": -4.0, "fire_auto_shotgun_fp": -4.0, "far_auto_shotgun": -7.5, "equip_auto_shotgun": -10.0,
-	"fire_slug_shotgun": -3.0, "fire_slug_shotgun_fp": -3.0, "far_slug_shotgun": -6.5, "equip_slug_shotgun": -10.0,
 	"fire_air_cannon": -4.0, "fire_air_cannon_fp": -4.0, "far_air_cannon": -7.5, "equip_air_cannon": -10.0,
 	"fire_minigun": -7.5, "fire_minigun_fp": -7.5, "far_minigun": -11.0, "equip_minigun": -10.0,
 	"fire_battle_rifle": -4.5, "fire_battle_rifle_fp": -4.5, "far_battle_rifle": -8.0, "equip_battle_rifle": -10.0,
@@ -67,16 +62,12 @@ const VOLUME := {
 	"fire_nail_gun": -7.0, "fire_nail_gun_fp": -7.0, "far_nail_gun": -10.5, "equip_nail_gun": -10.0,
 	"fire_crossbow": -5.0, "fire_crossbow_fp": -5.0, "far_crossbow": -8.5, "equip_crossbow": -10.0,
 	"fire_anti_materiel": -1.5, "fire_anti_materiel_fp": -1.5, "far_anti_materiel": -5.0, "equip_anti_materiel": -10.0,
-	"fire_harpoon_gun": -5.0, "fire_harpoon_gun_fp": -5.0, "far_harpoon_gun": -8.5, "equip_harpoon_gun": -10.0,
-	"fire_mortar": -3.0, "fire_mortar_fp": -3.0, "far_mortar": -6.5, "equip_mortar": -10.0,
 	"fire_plasma_cannon": -5.0, "fire_plasma_cannon_fp": -5.0, "far_plasma_cannon": -8.5, "equip_plasma_cannon": -10.0,
-	"swing_katana": -8.5, "equip_katana": -10.0,
 	"swing_scythe": -8.5, "equip_scythe": -10.0,
 	"swing_mace": -8.5, "equip_mace": -10.0,
 	"swing_machete": -8.5, "equip_machete": -10.0,
 	"swing_wrench": -8.5, "equip_wrench": -10.0,
 	"swing_energy_sword": -8.5, "equip_energy_sword": -10.0,
-	"swing_claws": -8.5, "equip_claws": -10.0,
 	"swing_karate": -9.0, "equip_karate": -10.0,
 	# Map events (both loop; MapTerminal and GravityEvent play and fade them). The chord
 	# is heard all over the map and is kept well under the fighting.
@@ -90,11 +81,7 @@ const VOLUME := {
 	"lever_pull": -8.0, "crane_start": -9.0, "crane_motor": -13.0, "crane_stop": -8.0,
 	# The Haunted House (HauntEvent: the warning, the shift and the house settling; MapGhost: a moan).
 	"haunt_warn": -10.0, "haunt_shift": -12.0, "haunt_settle": -11.0, "ghost_moan": -12.0,
-	# Empyrean Tower's Portal Surge (PortalSurgeEvent plays the swell as the ring gates
-	# open and the whoosh as they collapse, all over the map but under the fighting;
-	# each open MapRingGate hums by itself, placed in the world, and that one loops).
-	"surge_open": -9.0, "surge_close": -11.0, "gate_hum": -14.0,
-	# ...and the quiet sound of each of its tiers (MapAmbientSound loops them in the
+	# Empyrean Tower: the quiet sound of each of its tiers (MapAmbientSound loops them in the
 	# room: magic heard from next door, far under everything else).
 	"magic_engine": -21.0, "magic_library": -23.0, "magic_labs": -22.0, "magic_menagerie": -24.0, "magic_summoning": -20.0,
 	"magic_observatory": -24.0,
@@ -117,15 +104,10 @@ const RELOAD_STEPS := {
 	"lmg": [[0.30, "cover_open"], [0.88, "box_out"], [1.78, "box_in"], [2.54, "cover_close"]],
 	"lever_action": [[0.25, "shell_in"]],
 	"bolt_action": [[0.28, "shell_in"]],
-	"railgun": [[0.28, "cell_out"], [0.40, "rail_vent"], [1.58, "cell_in"]],
+	"railgun": [[0.16, "cell_out"], [0.23, "rail_vent"], [0.91, "cell_in"]],   # its 2.6 s clip played in its 1.5 s reload
 	"rocket_launcher": [[0.42, "gun_toss"], [0.94, "rocket_in"]],
 	"grenade_launcher": [[0.28, "grenade_in"], [0.40, "drum_turn"]],
 	"derringer": [[0.11, "break_open"], [0.62, "gun_toss"], [0.77, "shells_in"], [1, "break_close"]],
-	"flare_gun": [[0.09, "break_open"], [0.57, "shell_in"], [0.755, "break_close"]],
-	"plasma_pistol": [[0.06, "vent_hiss"], [0.36, "gun_spin"], [0.74, "gun_spin"], [1.43, "cell_in"]],
-	"auto_shotgun": [[0.13, "box_out"], [1.02, "gun_toss"], [1.18, "box_in"], [1.565, "charge_back"], [1.68, "charge_fwd"]],
-	"slug_shotgun": [[0.275, "shell_in"]],
-	"air_cannon": [[0.33, "cell_out"], [0.78, "gun_toss"], [1.2, "cell_in"], [1.27, "vent_hiss"]],
 	"minigun": [[0.46, "cover_open"], [0.98, "box_out"], [2.18, "box_in"], [2.72, "cover_close"], [2.9, "barrel_spin"]],
 	"battle_rifle": [[0.29, "mag_out_rifle"], [1.09, "mag_in_rifle"], [1.535, "charge_back"], [1.65, "charge_fwd"]],
 	"laser_rifle": [[0.04, "vent_hiss"], [0.56, "gun_spin"], [1.22, "gun_spin"], [1.83, "cell_in"]],
@@ -133,8 +115,6 @@ const RELOAD_STEPS := {
 	"crossbow": [[0.54, "grenade_in"], [0.74, "charge_back"]],
 	"anti_materiel": [[0.30, "mag_out_rifle"], [1.28, "mag_in_rifle"], [1.80, "bolt_up"], [2.06, "bolt_back"],
 		[2.50, "bolt_fwd"], [2.66, "bolt_down"]],
-	"harpoon_gun": [[0.4, "gun_toss"], [0.9, "rocket_in"]],
-	"mortar": [[0.68, "gun_toss"], [1.18, "rocket_in"]],
 	"plasma_cannon": [[0.28, "cell_out"], [0.33, "vent_hiss"], [1.58, "cell_in"], [1.62, "charge_hum"]],
 }
 ## After each shot: the shotgun's pump and the sniper's bolt.
@@ -142,7 +122,6 @@ const RELOAD_STEPS := {
 ## tools/robot/long_reloads.py): the pump racked by the flourish.
 const RELOAD_END_STEPS := {
 	"shotgun": [[0.14, "gun_spin"], [0.245, "pump_back"], [0.455, "pump_fwd"]],
-	"slug_shotgun": [[0.285, "pump_back"], [0.365, "pump_fwd"]],
 	"lever_action": [[0.14, "gun_spin"], [0.2, "lever_down"], [0.44, "lever_up"]],
 	"bolt_action": [[0.19, "bolt_fwd"], [0.27, "bolt_down"]],
 	"grenade_launcher": [[0.12, "drum_turn"], [0.42, "cylinder_close"]],
@@ -153,6 +132,5 @@ const FIRE_STEPS := {
 	"lever_action": [[0.10, "lever_down"], [0.30, "lever_up"]],
 	"bolt_action": [[0.345, "bolt_up"], [0.38, "bolt_back"], [0.518, "bolt_fwd"], [0.665, "bolt_down"]],
 	"railgun": [[0.05, "rail_vent"]],
-	"slug_shotgun": [[0.17, "pump_back"], [0.315, "pump_fwd"]],
 	"anti_materiel": [[0.65, "bolt_up"], [0.72, "bolt_back"], [0.98, "bolt_fwd"], [1.26, "bolt_down"]],
 }

@@ -28,12 +28,12 @@ const CAST := [
 	["kestrel", "revolver"],
 	["custom:n=Bones|l=skeleton|t=skeleton|h=skeleton", "scythe"],
 	["bulwark", "lmg"],
-	["custom:n=Wizard|l=wizard|t=wizard|h=wizard|hat=wizard", "plasma_pistol"],
+	["custom:n=Wizard|l=wizard|t=wizard|h=wizard|hat=wizard", "derringer"],
 	["rivet", "machine_pistol"],
 	["custom:n=Whiskers|l=cat|t=cat|h=cat", "revolver"],
 	["specter", "crossbow"],
 	["custom:n=Cosmo|l=astronaut|t=astronaut|h=astronaut", "laser_rifle"],
-	["orbit", "plasma_pistol"],
+	["orbit", "akimbo"],
 	["custom:n=Ninja|l=ninja|t=ninja|h=ninja", "dagger"],
 ]
 

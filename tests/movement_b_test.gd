@@ -6,8 +6,9 @@ extends SceneTree
 ## Checks (against the plain MovementTuning numbers, which were Classic's): the same
 ## running speed and jump height; pressing against your motion in the air brakes it far
 ## harder; legs tucked in the air with no key; a glide gives way to a flip (the glide
-## itself: tests/glide_test.gd); Space in mid-air flips once per jump and E fires the boots; with the jetpack,
-## holding Space asks for it; sideways speed capped at 27 m/s; Ctrl forward dives onto your
+## itself: tests/glide_test.gd); Space in mid-air flips once per jump and E fires the boots;
+## with the jetpack, holding Space in mid-air asks for it once held space_hold_time (not
+## at once on a jump); sideways speed capped at 27 m/s; Ctrl forward dives onto your
 ## belly and crawls, Ctrl back slides on your back and ends in a crouch, Ctrl standing
 ## still crouches; pushing into a wall in mid-air sits on it for 2.5 s, then slides
 ## down, and a jump kicks off it. Classic still flips.
@@ -101,8 +102,22 @@ func _run() -> void:
 	await _steps(b_body, b, 1)
 	_check(b.boosts == boosts + 1, "E fires the rocket boots")
 
-	# --- With the jetpack: a Space tap flips, holding Space flies the jetpack.
+	# --- With the jetpack: a Space tap flips, holding Space flies the jetpack, but not
+	# before it has been held space_hold_time in the air (a plain jump burns nothing).
 	b.has_jetpack = true
+	await _settle(b_body, b, Vector3(0, 0, 0))
+	_press_jump()
+	var early := false
+	for i in int(b.tuning.space_hold_time * 60.0) - 2:
+		await _steps(b_body, b, 1)
+		early = early or b.space_jet
+	_check(not early and b_body.global_position.y > 0.5, "Space held through a jump does not ask for the jetpack before the hold time")
+	var later := false
+	for i in 6:
+		await _steps(b_body, b, 1)
+		later = later or b.space_jet
+	_check(later, "...and does once it is up")
+	input.jump_held = false
 	await _settle(b_body, b, Vector3(0, 0, 0))
 	_press_jump()
 	await _steps(b_body, b, 16)
