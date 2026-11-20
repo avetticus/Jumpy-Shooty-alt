@@ -107,7 +107,7 @@ var _zone_to := -1.0         # the zone it is easing to (below 0: not known yet,
 var _zone_t := 1.0
 
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
-## Set when the body was just moved somewhere new (a blink): the next step
+## Set when the body was just moved somewhere new (a jetpack lift-off): the next step
 ## does not count the floor it was standing on before.
 var warped := false
 
@@ -370,8 +370,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		if sit_on != Vector3.ZERO:
 			_start_wall_sit(sit_on)
 
-	# A mid-air jump that isn't a wall jump is a flip: a small burst toward your
-	# WASD direction, once per jump. Pressed close above the floor, it is kept
+	# A mid-air jump that isn't a wall jump is a flip: a small lift upward (no push
+	# along, so no speed to keep), once per jump. Pressed close above the floor, it is kept
 	# as a buffered jump for when you land instead (so bunny-hops still work).
 	# With tuning.space_boost it fires the rocket boots instead (see _space_boost).
 	var mid_air_jump: bool = input.jump_pressed and not jumping and not wall_jump and not rope_jump and not grounded \
@@ -1089,8 +1089,9 @@ func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
 	state = State.FLIP
 	_flip_left = t.flip_time
 	flip_dir = input.move.limit_length(1.0).normalized() if wish != Vector3.ZERO else Vector2(0, -1)  # no direction: backflip
-	var h := Vector3(vel.x, 0, vel.z) + wish * t.flip_burst
-	return Vector3(h.x, max(vel.y, t.flip_up), h.z)
+	# Only a lift, to bridge a longer gap: the way you are going and your speed along
+	# it stay as they were (WASD only picks which way the body turns over).
+	return Vector3(vel.x, max(vel.y, t.flip_up), vel.z)
 
 
 # ---------------------------------------------------------------------------

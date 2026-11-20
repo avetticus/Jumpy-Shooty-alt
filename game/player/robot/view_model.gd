@@ -436,6 +436,6 @@ func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
 			return "fp_wall_r" if motor.wall_normal.dot(right) < 0.0 else "fp_wall_l"
 		S.MANTLE: return "fp_mantle"
 		S.DIVE, S.BELLY_SLIDE: return "fp_dive"
-		S.ROLL, S.FLIP: return "fp_tuck"
+		S.ROLL: return "fp_tuck"   # (a flip keeps the arms as they are: no tuck in first person)
 		S.GRAPPLE: return "fp_one_hand"
 	return "fp_idle"

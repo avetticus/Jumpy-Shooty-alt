@@ -172,7 +172,7 @@ func let_go(t: float, time: float = BACK_MIN, slack: float = 0.0) -> void:
 	back_slack = slack
 
 
-## Gone at once (death, a respawn, a blink).
+## Gone at once (death, a respawn).
 func drop(t: float) -> void:
 	if live(t):
 		let_go(t)

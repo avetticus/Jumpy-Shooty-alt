@@ -479,7 +479,7 @@ func _initialize() -> void:
 			func():
 				_data.erase("dive_again")
 				_expect_true("second dive did nothing (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) < 8.0 + t.dive_boost + 0.5)],
-		["jump in mid-air flips toward your direction", 0.05,
+		["jump in mid-air flips: a lift up, no push along", 0.05,
 			func():
 				motor.reset()
 				_teleport(Vector3(-30, 40, 140))
@@ -490,7 +490,9 @@ func _initialize() -> void:
 				input.jump_pressed = true,
 			func():
 				_expect_true("state is Flip", motor.state == MovementController.State.FLIP)
-				_expect_true("pushed right (%.1f m/s)" % body.velocity.x, body.velocity.x > t.flip_burst * 0.9)
+				# (only air steering moves it sideways: 0.05 s of it is about 1.2 m/s)
+				_expect_true("not pushed right (%.1f m/s)" % body.velocity.x, body.velocity.x < 1.5)
+				_expect_true("speed along kept, no more (%.1f m/s)" % body.velocity.z, absf(body.velocity.z + 8.0) < 0.5)
 				_expect_true("pushed up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.flip_up - 1.5)],
 		["only one flip per jump", 0.2,
 			func():

@@ -4,8 +4,8 @@
 #    and one who joins mid-match with another, are both told the setting and given an
 #    allowed weapon; every copy only ever has allowed weapons on record, the host only
 #    judges shots from allowed weapons, and weapons picked on the death screen (the
-#    number keys, --swap-on-death) are allowed ones; the same for the mobility tools the
-#    host allows (--allowed-mobility, here blink only): everyone is told and only has it;
+#    number keys, --swap-on-death) are allowed ones; the host turns the jetpack on
+#    (--jetpack): everyone is told, and everyone has the grappling hook on record;
 #  - Vs Bots with one gun (the bat): you and every bot have it;
 #  - no script errors anywhere.
 # (The rules and the pickers are checked step by step in tests/lobby_settings_test.gd.)
@@ -24,7 +24,7 @@ COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP")
 timeout 120 "$GODOT" --fixed-fps 60 --headless --path . -- --game-clock --bot=1 --bots=2 --allowed-weapons=bat --weapon=pistol \
   --bot-weapon=sniper --sync-log --map="$MAP" --quit-after=8 > "$OUT/lobby_bots.log" 2>&1 &
 # Online: the host saved the sniper, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=sniper --allowed-weapons=shotgun,railgun,smg --allowed-mobility=blink --mobility=grapple \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=sniper --allowed-weapons=shotgun,railgun,smg --jetpack --mobility=grapple \
   --autostart=2 --rules=kills:30 --time-limit=60 --swap-on-death --quit-after=34 "${COMMON[@]}" > "$OUT/lobby_host.log" 2>&1 &
 sleep 1
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --mobility=grapple --swap-on-death --quit-after=32 "${COMMON[@]}" \
@@ -69,14 +69,14 @@ for name in ["host", "early", "late"]:
     seen = loadouts(name)
     weapons = {w for l in seen for _, w in l}
     check(bool(seen) and weapons <= ALLOWED, f"{name}: only allowed weapons on record ({sorted(weapons)})")
-    told = [l for l in lines(name) if l.startswith("LOBBY_MOBILITY ")]
-    check(bool(told) and told[-1].endswith("mobility=blink"), f"{name}: told the allowed mobility tools ({told[-1] if told else 'never'})")
+    told = [l for l in lines(name) if l.startswith("LOBBY_JETPACK ")]
+    check(bool(told) and told[-1].endswith("jetpack=true"), f"{name}: told the jetpack is on ({told[-1] if told else 'never'})")
     tools = set()
     for line in lines(name):
         m = re.match(r"MOBILITY_LOADOUTS [0-9]+ (.*)", line)
         if m:
             tools |= {p.split(":")[1] for p in m.group(1).split()}
-    check(bool(tools) and tools <= {"blink"}, f"{name}: only allowed mobility tools on record ({sorted(tools)})")
+    check(bool(tools) and tools <= {"grapple"}, f"{name}: only the grappling hook on record ({sorted(tools)})")
     # The scoreboard: each kill adds its killcam score to the killer's points (a shoot-out,
     # not Killcam), and clients are told everyone's ping. A late joiner missed the kills
     # before it came, so each killer's first total there is taken as given.

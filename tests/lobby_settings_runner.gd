@@ -10,9 +10,9 @@ extends Node
 ##  - the weapon pickers: the lobby's offers only allowed weapons (and gives way to a
 ##    note with one gun), the host's control changes the setting, the pause menu's
 ##    Loadout offers only allowed weapons (none with one gun);
-##  - allowed mobility tools: the host enforces them for itself, remote players and
-##    bots; the death screen's mobility button and every mobility picker go through the
-##    allowed tools only; a race ignores the setting; the host's control changes it.
+##  - the jetpack: off by default; the host turns it on (a Deathmatch too, never a race);
+##    an old saved list of allowed mobility tools, or a pick of a tool that is gone, loads
+##    cleanly as the grappling hook; the host's toggle in the lobby changes it.
 ##  - the lobby size is kept between 2 and 16; players ready up, the host can only
 ##    start once everyone is ready (bots and the host count as ready), the lobby shows
 ##    who is ready and gives the host a Kick button on everyone else's row.
@@ -32,7 +32,7 @@ func run() -> void:
 	_host_control()
 	await _lobby_menu()
 	await _loadout_menu()
-	await _mobility()
+	await _jetpack()
 	await _ready_and_size()
 	await _floating_windows()
 	Net.leave()
@@ -215,110 +215,57 @@ func _loadout_menu() -> void:
 		await get_tree().process_frame
 
 
-func _mobility() -> void:
-	print("  allowed mobility")
-	_expect(LobbySettings.clean({}).get("mobility") == [], "a missing mobility setting means any tool")
-	_expect(LobbySettings.normalized_mobility(["blink", "nonsense"]) == ["blink"], "mobility ids are cleaned")
-	_expect(LobbySettings.normalized_mobility(["blink", "nonsense", "grapple"]) == [], "...and both tools is any tool")
-	_expect(LobbySettings.normalized_mobility(["grapple2"]) == ["grapple"], "a saved list with the old Grappling Hook 2 id keeps it, as the Grappling Hook")
-	# Settings saved when the slot had four tools (two have left it since: those ids are no tool now).
-	_expect(LobbySettings.clean({"mobility": ["portal", "jetpack"]}).get("mobility") == [], "an old saved list of tools that are gone means any tool")
-	_expect(LobbySettings.clean({"mobility": ["blink", "portal", "jetpack"]}).get("mobility") == ["blink"], "...and an old list keeps the tools that are still there")
-	Net.start_offline("Host", "needle", "pistol", "portal")
+func _jetpack() -> void:
+	print("  jetpack")
+	_expect(LobbySettings.clean({}).get("jetpack") == false, "a missing jetpack setting means no jetpack")
+	_expect(LobbySettings.clean({"jetpack": "yes"}).get("jetpack") == false, "...and anything but true is off")
+	_expect(LobbySettings.clean({"jetpack": true}).get("jetpack") == true, "true is on")
+	_expect(not LobbySettings.clean({"mobility": ["blink", "portal"]}).has("mobility"), "an old saved list of allowed mobility tools is dropped")
+	Net.start_offline("Host", "needle", "pistol", "blink")
 	_expect(Net.player_loadout_mobility(1) == "grapple", "an old saved pick of a tool that is gone is the grappling hook")
+	Net.host_add_player(2, "Client", "orbit", "rifle", "portal")
+	_expect(Net.player_loadout_mobility(2) == "grapple", "a player who joins asking for a tool that is gone gets the hook")
+	var forced := Net.add_bot(1, "", "blink")
+	_expect(Net.player_loadout_mobility(forced) == "grapple", "so does a bot")
+	Net.remove_bot(forced)
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")
 	s["mode"] = "kills"
 	s["weapons"] = []
-	s["mobility"] = ["blink"]
+	s.erase("jetpack")
 	Net.set_match_settings(s)
-	_expect(Net.player_loadout_mobility(1) == "blink", "the host's grapple is not allowed, so it gets the allowed tool")
-	_expect(Net.pending_mobility() == "blink", "the pause menu would show the allowed tool")
-	Net.set_my_mobility("grapple")
-	_expect(Net.player_loadout_mobility(1) == "blink", "picking a tool that is not allowed changes nothing")
-	Net.host_add_player(2, "Client", "orbit", "rifle", "grapple")
-	_expect(Net.player_loadout_mobility(2) == "blink", "a player who joins with a tool that is not allowed gets an allowed one")
-	Net._apply_mobility(2, "portal")
-	_expect(Net.player_loadout_mobility(2) == "blink", "a client asking for a tool that is gone is refused")
-	_expect(LobbySettings.only_mobility() == "blink" and LobbySettings.next_mobility("blink") == "blink", "one tool: everyone has it, and the mobility button changes nothing")
-	var ok := true
-	for i in 12:
-		var id := Net.add_bot(1)
-		ok = ok and Net.player_loadout_mobility(id) == "blink"
-		Net.remove_bot(id)
-	_expect(ok, "bots take the allowed tool")
-	var forced := Net.add_bot(1, "", "grapple")
-	_expect(Net.player_loadout_mobility(forced) == "blink", "a --bot-mobility that is not allowed gives way to an allowed one")
-	Net.remove_bot(forced)
+	_expect(not LobbySettings.jetpack(), "nobody has the jetpack by default")
 	s = Net.match_settings.duplicate()
-	s["mobility"] = []
+	s["jetpack"] = true
 	Net.set_match_settings(s)
-	Net.set_my_mobility("grapple")
-	_expect(Net.player_loadout_mobility(1) == "grapple", "any tool: picking one works")
-	_expect(LobbySettings.next_mobility("grapple") == "blink" and LobbySettings.next_mobility("blink") == "grapple",
-		"the death screen's mobility button goes from one tool to the other")
-	var picks := {}
-	for i in 24:
-		var id := Net.add_bot(1)
-		picks[Net.player_loadout_mobility(id)] = true
-		Net.remove_bot(id)
-	_expect(picks.keys().all(func(m): return m in Mobility.IDS) and picks.size() == 2, "bots take a mobility tool at random (%s)" % [picks.keys()])
-	s = Net.match_settings.duplicate()
-	s["mobility"] = ["blink"]
+	_expect(LobbySettings.jetpack(), "the host turns it on")
 	s["game"] = "dm"
 	s["map"] = Maps.default_id("dm")
 	Net.set_match_settings(s)
-	_expect(LobbySettings.mobility_apply() and LobbySettings.only_mobility() == "blink", "a Deathmatch keeps to the allowed tools too")
+	_expect(LobbySettings.jetpack(), "a Deathmatch has it too")
 	s["game"] = "race"
 	s["map"] = Maps.default_id("race")
 	Net.set_match_settings(s)
-	_expect(not LobbySettings.mobility_apply() and LobbySettings.allowed_mobility() == Mobility.IDS, "a race ignores the setting (always the grapple)")
+	_expect(not LobbySettings.jetpack_apply() and not LobbySettings.jetpack(), "a race never has it")
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")
-	s["mobility"] = ["grapple"]
+	s["jetpack"] = false
 	Net.set_match_settings(s)
-	var picker := MobilityPicker.new("blink", LobbySettings.allowed_mobility())
-	_expect(picker.allowed() == ["grapple"] and picker._buttons["blink"].disabled and not picker._buttons["grapple"].disabled,
-		"the mobility picker greys out tools that are not allowed")
-	picker.free()
-	s["mobility"] = []
-	Net.set_match_settings(s)
-	var c := AllowedMobilityPicker.new(["grapple", "blink"])
-	var got := []
-	c.changed.connect(func(ids: Array): got.append(ids))
-	c._on_chip("blink")
-	_expect(c.value() == ["grapple"], "the host's control: unticking a tool")
-	c._on_chip("grapple")
-	_expect(c.value() == ["grapple"], "the host's control: the last tool cannot be unticked")
-	for m in Mobility.IDS:
-		if m != "grapple":
-			c._on_chip(m)
-	_expect(c.value() == [] and got.size() == Mobility.IDS.size(), "the host's control: ticking every tool is any tool (%d changes)" % got.size())
-	c.free()
 	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
 	get_tree().root.add_child(lobby)
 	await get_tree().process_frame
-	var control: AllowedMobilityPicker = lobby.find_children("*", "AllowedMobilityPicker", true, false)[0]
-	var mine: MobilityPicker = lobby.find_children("*", "MobilityPicker", true, false)[0]
-	_expect(control.is_visible_in_tree() and control._edit.visible, "the host sees the Mobility allowed control in the lobby")
-	_expect(mine.allowed() == ["grapple", "blink"], "the lobby's mobility picker offers only the allowed tools")
-	control._on_chip("grapple")
+	var toggle: CheckButton = lobby._jetpack
+	_expect(toggle.is_visible_in_tree() and not toggle.disabled and not toggle.button_pressed, "the host sees the Jetpack toggle in the lobby, off")
+	toggle.button_pressed = true
 	await get_tree().process_frame
-	_expect(Net.match_settings.mobility == ["blink"] and Net.player_loadout_mobility(1) == "blink", "the host's control changes the lobby setting and everyone's tool")
+	_expect(Net.match_settings.jetpack == true and LobbySettings.jetpack(), "the host's toggle turns the lobby setting on")
+	toggle.button_pressed = false
+	await get_tree().process_frame
+	_expect(Net.match_settings.jetpack == false, "...and off again")
 	lobby.queue_free()
 	await get_tree().process_frame
-	Net.in_match = true
-	var menu := PauseMenu.new()
-	get_tree().root.add_child(menu)
-	await get_tree().process_frame
-	menu.call("_show_loadout")
-	await get_tree().process_frame
-	var moves: MobilityPicker = menu.find_children("*", "MobilityPicker", true, false)[0]
-	_expect(moves.allowed() == ["blink"] and moves.current == "blink", "the pause menu Loadout offers only the allowed tools")
-	menu.queue_free()
-	Net.in_match = false
-	await get_tree().process_frame
+	Net.players.erase(2)
 
 
 func _ready_and_size() -> void:
@@ -328,7 +275,7 @@ func _ready_and_size() -> void:
 		"the lobby size stays between 2 and 16")
 	Net.start_offline("Host", "needle", "pistol")
 	Net.players[2] = {"name": "Client", "color": 1, "character": "orbit", "weapon": "rifle", "mobility": "grapple"}
-	Net.players[3] = {"name": "Other", "color": 2, "character": "rivet", "weapon": "smg", "mobility": "blink"}
+	Net.players[3] = {"name": "Other", "color": 2, "character": "rivet", "weapon": "smg", "mobility": "grapple"}
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
 	s["map"] = Maps.default_id("ffa")
@@ -384,7 +331,7 @@ func _ready_and_size() -> void:
 
 
 ## The lobby shows only what is picked; a button opens a floating window with every
-## choice (mode for the host; robot, mobility and weapon for everyone).
+## choice (mode for the host; robot and weapon for everyone).
 func _floating_windows() -> void:
 	print("  floating windows")
 	# The lobby saves your picks as your own (Settings): put back what was there after.
@@ -395,14 +342,13 @@ func _floating_windows() -> void:
 	s["map"] = Maps.default_id("ffa")
 	s["mode"] = "kills"
 	s["weapons"] = []
-	s["mobility"] = []
 	Net.set_match_settings(s)
 	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
 	get_tree().root.add_child(lobby)
 	await get_tree().process_frame
-	var panels := [lobby._mode_panel, lobby._robot_panel, lobby._mobility_panel, lobby._weapon_panel]
+	var panels := [lobby._mode_panel, lobby._robot_panel, lobby._weapon_panel]
 	_expect(panels.all(func(p): return not p.is_open()), "every window starts closed")
-	_expect(lobby._mode_button.text == "Shoot-out" and lobby._mobility_button.text == "Grapple" and lobby._weapon_card.id == "rifle"
+	_expect(lobby._mode_button.text == "Shoot-out" and lobby._weapon_card.id == "rifle"
 		and lobby._character._name_button.text == Characters.name_of("needle"), "the page shows what is picked")
 	lobby._mode_button.pressed.emit()
 	await get_tree().process_frame
@@ -415,13 +361,6 @@ func _floating_windows() -> void:
 	s = Net.match_settings.duplicate()
 	s["mode"] = "kills"
 	Net.set_match_settings(s)
-	lobby._mobility_button.pressed.emit()
-	await get_tree().process_frame
-	_expect(lobby._mobility_panel.is_open(), "the mobility button opens the mobility window")
-	lobby._mobility._on_pressed("blink")
-	await get_tree().process_frame
-	_expect(not lobby._mobility_panel.is_open() and lobby._mobility_button.text == "Blink" and Net.player_loadout_mobility(1) == "blink",
-		"picking a tool closes the window, and the button and the lobby have it")
 	lobby._weapon_card.pressed.emit()
 	await get_tree().process_frame
 	_expect(lobby._weapon_panel.is_open(), "the weapon card opens the weapon window")
@@ -465,7 +404,7 @@ func _floating_windows() -> void:
 	Settings.mobility = kept[1]
 	Settings.character = kept[2]
 	Settings.save_settings()
-	for rule in [lobby._allowed, lobby._allowed_mobility]:
+	for rule in [lobby._allowed]:
 		rule._edit.pressed.emit()
 		await get_tree().process_frame
 		_expect(rule.window() != null and rule.window().is_open(), "a loadout rule's Change opens its chips in a window")

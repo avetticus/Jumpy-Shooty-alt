@@ -147,7 +147,7 @@ func start_practice(map: String = "", game: String = "") -> void:
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map(Net.match_settings, _map_choice(last_practice_map), DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.match_settings["weapons"] = DevArgs.allowed_weapons.duplicate()   # practice: every weapon (unless a test says)
-	Net.match_settings["mobility"] = DevArgs.allowed_mobility.duplicate()   # ...and every mobility tool
+	Net.match_settings["jetpack"] = DevArgs.jetpack   # ...and no jetpack (unless a test says)
 	Net.match_settings["movement"] = movement_choice()
 	Net.host_start_match()
 
@@ -181,11 +181,11 @@ func with_map(settings: Dictionary, map: String, game: String) -> Dictionary:
 ## team modes "snd" and "ctf": GunGame.RULES). In a team mode you are Red and the bots alternate
 ## Blue, Red, Blue... (up to MAX_TEAM_BOTS).
 ## weapons: the weapons allowed in a shoot-out (see LobbySettings; [] all of them,
-## null keeps the last choice). mobility: the same for mobility tools.
+## null keeps the last choice). jetpack: everyone has the jetpack (null keeps the last choice).
 ## killcam: the Killcam mode's {"killcam_points", "killcam_minutes"} (see KillcamMode;
 ## {} keeps the last choice).
 func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, rules: String = "kills", game: String = "",
-		weapons = null, mobility = null, killcam: Dictionary = {}) -> void:
+		weapons = null, jetpack = null, killcam: Dictionary = {}) -> void:
 	if not rules in GunGame.RULES:
 		rules = "kills"
 	mode = Mode.BOT
@@ -199,10 +199,10 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 		weapons = last_bot.get("weapons", [])
 	if not DevArgs.allowed_weapons.is_empty():
 		weapons = DevArgs.allowed_weapons
-	if mobility == null:
-		mobility = last_bot.get("mobility", [])
-	if not DevArgs.allowed_mobility.is_empty():
-		mobility = DevArgs.allowed_mobility
+	if jetpack == null:
+		jetpack = last_bot.get("jetpack", false) == true
+	if DevArgs.jetpack:
+		jetpack = true
 	var killcam_points := KillcamMode.clean_points(killcam.get("killcam_points", last_bot.get("killcam_points")))
 	if DevArgs.points_target > 0:
 		killcam_points = KillcamMode.clean_points(DevArgs.points_target)
@@ -210,13 +210,13 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	var levels_before := bot_levels()   # (each bot's level, kept for a rematch with the same bots)
 	var same_bots := levels_before.size() == bots and difficulty == int(last_bot.get("difficulty", -1))
 	last_bot = {"difficulty": difficulty, "levels": levels_before if same_bots else [], "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
-		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility),
+		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "jetpack": jetpack == true,
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes}
 	if picked != Maps.RANDOM:
 		last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map({"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10,
-		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
+		"weapons": last_bot.weapons, "jetpack": last_bot.jetpack,
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes, "movement": movement_choice()},
 		_map_choice(last_bot.map), DevArgs.game if DevArgs.game != "" else last_bot.game)
 	var levels := bot_levels()
@@ -242,7 +242,7 @@ func open_bot_lobby() -> void:
 	mode = Mode.BOT
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map({"mode": str(last_bot.get("rules", "kills")), "kills": int(last_bot.get("kills", 10)),
-		"minutes": 8, "race_minutes": 10, "weapons": last_bot.get("weapons", []), "mobility": last_bot.get("mobility", []),
+		"minutes": 8, "race_minutes": 10, "weapons": last_bot.get("weapons", []), "jetpack": last_bot.get("jetpack", false) == true or DevArgs.jetpack,
 		"killcam_points": KillcamMode.clean_points(last_bot.get("killcam_points")),
 		"killcam_minutes": KillcamMode.clean_minutes(last_bot.get("killcam_minutes")), "movement": movement_choice()},
 		_map_choice(str(last_bot.get("map", Maps.default_id()))), str(last_bot.get("game", "ffa")))
@@ -266,7 +266,7 @@ func remember_bot_lobby() -> void:
 		"levels": levels, "bots": maxi(levels.size(), 1), "kills": int(s.get("kills", 10)),
 		"map": Maps.RANDOM if random else str(s.get("map", Maps.default_id())), "game": str(s.get("game", "ffa")),
 		"rules": str(s.get("mode", "kills")), "weapons": LobbySettings.normalized_weapons(s.get("weapons", [])),
-		"mobility": LobbySettings.normalized_mobility(s.get("mobility", [])),
+		"jetpack": s.get("jetpack", false) == true,
 		"killcam_points": KillcamMode.clean_points(s.get("killcam_points")), "killcam_minutes": KillcamMode.clean_minutes(s.get("killcam_minutes"))}
 	if random:
 		last_map_pool = s.get("map_pool", [])
@@ -319,15 +319,15 @@ func host_online() -> Error:
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
-	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and DevArgs.lobby_size == 0 \
+	if err == OK and not (DevArgs.allowed_weapons.is_empty() and not DevArgs.jetpack and DevArgs.lobby_size == 0 \
 			and DevArgs.points_target == 0 and DevArgs.song == ""):
 		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
 		if DevArgs.lobby_size > 0:
 			s["max_players"] = DevArgs.lobby_size
 		if not DevArgs.allowed_weapons.is_empty():
 			s["weapons"] = DevArgs.allowed_weapons.duplicate()
-		if not DevArgs.allowed_mobility.is_empty():
-			s["mobility"] = DevArgs.allowed_mobility.duplicate()
+		if DevArgs.jetpack:
+			s["jetpack"] = true
 		if DevArgs.points_target > 0:
 			s["killcam_points"] = DevArgs.points_target
 		if DevArgs.song != "":

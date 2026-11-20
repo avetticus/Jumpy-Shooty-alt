@@ -5,8 +5,8 @@ extends RefCounted
 ## They live in Net.match_settings with the others, so they reach every copy (players
 ## who join later too) the same way; the host enforces them.
 ##
-## Today: which weapons are allowed in a shoot-out ("weapons"), which mobility tools
-## are allowed in any fight ("mobility"), how many players the lobby takes
+## Today: which weapons are allowed in a shoot-out ("weapons"), whether everyone has
+## the jetpack in a fight ("jetpack"), how many players the lobby takes
 ## ("max_players"), the Killcam mode's points to win and time limit
 ## ("killcam_points", "killcam_minutes"; see KillcamMode), a random map and the maps
 ## it may pick from ("random_map", "map_pool"), and the song the lobby plays ("song";
@@ -20,8 +20,8 @@ extends RefCounted
 ## key -> the value when the host has not changed it.
 ## weapons: the ids (from WeaponData) a player may pick; [] means every weapon. One
 ##   id is a single gun for everyone.
-## mobility: the ids (from Mobility) a player may pick; [] means every tool. One id is
-##   the same tool for everyone.
+## jetpack: everyone has the jetpack (Space held in mid-air) in a fight; off unless
+##   the host turns it on. A race never has it.
 ## max_players: how many players the online lobby takes, MIN_PLAYERS to MAX_PLAYERS.
 ## killcam_points, killcam_minutes: Killcam mode: first to this many points, or the most
 ##   after this many minutes.
@@ -33,7 +33,7 @@ extends RefCounted
 ##   the host picks another; "" shuffles them as usual.
 ## movement: the movement variant (an id from MovementTuning.VARIANTS) every player
 ##   runs, in every kind of game; it takes effect when the match starts.
-const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
+const DEFAULTS := {"weapons": [], "jetpack": false, "max_players": 16,
 	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES,
 	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT}
 const MIN_PLAYERS := 2
@@ -49,7 +49,8 @@ static func clean(settings: Dictionary) -> Dictionary:
 			s[key] = DEFAULTS[key].duplicate() if DEFAULTS[key] is Array else DEFAULTS[key]
 	s["weapons"] = normalized_weapons(s.get("weapons", []))
 	s["max_players"] = clampi(int(s.get("max_players", MAX_PLAYERS)), MIN_PLAYERS, MAX_PLAYERS)
-	s["mobility"] = normalized_mobility(s.get("mobility", []))
+	s["jetpack"] = s.get("jetpack") is bool and s.jetpack
+	s.erase("mobility")   # (an old saved list of allowed mobility tools: there is only the grapple now)
 	s["killcam_points"] = KillcamMode.clean_points(s.get("killcam_points"))
 	s["killcam_minutes"] = KillcamMode.clean_minutes(s.get("killcam_minutes"))
 	s["random_map"] = s.get("random_map") is bool and s.random_map
@@ -154,62 +155,18 @@ static func weapons_summary(ids) -> String:
 
 
 # ---------------------------------------------------------------------------
-# Allowed mobility tools. They apply to every fight (shoot-out, Gun Game, Deathmatch,
-# Killcam): a race ignores them, because it always uses the grapple.
+# Jetpack: off unless the host turns it on. When on, everyone has it in every fight
+# (shoot-out, Gun Game, Deathmatch, Killcam, the team modes), bots too; a race never
+# has it, because the courses are the grapple's.
 
-## A list of mobility ids as stored: known ids only (an old id as it is called now:
-## Mobility.RENAMED), in Mobility.IDS order; [] for all.
-static func normalized_mobility(ids) -> Array:
-	if ids is Array:
-		ids = ids.map(func(m): return Mobility.canonical(str(m)))
-	return _normalized(ids, Mobility.IDS)
+## Does everyone have the jetpack in the game that is set up?
+static func jetpack() -> bool:
+	return jetpack_apply() and Net.match_settings.get("jetpack", false) == true
 
 
-## The mobility tools a stored list allows ([] allows every one).
-static func mobility_from(ids) -> Array:
-	var out := normalized_mobility(ids)
-	return Mobility.IDS.duplicate() if out.is_empty() else out
-
-
-## Does the allowed-mobility setting apply to the game that is set up?
-static func mobility_apply() -> bool:
+## Does the jetpack setting apply to the game that is set up?
+static func jetpack_apply() -> bool:
 	return Net.game_kind() != "race"
-
-
-## The mobility tools a player may pick now (every one when the setting does not apply).
-static func allowed_mobility() -> Array:
-	if not mobility_apply():
-		return Mobility.IDS.duplicate()
-	return mobility_from(Net.match_settings.get("mobility", []))
-
-
-## `id` if it may be used, otherwise the first tool that may.
-static func fit_mobility(id: String) -> String:
-	var allowed := allowed_mobility()
-	return id if id in allowed else str(allowed[0])
-
-
-## The one mobility tool everyone has, or "" when there is a choice.
-static func only_mobility() -> String:
-	var allowed := allowed_mobility()
-	return str(allowed[0]) if allowed.size() == 1 else ""
-
-
-## The death screen's mobility button: the next allowed tool after `current`.
-static func next_mobility(current: String) -> String:
-	var allowed := allowed_mobility()
-	var at := allowed.find(current)
-	return str(allowed[(at + 1) % allowed.size()])
-
-
-## A line for the lobby: what the host allows.
-static func mobility_summary(ids) -> String:
-	var allowed := mobility_from(ids)
-	if allowed.size() == Mobility.IDS.size():
-		return "Any mobility tool"
-	if allowed.size() == 1:
-		return "Everyone has the %s" % Mobility.name_of(allowed[0])
-	return ", ".join(allowed.map(func(m): return Mobility.short_name(m)))
 
 
 # ---------------------------------------------------------------------------

@@ -80,7 +80,7 @@ func _show_loadout() -> void:
 		note = "Changes apply when you respawn."
 	if only != "" and not race and not deathmatch:
 		note += "  Everyone has the %s this match." % WeaponData.name_of(only)
-	_frame.title("Loadout", "Paused  /  robot, weapon and mobility")
+	_frame.title("Loadout", "Paused  /  robot and weapon")
 	UiKit.label(_frame.header, note, true, 15)
 	var picked := {"character": Net.pending_character(), "weapon": Net.pending_weapon(), "mobility": Net.pending_mobility()}
 	var gun: String = picked.weapon if with_weapons or (only != "" and not race and not deathmatch) else "none"
@@ -91,10 +91,6 @@ func _show_loadout() -> void:
 	robots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(robots)
 	robots.picked.connect(func(id: String): picked.character = id)
-	var moves := MobilityPicker.new(picked.mobility, LobbySettings.allowed_mobility())
-	moves.picked.connect(func(id: String): picked.mobility = id)
-	moves.visible = not race   # a race always has the grapple
-	robots.add_child(moves)
 	if with_weapons:
 		robots.size_flags_horizontal = Control.SIZE_FILL
 		var weapons := WeaponPicker.new(picked.weapon, LobbySettings.allowed_weapons())
@@ -108,7 +104,6 @@ func _show_loadout() -> void:
 		Settings.character = picked.character
 		if with_weapons:   # otherwise your saved pick stays for matches that let you choose
 			Settings.weapon = picked.weapon
-		Settings.mobility = picked.mobility
 		Settings.save_settings()
 		Net.set_loadout(picked.character, picked.weapon if with_weapons else "", picked.mobility)
 		if dead:

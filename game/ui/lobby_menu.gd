@@ -6,12 +6,12 @@ extends Control
 ## starts the match once they all have, can kick a player, and sets the lobby size.
 ## Anyone can leave.
 ## Three columns in a MenuFrame: the players; the match (mode, loadout rules, map,
-## win condition); your loadout (robot, mobility, weapon). Leave and Start stay on
+## win condition); your loadout (robot, weapon). Leave and Start stay on
 ## screen at any window size.
 ##
 ## Each choice with many options shows only what is picked, as a button; pressing it
 ## opens a FloatingPanel with every option (the game mode for the host, and your
-## robot, mobility tool and weapon), so the page stays tidy however many modes,
+## robot and weapon), so the page stays tidy however many modes,
 ## robots and weapons there are.
 ##
 ## Each player's row shows their level. Point at a row for a close look at them (their
@@ -43,7 +43,7 @@ var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
-var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
+var _jetpack: CheckButton   # every fight: everyone has the jetpack or not (see LobbySettings.jetpack)
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_button: Button   # the host: the map picked (or Random); opens the map window
@@ -57,16 +57,12 @@ var _character: CharacterPicker
 var _weapon: WeaponPicker
 var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
 var _no_weapon_note: Label
-var _mobility: MobilityPicker
 var _game_row: Container   # the host's mode switch (in the mode window)
 var _mode_button: Button   # the mode picked; the host presses it for the mode window
 var _mode_blurb: Label     # in the mode window: about the mode under the mouse
 var _mode_panel: FloatingPanel
 var _robot_panel: FloatingPanel
 var _creator_panel: FloatingPanel   # the Character Creator, while it is open (made each time)
-var _mobility_button: Button   # your mobility tool; opens the mobility window
-var _mobility_box: VBoxContainer
-var _mobility_panel: FloatingPanel
 var _weapon_card: WeaponPicker.Card   # your weapon; opens the weapon window
 var _weapon_panel: FloatingPanel
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
@@ -307,8 +303,6 @@ func _refresh() -> void:
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
-		_mobility.select(Net.player_loadout_mobility(Net.my_id()))
-		_mobility_button.text = Mobility.short_name(Net.player_loadout_mobility(Net.my_id()))
 
 
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
@@ -357,8 +351,7 @@ func _player_row(id: int) -> PanelContainer:
 	elif id != Net.host_id():   # the host is ready when it presses Start
 		var ready := Net.is_ready(id)
 		UiKit.tag(row, "READY" if ready else "NOT READY", Color(0.45, 0.95, 0.5) if ready else Color(1, 1, 1, 0.45))
-	var who := UiKit.label(row, "%s  ·  %s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name,
-		Mobility.short_name(Net.player_loadout_mobility(id))], true, 14)
+	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 14)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.clip_text = true
 	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -402,25 +395,6 @@ func _build_character(columns: Node) -> void:
 		Settings.player_color = index
 		Settings.save_settings()
 		Net.set_my_color(index))
-	# Your mobility tool: a button with it on, which opens the mobility window.
-	_mobility_box = VBoxContainer.new()
-	_mobility_box.add_theme_constant_override("separation", 8)
-	loadout.add_child(_mobility_box)
-	UiKit.section(_mobility_box, "Mobility")
-	_mobility_button = Button.new()
-	_mobility_button.theme_type_variation = "Chip"
-	_mobility_button.toggle_mode = true
-	_mobility_button.button_pressed = true   # drawn lit, as the pick
-	_mobility_button.custom_minimum_size = Vector2(130, 40)
-	_mobility_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_mobility_button.tooltip_text = "Pick your mobility tool"
-	_mobility_box.add_child(_mobility_button)
-	_mobility = MobilityPicker.new(Net.player_loadout_mobility(Net.my_id()))
-	_mobility.custom_minimum_size = Vector2(480, 0)
-	_mobility_panel = _floating(_mobility)
-	_mobility_button.pressed.connect(func():
-		_mobility_button.set_pressed_no_signal(true)
-		_mobility_panel.open(_mobility_button))
 	# Your weapon: its card, which opens the weapon window; or (in a race, Gun Game,
 	# Killcam, a Deathmatch, or with one gun for everyone) a note saying why there is
 	# none to pick.
@@ -441,12 +415,6 @@ func _build_character(columns: Node) -> void:
 	_weapon_card.pressed.connect(func():
 		_weapon_card.set_pressed_no_signal(true)
 		_weapon_panel.open(_weapon_card))
-	_mobility.picked.connect(func(id: String):
-		Settings.mobility = id
-		Settings.save_settings()
-		_mobility_button.text = Mobility.short_name(id)
-		_mobility_panel.close()
-		Net.set_my_mobility(id))
 	_weapon.picked.connect(func(id: String):
 		Settings.weapon = id
 		Settings.save_settings()
@@ -782,16 +750,16 @@ func _build_rules() -> void:
 # settings get their control here.
 func _build_lobby_settings() -> void:
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
-	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
-	var mobility_window := _floating()   # (its chips move to the window before the page has them)
-	mobility_window.panel.custom_minimum_size.x = 460
-	_allowed_mobility.use_window(mobility_window, "Mobility allowed")
-	_col.add_child(_allowed_mobility)
-	_allowed_mobility.changed.connect(func(ids: Array):
+	# Every fight: everyone has the jetpack (Space held in mid-air) or nobody does.
+	_jetpack = CheckButton.new()
+	_jetpack.text = "Jetpack (hold Space in mid-air)"
+	_jetpack.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_jetpack)
+	_jetpack.toggled.connect(func(on: bool):
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
-		s["mobility"] = ids
+		s["jetpack"] = on
 		Net.set_match_settings(s))
 	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
 	var weapons_window := _floating()
@@ -852,9 +820,6 @@ func _refresh_rules() -> void:
 		_no_weapon_note.visible = not pick_weapon
 		if not pick_weapon:
 			_weapon_panel.close()
-		_mobility_box.visible = not race   # a race always has the grapple
-		_mobility.set_allowed(LobbySettings.allowed_mobility())
-		_mobility_button.disabled = LobbySettings.only_mobility() != ""
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
@@ -896,11 +861,11 @@ func _refresh_rules() -> void:
 	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
-	if _allowed_mobility:
-		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
-		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules
-		_allowed_mobility.set_editable(Net.is_host())
-		_allowed_mobility.set_value(s.get("mobility", []))
+	if _jetpack:
+		_jetpack.visible = LobbySettings.jetpack_apply()   # a race never has the jetpack
+		_rules_head.visible = _jetpack.visible   # a race has no loadout rules
+		_jetpack.disabled = not Net.is_host()   # everyone else just sees the host's choice
+		_jetpack.set_pressed_no_signal(s.get("jetpack", false) == true)
 	if race:
 		_amount.min_value = 2
 		_amount.max_value = 30
@@ -1045,7 +1010,7 @@ func _peek_at(id: int) -> void:
 
 ## A window over the page (a pick, the creator, a player kept open): no hover card.
 func _any_window_open() -> bool:
-	for p in [_mode_panel, _robot_panel, _creator_panel, _mobility_panel, _weapon_panel, _map_window, _song_window, _player_panel]:
+	for p in [_mode_panel, _robot_panel, _creator_panel, _weapon_panel, _map_window, _song_window, _player_panel]:
 		if p and is_instance_valid(p) and p.is_open():
 			return true
 	return false

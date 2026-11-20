@@ -1,32 +1,28 @@
 class_name Mobility
 extends RefCounted
-## The mobility slot: the tool on your mobility button (middle mouse), picked like
-## your weapon before a match and while you wait to respawn.
+## The mobility slot: the tool on your mobility button (middle mouse). There is one:
 ##
 ##  - grapple: the grappling hook (see Grapple): the hook is shot out and takes a
 ##             moment to fly there, trailing a slack line that pulls tight once it
 ##             has bitten. Swing, reel in, hook players (lead what you aim at).
-##  - blink:   a short teleport where you look (see Blink), one charge that
-##             comes back a couple of seconds after you use it.
 ##
-## The jetpack is not on this slot: everyone has it, on Space held in mid-air (see
-## Jetpack and MovementController.space_jet). A race always uses the grapple: the
-## courses are built around it.
+## The jetpack is not on this slot: when the host turns it on in the lobby, everyone
+## has it, on Space held in mid-air (see LobbySettings.jetpack, Jetpack and
+## MovementController.space_jet). A race never has it: the courses are built around
+## the grapple.
 
 const GRAPPLE := "grapple"
-const BLINK := "blink"
-const IDS := [GRAPPLE, BLINK]
+const IDS := [GRAPPLE]
 ## Ids that are no longer tools, and the tool a saved choice of one becomes: the
 ## projectile hook was "grapple2" (Grappling Hook 2) until it replaced the first
-## grappling hook. (A saved pick of a tool that has since left the slot, such as the
-## jetpack, which everyone has now, is no tool at all: valid() makes it the default.)
+## grappling hook. (A saved pick of a tool that has since left the game, such as
+## blink, the portal gun or the jetpack, is no tool at all: valid() makes it the default.)
 const RENAMED := {"grapple2": GRAPPLE}
 
-const NAMES := {GRAPPLE: "Grappling Hook", BLINK: "Blink"}
-const SHORT := {GRAPPLE: "Grapple", BLINK: "Blink"}
+const NAMES := {GRAPPLE: "Grappling Hook"}
+const SHORT := {GRAPPLE: "Grapple"}
 const BLURBS := {
 	GRAPPLE: "Shoot the hook out: it bites, the slack snaps tight and you swing. Hook a player to kick.",
-	BLINK: "Teleport a few metres where you look, keeping your speed. A trail of sparks follows you there.",
 }
 
 
@@ -34,7 +30,7 @@ static func default_id() -> String:
 	return GRAPPLE
 
 
-## Is this tool the rope? Blink takes the mobility button for itself.
+## Is this tool the rope? (Always, now: the grapple is the only one.)
 static func is_grapple(id: String) -> bool:
 	return canonical(id) == GRAPPLE
 
@@ -68,7 +64,3 @@ static func short_name(id: String) -> String:
 
 static func blurb(id: String) -> String:
 	return BLURBS[valid(id)]
-
-
-static func next(id: String) -> String:
-	return IDS[(IDS.find(valid(id)) + 1) % IDS.size()]
