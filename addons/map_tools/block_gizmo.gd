@@ -38,6 +38,8 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	var triangles := block.preview_triangles()
 	if triangles:
 		gizmo.add_collision_triangles(triangles)
+	if ctx and ctx.editing_corners:
+		return   # the Vertex tool is on: it draws the corners instead
 	var h := block.size * 0.5
 	var handles := PackedVector3Array()
 	var ids := PackedInt32Array()

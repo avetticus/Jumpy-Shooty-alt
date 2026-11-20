@@ -661,7 +661,7 @@ makes ordinary MapBlocks and is one step of undo.
 
 - **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
   2 or 4 m. `[` makes it finer, `]` coarser.
-- **Draw** and **Clip** are tools you turn on: press the button (or its key) again, or
+- **Draw**, **Clip** and **Vertex** are tools you turn on: press the button (or its key) again, or
   Esc, and you are back to the editor's own select, move, rotate and scale.
 - **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
   the new block's footprint; let go, move the mouse to pull it out of the face, and
@@ -677,8 +677,20 @@ makes ordinary MapBlocks and is one step of undo.
   12 sides is a hull of 24 corners). A tube, an arch or a hollow or cut-open dome
   becomes a group of hull blocks, one per convex lump, so its hole stays. Shapes of more
   than 32 corners are left alone (lower their Sides first), and so are blocks a Stairs,
-  Row or Ring made. Moving the corners with the mouse is the next step of the map tools
-  (see `docs/MAP_EDITOR_ROADMAP.md`); for now type them in the inspector's Points.
+  Row or Ring made. Then move its corners with the Vertex tool.
+- **Vertex** (`V`): the selected hull blocks show their edges and corners (the face
+  handles are put away meanwhile). Click a corner to pick it, Shift-click to add or
+  take one away, or drag a box round several; corners of different blocks in the same
+  place are picked and move together. Drag a picked corner to move them all, on the
+  grid: level in the 3D view (hold Shift for straight up and down), in the view's plane
+  in a top, front or side view. The arrow keys move them a grid square across the view,
+  Page Up and Page Down up and down; Delete takes them away. Double-click an edge to
+  add a corner in its middle, or a face for one in the face's middle, then drag it out.
+  A hull stays convex: a move that would sink a corner inside the shape is refused (the
+  edges turn red and the shape stays at the last allowed move), and a corner that
+  another's move leaves inside is dropped. A click away from every corner selects the
+  block under it. Esc or a right click puts a drag back; Esc again leaves the tool.
+  Each drag, nudge, add or delete is one step of undo.
 - **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes

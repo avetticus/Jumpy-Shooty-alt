@@ -14,6 +14,8 @@ extends SceneTree
 ##  - a prefab saved and placed is plain blocks with no tie to its file, and builds;
 ##  - the tools, driven by made-up mouse events through a camera: Draw (on the ground,
 ##    on a block, in a top view), Clip and Place; the handles on stairs and rows;
+##  - the Vertex tool: pick, drag (level and up/down), refuse a dent, nudge, delete,
+##    box-select, move corners two blocks share, add a corner, click to select;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -25,6 +27,7 @@ const ToolDraw := preload("res://addons/map_tools/tool_draw.gd")
 const ToolClip := preload("res://addons/map_tools/tool_clip.gd")
 const PieceGizmo := preload("res://addons/map_tools/piece_gizmo.gd")
 const ToolPlace := preload("res://addons/map_tools/tool_place.gd")
+const ToolVertex := preload("res://addons/map_tools/tool_vertex.gd")
 
 var failures := 0
 
@@ -46,6 +49,7 @@ func _run() -> void:
 	_check_pieces()
 	_check_prefab()
 	_check_tools()
+	_check_vertex_tool()
 	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -562,6 +566,170 @@ func _motion(view: RefCounted, at: Vector3, shift := false) -> InputEventMouseMo
 	e.position = view.screen(at)
 	e.shift_pressed = shift
 	return e
+
+
+## A hull block of a box's shape, `size` big, its middle at `at`.
+func _hull_box(parent: Node, at: Vector3, size: Vector3) -> MapBlock:
+	var b := _block(parent, at, size)
+	var h := MapOps.make_editable(b) as MapBlock
+	parent.add_child(h)
+	b.free()
+	return h
+
+
+func _has_point(points: Array, p: Vector3) -> bool:
+	return points.any(func(q: Vector3) -> bool: return q.distance_to(p) < 0.001)
+
+
+func _key_event(keycode: Key) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = keycode
+	e.pressed = true
+	return e
+
+
+## A press at `from`, a drag to `to` and a release there, through the tool.
+func _drag_with(tool: RefCounted, view: RefCounted, from: Vector3, to: Vector3, shift := false) -> void:
+	tool.input(view, _press(view, from, true))
+	tool.input(view, _motion(view, from.lerp(to, 0.5), shift))
+	tool.input(view, _motion(view, to, shift))
+	tool.input(view, _press(view, to, false))
+
+
+func _check_vertex_tool() -> void:
+	print("  vertex tool")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var ctx := _context(map)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.look_at_from_position(Vector3(4, 14, 16), Vector3(1, 0, 1))
+	var view := MapView.new(cam)
+	var tool := ToolVertex.new()
+	tool.ctx = ctx
+
+	# A 2 m cube standing on the ground: corners at x, z = -1 or 1, y = 0 or 2.
+	var cube := _hull_box(map, Vector3(0, 1, 0), Vector3(2, 2, 2))
+	_picked = [cube]
+	tool.input(view, _press(view, Vector3(1, 2, 1), true))
+	tool.input(view, _press(view, Vector3(1, 2, 1), false))
+	_expect(tool.picked.size() == 1 and tool.picked[0][0] == cube, "Vertex: a click on a corner picks it")
+	_expect(_picked == [cube], "and leaves the selection alone")
+
+	# Drag it out level, to x = z = 2 (on the grid).
+	_drag_with(tool, view, Vector3(1, 2, 1), Vector3(2.1, 2, 1.9))
+	var now := _corners(cube)
+	_expect(_has_point(now, Vector3(2, 2, 2)) and not _has_point(now, Vector3(1, 2, 1)), "dragged, the corner lands on the grid at (2, 2, 2)")
+	_expect(_has_point(now, Vector3(-1, 0, -1)) and _has_point(now, Vector3(1, 0, 1)) and now.size() == 8, "and every other corner stays where it was")
+	_expect(MapBlock.points_bounds(cube.points).get_center().is_zero_approx() and not cube.position.is_equal_approx(Vector3(0, 1, 0)),
+		"the block moved to keep its corners centred (%s)" % cube.position)
+	_expect(tool.picked.size() == 1 and (MapOps.global_of(cube) * cube.points[tool.picked[0][1]]).is_equal_approx(Vector3(2, 2, 2)),
+		"the moved corner is still picked")
+
+	# Up and down: Shift.
+	_drag_with(tool, view, Vector3(2, 2, 2), Vector3(2, 3.1, 2), true)
+	_expect(_has_point(_corners(cube), Vector3(2, 3, 2)), "with Shift it moves straight up, to y = 3")
+
+	# The arrow keys: right is +x from this camera; Page Down is down.
+	tool.input(view, _key_event(KEY_RIGHT))
+	tool.input(view, _key_event(KEY_PAGEDOWN))
+	_expect(_has_point(_corners(cube), Vector3(2.5, 2.5, 2)), "Right and Page Down nudge it a grid square each (to 2.5, 2.5, 2)")
+
+	# Delete takes it away; the cube is left with 7 corners.
+	_expect(tool.input(view, _key_event(KEY_DELETE)) and cube.points.size() == 7 and tool.picked.is_empty(), "Delete takes the picked corner away")
+	_expect(not _has_point(_corners(cube), Vector3(2.5, 2.5, 2)) and _has_point(_corners(cube), Vector3(-1, 0, -1)), "and the rest stay put")
+	_expect(not tool.input(view, _key_event(KEY_DELETE)), "with nothing picked, Delete is left to the editor")
+	cube.free()
+
+	# A dent is refused: a house (a box with a roof point), the roof point pushed down
+	# into the box.
+	var house := MapBlock.new()
+	house.shape = MapBlock.Shape.HULL
+	house.points = PackedVector3Array([Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(-1, 0, 1), Vector3(1, 0, 1),
+		Vector3(-1, 2, -1), Vector3(1, 2, -1), Vector3(-1, 2, 1), Vector3(1, 2, 1), Vector3(0, 3, 0)])
+	map.add_child(house)
+	house.position = Vector3(0, 1.5, 0)   # its corners are centred on it: the house stands on the ground
+	var roof := Vector3(0, 3, 0)
+	_expect(_has_point(_corners(house), roof), "(a house stands on the ground, its roof at (0, 3, 0))")
+	_picked = [house]
+	var before := house.points.duplicate()
+	tool.input(view, _press(view, roof, true))
+	tool.input(view, _motion(view, roof + Vector3(0, -0.6, 0), true))
+	tool.input(view, _motion(view, roof + Vector3(0, -2, 0), true))
+	_expect(tool._refused and _has_point(_corners(house), roof + Vector3(0, -0.5, 0)), "a move that would sink a corner inside is refused; the shape stays at the last one allowed")
+	tool.input(view, _press(view, roof + Vector3(0, -2, 0), false))
+	_expect(house.points.size() == 9 and _has_point(_corners(house), roof + Vector3(0, -0.5, 0)), "letting go keeps the last allowed move")
+	var esc := _key_event(KEY_ESCAPE)
+	tool.input(view, _press(view, roof + Vector3(0, -0.5, 0), true))
+	tool.input(view, _motion(view, roof + Vector3(0, 0.6, 0), true))
+	tool.input(view, _motion(view, roof + Vector3(0, 1.1, 0), true))
+	tool.input(view, esc)
+	_expect(_has_point(_corners(house), roof + Vector3(0, -0.5, 0)) and not tool.busy(), "Esc puts a drag back")
+	house.points = before
+	house.free()
+
+	# A box drawn round every corner in a top view picks them all.
+	var top_cam := Camera3D.new()
+	root.add_child(top_cam)
+	top_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	top_cam.size = 40.0
+	top_cam.position = Vector3(0, 50, 0)
+	top_cam.rotation_degrees = Vector3(-90, 0, 0)
+	var top := MapView.new(top_cam)
+	var left := _hull_box(map, Vector3(1, 1, 0), Vector3(2, 2, 2))    # x 0..2
+	var right := _hull_box(map, Vector3(3, 1, 0), Vector3(2, 2, 2))   # x 2..4: they share a face
+	_picked = [left, right]
+	_drag_with(tool, top, Vector3(-0.5, 0, -1.5), Vector3(2.5, 0, 1.5))
+	_expect(tool.picked.size() == 8 + 4, "dragging a box in a top view picks every corner inside it (all of one cube, the shared face of the other)")
+
+	# Corners two blocks share move together. (A click on a corner already picked keeps
+	# the others, to drag them all: start afresh.)
+	tool.picked = []
+	tool.input(view, _press(view, Vector3(2, 2, 1), true))
+	tool.input(view, _press(view, Vector3(2, 2, 1), false))
+	_expect(tool.picked.size() == 2, "a click on a corner two blocks share picks it in both")
+	_drag_with(tool, view, Vector3(2, 2, 1), Vector3(2, 2, 2.1))
+	_expect(_has_point(_corners(left), Vector3(2, 2, 2)) and _has_point(_corners(right), Vector3(2, 2, 2)), "and dragging it moves it in both")
+
+	# A double-click on an edge adds a corner in its middle.
+	var mid := Vector3(1, 2, -1)   # the middle of the left cube's top back edge
+	var dbl := _press(view, mid, true)
+	dbl.double_click = true
+	tool.input(view, dbl)
+	tool.input(view, _press(view, mid, false))
+	_expect(left.points.size() == 9 and _has_point(_corners(left), mid) and tool.picked.size() == 1, "a double-click on an edge adds a corner in its middle, picked")
+	_drag_with(tool, view, mid, Vector3(1, 2, -2.1))
+	_expect(_has_point(_corners(left), Vector3(1, 2, -2)), "which can then be pulled out")
+	var face_mid := Vector3(3.5, 2, -0.5)   # on the right cube's top, well away from its edges
+	var on_face := _press(view, face_mid, true)
+	on_face.double_click = true
+	var count := right.points.size()
+	tool.input(view, on_face)
+	tool.input(view, _press(view, face_mid, false))
+	_expect(right.points.size() == count + 1 and tool.picked.size() == 1 and \
+		is_equal_approx((MapOps.global_of(right) * right.points[tool.picked[0][1]]).y, 2.0),
+		"a double-click on a face adds a corner in the face's middle")
+
+	# Delete never leaves a flat shape: a four-cornered hull keeps its corners.
+	var tetra := MapBlock.new()
+	tetra.shape = MapBlock.Shape.HULL
+	tetra.points = PackedVector3Array([Vector3(0, 0, 0), Vector3(2, 0, 0), Vector3(0, 0, 2), Vector3(0, 2, 0)])
+	tetra.position = Vector3(-8, 0, -8)
+	map.add_child(tetra)
+	_picked = [tetra]
+	tool.picked = [[tetra, 3]]
+	tool.input(view, _key_event(KEY_DELETE))
+	_expect(tetra.points.size() == 4, "Delete is refused when what is left would be flat")
+
+	# A click away from every corner selects the block under it.
+	var other := _block(map, Vector3(-6, 0.5, 4), Vector3(2, 1, 2))
+	tool.input(view, _press(view, Vector3(-6, 1, 4), true))
+	tool.input(view, _press(view, Vector3(-6, 1, 4), false))
+	_expect(_picked == [other] and tool.picked.is_empty(), "a click away from the corners selects the block under it")
+	_release(ctx)
+	map.free()
+	cam.free()
+	top_cam.free()
 
 
 func _check_tools() -> void:

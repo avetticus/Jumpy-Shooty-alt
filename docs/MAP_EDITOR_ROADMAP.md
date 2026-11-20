@@ -4,7 +4,7 @@ What it would take for the Godot map tools (`addons/map_tools/`, `MapBlock`) to 
 everything a level designer reaches for in TrenchBroom, without leaving Godot and
 without changing how maps are stored or played.
 
-Status: **P1 (the hull shape) is built.** P2 onward are plans.
+Status: **P1 (the hull shape) and P2 (the vertex tool) are built.** P3 onward are plans.
 
 ## Ground rules
 
@@ -206,7 +206,22 @@ Known limits, left for later phases:
 - Collision of a converted cylinder is its flat sides, not Godot's round cylinder.
 - Clip and Hollow ignore hulls until P4 and P5.
 
-### P2. Vertex tool (M–L)
+### P2. Vertex tool (M–L) — done
+Built as `addons/map_tools/tool_vertex.gd` with the geometry in `map_ops.gd`
+(`reshaped()`, `without_points()`, `hull_placement()`, `hull_edges()`, `ray_hull()`),
+tested in `tests/map_tools_test.gd` ("vertex tool"). Each edit sets the corners and the
+block's position together, so the shape stays put while its corners stay centred (the
+P1 limit for inspector edits still applies to typing in Points by hand).
+
+Differences from the plan:
+- "Convex" is enforced the TrenchBroom way for dents: a moved corner may not end up
+  inside the shape. Pulling a corner out past a neighbour is allowed; the neighbour,
+  now inside, is dropped.
+- A double-click on a face adds the corner at the face's middle, not where you click.
+- A click away from the corners selects a block by the box round it (as the other
+  tools do), so a click in a hull's empty corner can pick it.
+
+The original plan:
 - Tool `V` in the strip, alongside Draw and Clip. Selected hull blocks show their
   corners. Non-hull blocks offer "Make Editable" instead.
 - Click a corner to select it, Shift to add, drag a box in the view to select several.

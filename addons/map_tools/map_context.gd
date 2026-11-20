@@ -33,6 +33,9 @@ var kind := "concrete":
 ## Editor view: leave out blocks that are drawn only (set with the plugin's switch).
 var solid_only := false
 
+## The Vertex tool is on: blocks show no face handles (block_gizmo.gd).
+var editing_corners := false
+
 ## () -> Array of the selected nodes.
 var selection := Callable()
 ## (MapEdit): make this change (as one undo step, in the editor).

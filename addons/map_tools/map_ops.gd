@@ -304,6 +304,102 @@ static func hulls_in(node: Node) -> Array[MapBlock]:
 	return blocks_in(node).filter(func(b: MapBlock) -> bool: return b.shape == MapBlock.Shape.HULL)
 
 
+## A hull's points with some of them moved (`moved`: index -> where it goes, in the
+## block's own frame), as the vertex tool leaves them: a point that ends up inside
+## the new shape is dropped, and points that end up together are one. Empty if the
+## move is refused: the shape would be flat, a moved point would sink inside it (the
+## shape would have to be concave), or it would have too many corners.
+static func reshaped(points: PackedVector3Array, moved: Dictionary) -> PackedVector3Array:
+	var pts := points.duplicate()
+	for i: int in moved:
+		pts[i] = moved[i]
+	var planes := MapMesher.hull_planes(pts)
+	if planes.size() < 4:
+		return PackedVector3Array()
+	for i: int in moved:
+		if _sunk(planes, pts[i]):
+			return PackedVector3Array()
+	var out := PackedVector3Array()
+	for p in pts:
+		if _sunk(planes, p):
+			continue
+		var again := false
+		for q in out:
+			again = again or q.distance_to(p) <= 0.0005
+		if not again:
+			out.append(p)
+	if MapMesher.hull_corners(out).size() > MapMesher.MAX_HULL_CORNERS:
+		return PackedVector3Array()
+	return out
+
+
+## A hull's points without some of them (`gone`: their indices). Empty if what is
+## left is not a solid shape.
+static func without_points(points: PackedVector3Array, gone: Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for i in points.size():
+		if i not in gone:
+			out.append(points[i])
+	return out if MapMesher.hull_planes(out).size() >= 4 else PackedVector3Array()
+
+
+## Is `p` well inside the hull with these planes (not on its surface)?
+static func _sunk(planes: Array, p: Vector3) -> bool:
+	for plane: Plane in planes:
+		if plane.distance_to(p) > -0.0005:
+			return false
+	return true
+
+
+## Where a hull block's points go and where the block goes, so that `pts` (in the
+## block's own frame with the block at `at`, not centred) are where the shape is:
+## the block keeps its points centred, so it moves by their middle instead.
+## [centred points, new position].
+static func hull_placement(block: MapBlock, pts: PackedVector3Array, at: Vector3) -> Array:
+	var middle := MapBlock.points_bounds(pts).get_center()
+	var centred := pts.duplicate()
+	for i in centred.size():
+		centred[i] -= middle
+	return [centred, at + block.transform.basis * middle]
+
+
+## A hull block's edges, in its own frame: [[a, b], ...], each once.
+static func hull_edges(points: PackedVector3Array) -> Array:
+	var out := []
+	for face in MapMesher.hull_faces(points):
+		var ring: Array = face[1]
+		for i in ring.size():
+			var a: Vector3 = ring[i]
+			var b: Vector3 = ring[(i + 1) % ring.size()]
+			var seen := false
+			for e in out:
+				seen = seen or ((e[0] as Vector3).is_equal_approx(b) and (e[1] as Vector3).is_equal_approx(a)) \
+					or ((e[0] as Vector3).is_equal_approx(a) and (e[1] as Vector3).is_equal_approx(b))
+			if not seen:
+				out.append([a, b])
+	return out
+
+
+## Where a ray (in the block's own frame) first meets a hull's surface: [distance,
+## the face's corners (ring), its outward normal], or [] if it misses.
+static func ray_hull(origin: Vector3, dir: Vector3, points: PackedVector3Array) -> Array:
+	var faces := MapMesher.hull_faces(points)
+	var planes := MapMesher.hull_planes(points)
+	var best := []
+	for face in faces:
+		var n: Vector3 = face[0]
+		var facing := n.dot(dir)
+		if facing >= -1e-6:
+			continue   # seen from behind, or edge on
+		var d := n.dot((face[1] as Array)[0])
+		var t := (d - n.dot(origin)) / facing
+		if t < 0.0 or (not best.is_empty() and t >= best[0]):
+			continue
+		if MapMesher.hull_has(planes, origin + dir * t, 0.001):
+			best = [t, face[1], n]
+	return best
+
+
 # ---------------------------------------------------------------------------
 # Mirror and array
 

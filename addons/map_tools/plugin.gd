@@ -26,9 +26,10 @@ const MapDialogs := preload("res://addons/map_tools/map_dialogs.gd")
 const MapDock := preload("res://addons/map_tools/map_dock.gd")
 const PieceInspector := preload("res://addons/map_tools/piece_inspector.gd")
 
-## The tools. Draw and Clip have a button in the strip; SELECT is none of them: the
-## editor.s own select, move, rotate and scale.
-enum Tool { SELECT, DRAW, CLIP, PLACE }
+## The tools. Draw, Clip and Vertex have a button in the strip (in this order: the
+## strip counts them from 1); SELECT is none of them: the editor's own select, move,
+## rotate and scale.
+enum Tool { SELECT, DRAW, CLIP, VERTEX, PLACE }
 
 ## Editor shortcuts (Editor Settings > Shortcuts > Map Tools): [name, title, key, with Alt].
 const SHORTCUTS := [
@@ -37,6 +38,7 @@ const SHORTCUTS := [
 	["tool_draw", "Draw Tool", KEY_B, false],
 	["tool_clip", "Clip Tool", KEY_K, false],
 	["clip_turn", "Clip: Next Cut Direction", KEY_X, false],
+	["tool_vertex", "Vertex Tool", KEY_V, false],
 	["solid", "Toggle Solid", KEY_S, true],
 	["drawn", "Toggle Drawn", KEY_D, true],
 	["breakable", "Toggle Breakable", KEY_B, true],
@@ -64,7 +66,7 @@ func _enter_tree() -> void:
 	ctx.commit = apply_edit
 	ctx.select = _select
 	ctx.grid = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "grid", 0.5)
-	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.PLACE, "tool_place.gd"]]:
+	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.VERTEX, "tool_vertex.gd"], [Tool.PLACE, "tool_place.gd"]]:
 		var made: RefCounted = load("res://addons/map_tools/" + t[1]).new()
 		made.ctx = ctx
 		_tools[t[0]] = made
@@ -142,6 +144,7 @@ func _on_scene_changed(root: Node) -> void:
 	for t in _tools.values():
 		t.cancel()
 	tool = Tool.SELECT
+	ctx.editing_corners = false
 	ctx.map = root as MapRoot
 	_toolbar.visible = ctx.map != null
 	if ctx.map and ctx.map.palette and not ctx.map.palette.colors.has(ctx.kind) and not ctx.map.palette.colors.is_empty():
@@ -237,6 +240,12 @@ func set_tool(to: int) -> void:
 		_tools[tool].cancel()
 	tool = to as Tool
 	_toolbar.show_state(tool, ctx.grid)
+	# The vertex tool takes the clicks: the face handles are put away while it is on.
+	ctx.editing_corners = tool == Tool.VERTEX
+	for n in _selected():
+		if n is Node3D:
+			for b in MapOps.blocks_in(n):
+				b.update_gizmos()
 	update_overlays()
 
 
@@ -255,7 +264,7 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		ctx.touch()   # a click always works from the scene as it is now
 	if _tools.has(tool):
 		used = _tools[tool].input(view, event)
-		if event is InputEventMouse:
+		if event is InputEventMouse or used:
 			update_overlays()
 	var key := event as InputEventKey
 	if not used and key and key.pressed and not key.echo and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
@@ -285,6 +294,7 @@ func _key(key: InputEventKey) -> bool:
 			"grid_up": step_grid(1)
 			"tool_draw": set_tool(Tool.SELECT if tool == Tool.DRAW else Tool.DRAW)
 			"tool_clip": set_tool(Tool.SELECT if tool == Tool.CLIP else Tool.CLIP)
+			"tool_vertex": set_tool(Tool.SELECT if tool == Tool.VERTEX else Tool.VERTEX)
 			"clip_turn":
 				if tool != Tool.CLIP:
 					return false
