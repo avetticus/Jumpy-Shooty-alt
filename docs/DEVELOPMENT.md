@@ -264,7 +264,7 @@ Networked and bot runs (real time):
   Golden Gun at a time, whoever kills the holder takes it, every kill with it gives its
   round back, and host and client see the same hand-overs and results;
 - Killcam mode (`tests/run_killcam_mode_test.sh`): Vs Bots and online, everyone has the
-  sniper rifle (even a client who picked another gun), each player's points are their
+  anti-materiel rifle (even a client who picked another gun), each player's points are their
   kills' killcam scores plus the #1 killcam bonus, the match ends at the kill that
   reaches the target, the rankings go by points, and host and client agree;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
@@ -436,7 +436,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
 | `--unlock-all` | Nothing is locked behind an achievement (Character Creator items, calling cards, icons) |
 | `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
-| `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
+| `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `railgun` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
@@ -578,7 +578,7 @@ every step to about 2 m), the rocket boots down to the Hearth from every outer i
 will be 6 m up or less (the Citadel and Terrace never come that low: bots go round by
 the pads). Each link rides the part it sets off from. Falling is death (Kill Height
 -36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
-upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the Broken
+upper floor, the bolt-action rifle on the Citadel's wall walk, the railgun on the Broken
 Tower's lookout), all inside islands so they ride the bob, so it is listed for
 free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
 --script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the

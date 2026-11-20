@@ -101,7 +101,7 @@ func run() -> void:
 	_expect(p._awaiting_respawn and not p.visual.visible, "a Gun Game swap: still hidden, still waiting")
 	await _feed(p, 13, Vector3(8, 0, 0), 1, true)
 	_expect(_shown(p), "a Gun Game swap: shown when the snapshot comes")
-	p.change_weapon("sniper")
+	p.change_weapon("bolt_action")
 	_expect(_shown(p), "a swap while shown keeps them shown")
 
 	print("  rebuilt while dead, the snapshot first")

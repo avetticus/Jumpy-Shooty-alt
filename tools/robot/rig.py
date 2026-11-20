@@ -140,15 +140,15 @@ BODY = Skeleton([
 ])
 
 # Where each long gun's shots leave its barrel, in gun space (x, up, back). The pistol's is "muzzle".
-MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86),
+MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565),
            "revolver": (0.0, 0.066, -0.285), "machine_pistol": (0.0, 0.064, -0.235),
            "break_action": (0.0, 0.066, -0.66), "smg": (0.0, 0.052, -0.47), "burst_rifle": (0.0, 0.056, -0.62),
            "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78), "bolt_action": (0.0, 0.060, -0.80),
            "railgun": (0.0, 0.062, -0.80), "rocket_launcher": (0.0, 0.115, -0.70),
            "grenade_launcher": (0.0, 0.070, -0.52), "akimbo": (0.0, 0.064, -0.20),
            # The third batch
-           "derringer": (0.0, 0.076, -0.135), "air_cannon": (0.0, 0.075, -0.62),
-           "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72), "laser_rifle": (0.0, 0.060, -0.665),
+           "air_cannon": (0.0, 0.075, -0.62),
+           "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72),
            "nail_gun": (0.0, 0.050, -0.50), "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12),
            "plasma_cannon": (0.0, 0.070, -0.62)}
 

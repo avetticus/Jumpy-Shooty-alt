@@ -44052,10 +44052,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.8, 4, -7.4)
 script = ExtResource("4_weapon")
 weapon = "burst_rifle"
 
-[node name="Derringer12" type="Marker3D" parent="WeaponSpawns"]
+[node name="Revolver" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -3.6)
 script = ExtResource("4_weapon")
-weapon = "derringer"
+weapon = "revolver"
 
 [node name="LeverAction13" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 10)

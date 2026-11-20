@@ -330,8 +330,7 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 	var power := by.swing_power() if by and weapon_id != "kick" and weapon_id != "flying_kick" else 0.0
 	for i in mini(points.size(), 2):
 		var hit: String = {"hammer": "hammer_hit", "flying_kick": "hammer_hit", "axe": "hammer_hit", "bat": "bat_hit",
-			"brass_knuckles": "punch_hit", "mace": "hammer_hit", "wrench": "bat_hit", "scythe": "melee_hit",
-			"karate": "punch_hit"}.get(weapon_id, "melee_hit")
+			"brass_knuckles": "punch_hit"}.get(weapon_id, "melee_hit")
 		var clang := play_at(hit, points[i], "body", -2.0 * i + lerpf(-1.5, 2.0, power), 0.06)
 		if clang:
 			clang.pitch_scale *= lerpf(1.04, 0.88, power)

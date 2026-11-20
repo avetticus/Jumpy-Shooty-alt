@@ -1,6 +1,6 @@
 class_name KillcamMode
 extends RefCounted
-## Killcam: a free-for-all where style wins. Everyone has the sniper rifle and nothing
+## Killcam: a free-for-all where style wins. Everyone has the anti-materiel rifle and nothing
 ## else, and every kill scores its killcam points (KillScore: range, headshots,
 ## momentum, flicks, trickshots...), not just 1. First to a number of points, or the
 ## most points when the time runs out: the host sets both in the lobby (LobbySettings
@@ -11,7 +11,7 @@ extends RefCounted
 ## The host adds the points (Match.scores "points", see Match._host_kill) from the
 ## same score it already sends with each death, so every copy agrees.
 
-const WEAPON := "sniper"
+const WEAPON := "anti_materiel"
 const POINTS_TO_WIN := 5000      ## the default points to win...
 const POINTS_MIN := 1000
 const POINTS_MAX := 50000

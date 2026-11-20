@@ -186,7 +186,7 @@ func _build_hud() -> void:
 		func(v): hud.crosshair_thickness = v)
 	_switch("Dark outline", hud.crosshair_outline, func(v): hud.crosshair_outline = v)
 	_switch("Centre dot", hud.crosshair_dot, func(v): hud.crosshair_dot = v)
-	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for snipers.", true, 15)
+	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for the marksman rifles.", true, 15)
 	UiKit.section(_page, "Show")
 	_switch("Hit markers", hud.hit_markers, func(v): hud.hit_markers = v)
 	_switch("Damage numbers", hud.damage_numbers, func(v): hud.damage_numbers = v)

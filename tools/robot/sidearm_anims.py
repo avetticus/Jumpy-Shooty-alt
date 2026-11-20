@@ -261,59 +261,6 @@ def revolver(fp):
 DERRINGER_ROUNDS = v(0.0, 0.063, -0.038)   # the middle of the pair of rounds, seated (gun space)
 
 
-def derringer(fp):
-    V = View(fp)
-    rest = V.rest_r
-    lift = V.right((0.0, 0.012, 0.0), (100.0, 4.0, 0.0), work=0.0)
-    snap = V.right((0.0, -0.01, 0.0), (68.0, 6.0, 0.0), -8.0)          # the wrist snapped down: the barrels fall open
-    show = V.right((-0.01, 0.01, 0.03), (106.0, 18.0, 0.0), 30.0)      # the breech up, turned to the left hand
-    took = V.right((-0.004, 0.0, 0.03), (101.0, 17.0, 0.0), 26.0)      # the rounds landing knock it down a touch
-    wind = V.right((0.0, -0.02, 0.01), (78.0, 8.0, 0.0), 6.0)
-    flick = V.right((0.0, 0.05, 0.0), (132.0, 6.0, 0.0), 4.0)          # flicked up: shut
-    over = V.right((0.0, -0.01, 0.0), (84.0, 4.0, 0.0), work=0.0)
-    keys_r = [(0.0, rest), (0.05, lift), (0.13, snap, "out"), (0.22, moved(snap, (0.0, 0.008, 0.0), (74.0, 8.0, 0.0))), (0.38, show),
-              (0.76, show), (0.81, took, "out"), (0.88, show), (0.95, wind), (1.03, flick, "out"), (1.13, over), (1.22, rest), (1.4, rest)]
-    opened = -56.0
-    hinge = v(0.0, DERRINGER_HINGE[0], -DERRINGER_HINGE[1])
-    breech = hinge + rx(opened) @ (DERRINGER_ROUNDS - hinge)   # where the rounds sit with the barrels open
-    # The left hand comes up beside the breech with the two rounds between finger and thumb.
-    beside = breech + v(-0.075, 0.035, 0.05)
-    near = V.fist_on(show, beside, palm=(1.0, 0.3, -0.2), wrist=(-0.5, -0.5, 0.7))
-    flip = V.fist_on(show, beside + v(0.012, 0.022, -0.012), palm=(1.0, 0.3, -0.2), wrist=(-0.5, -0.62, 0.6))
-    keys_l = [(0.0, V.rest_l), (0.06, V.rest_l), (0.30, V.hip, "in"), (0.50, V.lift), (0.60, near), (0.66, flip, "out"),
-              (0.80, near), (0.94, V.clear), (1.08, V.clear), (1.28, V.rest_l), (1.4, V.rest_l)]
-
-    def pose(t):
-        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
-        spec["fingers_r"] = "gun"
-        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.06, "wrap"), (0.2, "relaxed"), (0.36, "pinch"), (0.61, "pinch"),
-                                        (0.67, "open", "out"), (0.84, "relaxed"), (1.1, "relaxed"), (1.28, "wrap")])
-        turn = at(t, [(0.0, 0.0), (0.08, 0.0), (0.15, opened - 8.0, "out"), (0.22, opened), (0.98, opened), (1.03, 0.0, "in")])
-        spec["vent"] = turn
-        spec["vent_pivot"] = DERRINGER_HINGE
-        spec.update(_hinged(turn, DERRINGER_HINGE))
-        spec["slide"] = 0.0
-        if not fp:
-            _body(spec, t, [(0.0, 0.0), (0.14, 4.0, "out"), (0.4, -4.0), (0.8, -6.0), (1.03, 3.0, "out"), (1.25, 0.0)],
-                  [(0.0, 0.0), (0.14, 4.0, "out"), (0.4, 0.0), (1.03, -4.0, "out"), (1.25, 0.0)])
-        if 0.2 <= t < 0.80:   # the new pair: in the left hand, then flipped off the thumb into the breech
-            frames = A._frames(spec, V.space)
-            aim, grip = frames["gun"][0] @ GUN_REST, frames["gun"][1]
-
-            def held(fr):
-                turn_h = fr["hand_l"][0]
-                # Between finger and thumb: their noses toward the fingertips, one above the other.
-                return fr["fist_l"] + turn_h @ v(0.016, -0.03, -0.012), aim.T @ turn_h @ GUN_REST
-            if t < 0.62:
-                middle, turn_m = held(frames)
-            else:
-                start = held(A._frames(merged(spec, arm_l=near), V.space))
-                middle, turn_m = _flight((t - 0.62) / 0.18, start[0], start[1], grip + aim @ breech, rx(opened), 0.07, 1.0)
-            _put(spec, aim, grip, middle, turn_m, DERRINGER_ROUNDS)
-        return spec
-    return pose
-
-
 # ---------------------------------------------------------------------------
 # Akimbo (2.0 s): a pistol in each fist. Both wrists flick outward and throw the cells out
 # to the sides, the arms cross low so each gun is pushed down on a new cell at the far
@@ -376,4 +323,4 @@ def akimbo(fp):
     return pose
 
 
-RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver, "derringer": derringer}
+RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver}

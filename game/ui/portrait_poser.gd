@@ -29,7 +29,7 @@ const SHELLS := 2              ## a gun loaded a round at a time: this many go i
 
 ## The big guns and the long-handled weapons: too much to dangle from one hand.
 const SHOULDER_GUNS := ["rocket_launcher", "grenade_launcher", "plasma_cannon", "lmg", "minigun", "anti_materiel", "railgun"]
-const SHOULDER_MELEE := ["hammer", "mace", "axe", "bat", "scythe", "spear"]
+const SHOULDER_MELEE := ["hammer", "axe", "bat", "spear"]
 
 ## Where the right hand's grip goes and how the weapon lies, in the chest's own frame at
 ## shoulder height (x right, y up, -z forward): [grip, where the barrel or blade points,

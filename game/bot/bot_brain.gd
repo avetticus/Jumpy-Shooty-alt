@@ -49,23 +49,21 @@ extends RefCounted
 const ENGAGE_RANGE := 45.0
 ## The distances each gun likes to fight at: [closer than this it backs off a little,
 ## further than this it closes in, it does not shoot beyond this]. The shotgun rushes
-## in, the sniper rifle keeps its distance.
+## in, the marksman rifles keep their distance.
 ## Melee weapons run straight in, winding the swing up on the way (harder bots wind
 ## up further), and let go once in reach and facing you.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
-	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
+	"sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
 	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "akimbo": [4.0, 11.0, 40.0], "break_action": [2.0, 6.0, 16.0],
 	"smg": [3.5, 11.0, 40.0], "burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
 	"lever_action": [10.0, 26.0, 999.0], "bolt_action": [14.0, 32.0, 999.0], "railgun": [14.0, 34.0, 999.0],
 	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],
 	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "axe": [0.0, 1.7, 3.0], "bat": [0.0, 1.7, 3.0],
-	"derringer": [2.5, 8.0, 20.0], "air_cannon": [3.0, 8.0, 15.0],
-	"minigun": [6.0, 18.0, 60.0], "battle_rifle": [10.0, 26.0, 999.0], "laser_rifle": [8.0, 22.0, 999.0],
+	"air_cannon": [3.0, 8.0, 15.0],
+	"minigun": [6.0, 18.0, 60.0], "battle_rifle": [10.0, 26.0, 999.0],
 	"nail_gun": [5.0, 14.0, 45.0], "crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
 	"plasma_cannon": [7.0, 15.0, 40.0],
-	"scythe": [0.0, 2.4, 3.9], "mace": [0.0, 1.5, 2.7], "machete": [0.0, 1.4, 2.6],
-	"wrench": [0.0, 1.4, 2.5], "energy_sword": [0.0, 1.7, 3.0],
-	"karate": [0.0, 1.3, 2.4]}
+	"energy_sword": [0.0, 1.7, 3.0]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
@@ -176,7 +174,7 @@ var _step := 0                   # physics steps it has been asked for input (co
 var _sense_every := 1            # it looks and listens on every this-many-th step (SENSE_RATE)
 
 ## Guns that wait for a clean shot (see _fire).
-const STEADY_GUNS := ["sniper", "bolt_action", "railgun"]
+const STEADY_GUNS := ["bolt_action", "anti_materiel", "railgun"]
 ## How often it thinks of using the jetpack, a second (Easy to Expert).
 const JETPACK_RATE := [0.2, 0.5, 0.9, 1.2]
 

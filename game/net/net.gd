@@ -795,7 +795,7 @@ func _apply_weapon(id: int, weapon: String) -> void:
 	if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
 		return   # the Golden Gun's holder keeps it until the host passes it on (see GoldenGun)
 	if in_match and (GunGame.active() or KillcamMode.active()):
-		return   # Gun Game hands out the weapons; Killcam is snipers only
+		return   # Gun Game hands out the weapons; Killcam is anti-materiel rifles only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = weapon
@@ -1298,7 +1298,7 @@ func host_start_match(force: bool = false) -> void:
 	var teams_before := players.values().map(func(p): return p.get("team", -1))
 	Teams.host_assign()   # team modes: everyone onto Red or Blue (otherwise no teams)
 	var teams_changed := teams_before != players.values().map(func(p): return p.get("team", -1))
-	if GunGame.active() or KillcamMode.active() or teams_changed:   # the first rung of the ladder; Killcam: the sniper
+	if GunGame.active() or KillcamMode.active() or teams_changed:   # the first rung of the ladder; Killcam: the anti-materiel rifle
 		for id in players:
 			if GunGame.active() or KillcamMode.active():
 				players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON

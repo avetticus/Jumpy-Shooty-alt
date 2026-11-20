@@ -16,7 +16,7 @@ const NO_WEAPON_NOTES := {
 	"race": "A race has no weapons: it is you, the course and the clock.",
 	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
 	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
-	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
+	"killcam": "Killcam is anti-materiel rifles only: every kill scores its killcam points.",
 }
 
 ## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT

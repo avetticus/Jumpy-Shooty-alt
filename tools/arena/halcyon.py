@@ -1607,7 +1607,7 @@ def pickups(m):
     for p, w in [
         ((6.5, 16, 49), "rocket_launcher"),      # the top catwalk ring round the reactor
         ((0, 14, -50), "railgun"),               # the hangar's launch gantry
-        ((64.2, 18, 0), "sniper"),               # the top hydroponics terrace
+        ((64.2, 18, 0), "bolt_action"),               # the top hydroponics terrace
         ((-56.7, LOW + 15.6, -2), "grenade_launcher"),   # the six-high container stack
         ((28, 20, -54), "lmg"),                  # the perch high on the hangar's east wall
         ((-50.1, 0, 46), "shotgun"),             # a cryo pod aisle

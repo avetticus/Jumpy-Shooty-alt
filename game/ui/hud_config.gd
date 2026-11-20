@@ -6,7 +6,7 @@ extends RefCounted
 ## The defaults are the HUD exactly as it was before any of this could be changed.
 
 ## Crosshair styles: the weapon's own (each gun's: a cross, the shotgun's brackets,
-## a launcher's ring, the sniper's ticks) or one shape for every weapon.
+## a launcher's ring, the marksman rifles' ticks) or one shape for every weapon.
 const CROSSHAIRS := {"weapon": "Weapon's own", "cross": "Cross", "t": "T (no top arm)", "point": "Dot", "circle": "Circle"}
 const COLOR_NAMES := {"white": "White", "green": "Green", "yellow": "Yellow", "cyan": "Cyan", "pink": "Pink", "red": "Red"}
 const COLORS := {

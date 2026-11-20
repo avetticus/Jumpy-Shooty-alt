@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Killcam mode test: real matches, headless. Checks that:
-#  - every player, bots included, has the sniper rifle and nothing else, even a
+#  - every player, bots included, has the anti-materiel rifle and nothing else, even a
 #    client who picked another gun in the lobby
 #  - every kill adds its killcam score (KillScore) to the killer's points, and the
 #    match ends when someone reaches the target (--points) or the clock runs out
@@ -57,8 +57,8 @@ def check_match(name, log, host_log=None):
         bad(f"{name}: script errors")
     guns = set(re.findall(r"^GUN SELF \d+ \d+ (\w+)", log, re.M))
     print(f"{name}: guns shown {sorted(guns)}")
-    if guns != {"sniper"}:
-        bad(f"{name}: everyone should have the sniper rifle and nothing else ({sorted(guns)})")
+    if guns != {"anti_materiel"}:
+        bad(f"{name}: everyone should have the anti-materiel rifle and nothing else ({sorted(guns)})")
     overs = re.findall(r"^MATCH_OVER (.*)$", log, re.M)
     if not overs:
         bad(f"{name}: the match never ended"); return None
