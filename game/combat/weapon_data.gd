@@ -967,13 +967,15 @@ static func nail_gun() -> WeaponData:
 	return w
 
 
-## A heavy bolt that drops with distance: a headshot kills.
+## A heavy bolt that falls in an arc as it flies (aim above anyone far off), with a
+## streak behind it (BoltTrail): a headshot kills. 70 m/s and 16 m/s² of drop: about
+## 1.5 m low at 30 m, 4 m at 50 m and 10 m at 80 m, and still a 300 m lob at 45 degrees.
 static func crossbow() -> WeaponData:
 	var w := _gun("crossbow", "Crossbow", "Crossbow")
 	w.kind = Kind.PROJECTILE
 	w.projectile_look = "bolt"
 	w.explosive = false
-	w.blurb = "A heavy bolt that drops over distance. A headshot kills, a body shot nearly does. Reloads after every shot."
+	w.blurb = "A heavy bolt that arcs as it flies: aim high at range. A headshot kills, a body shot nearly does. Reloads after every shot."
 	w.damage = 80.0
 	w.fire_interval = 0.4
 	w.magazine = 1
@@ -982,12 +984,12 @@ static func crossbow() -> WeaponData:
 	w.spread_degrees = 0.0
 	w.headshot_multiplier = 1.5
 	w.structure_damage = 0.8
-	w.projectile_speed = 75.0
-	w.projectile_gravity = 9.0
+	w.projectile_speed = 70.0
+	w.projectile_gravity = 16.0
 	w.splash_radius = 0.3
 	w.splash_inner = 0.3
 	w.self_damage = 0.0
-	w.fuse = 4.0
+	w.fuse = 6.0   # (long enough for a lob to come down)
 	w.crosshair = "dot"
 	w.kick = 1.6
 	w.knockback = 6.0
