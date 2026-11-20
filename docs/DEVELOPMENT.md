@@ -197,6 +197,10 @@ Quick checks:
   for the whole way and a tracer through both, a rocket (host and look) does too, a lone
   portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
   the same spot from a message, and closes when the part goes;
+- the railgun (`tests/railgun_test.gd`), in a real Practice match: through a wall a pistol
+  round stops at, its slug kills a dummy outright, its tracer runs its whole range and it
+  never hurts the one who fired it (`tests/destruction_test.gd` checks that a line through
+  walls finds every breakable piece on it);
 - the portal gun (`tests/portal_gun_test.gd`), in a real Practice match on the Construction
   Site: where portals go (flat on a flat wall; on the ribs of a container, on a beam, with
   nothing through the face and a collar behind; moved in from an edge and a corner, off a

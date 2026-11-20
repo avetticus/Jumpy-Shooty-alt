@@ -613,17 +613,18 @@ func _fire_round() -> void:
 	var vias := []   # through portals: where each pellet goes in and comes out
 	var space := get_world_3d().direct_space_state
 	var portals: Portals = Net.arena.get("portals") if Net.arena else null
+	var mask := 0 if weapon.data.pierce else (1 | (1 << 1))   # the railgun's slug stops for nothing
 	for dir in dirs:
 		var end := eye + dir * weapon.data.max_range
 		var hit := {}
 		if portals:
-			var legs: Array = portals.shot_path(space, eye, dir, weapon.data.max_range, 1 | (1 << 1), [get_rid()])
+			var legs: Array = portals.shot_path(space, eye, dir, weapon.data.max_range, mask, [get_rid()])
 			end = legs[legs.size() - 1].b
 			hit = legs[legs.size() - 1].hit
 			vias.append(Portals.path_bends(legs))
 		else:
-			var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
-			hit = space.intersect_ray(ray)
+			var ray := PhysicsRayQueryParameters3D.create(eye, end, mask, [get_rid()])
+			hit = space.intersect_ray(ray) if mask else {}
 			if hit:
 				end = hit.position
 			vias.append(PackedVector3Array())

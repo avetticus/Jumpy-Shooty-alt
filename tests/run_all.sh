@@ -27,6 +27,7 @@ CHECKS=(
   "gibs|--fixed-fps 60 --script tests/gibs_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
+  "railgun|--fixed-fps 60 --script tests/railgun_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
   "spawn_clearance|--script tests/spawn_clearance_test.gd"

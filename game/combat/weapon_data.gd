@@ -85,7 +85,9 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 ## Burst fire: each pull fires `burst` rounds, `burst_gap` seconds apart (fire_interval is between bursts).
 @export var burst := 1
 @export var burst_gap := 0.0
-## A shot that goes through everyone in its path (the railgun), not just the first.
+## A shot that goes through everything in its path for its whole max_range (the
+## railgun): every player and dummy along the line, and walls, floors and anything else
+## in the level, damaging every breakable piece it passes through. Portals still take it.
 @export var pierce := false
 ## Akimbo: a gun in each hand. The shots take turns, right then left; the left gun's
 ## leave from this marker bone (and kick the left arm).
@@ -514,19 +516,20 @@ static func bolt_action() -> WeaponData:
 	return w
 
 
-## A slug that goes through everyone in a line. Slow to recharge.
+## A slug that goes through everything in a line, walls included, and kills whoever it
+## touches (200: as much as anyone can have, overhealed). One shot, then a reload.
 static func railgun() -> WeaponData:
 	var w := _gun("railgun", "Railgun", "Railgun")
-	w.blurb = "A magnetic slug that goes through everyone in its path. Slow to recharge."
-	w.damage = 80.0
+	w.blurb = "A magnetic slug that kills whoever it touches and goes through everything: every player, wall and floor in its path. Reloads after every shot."
+	w.damage = 200.0
 	w.pierce = true
-	w.fire_interval = 1.6
-	w.magazine = 4
-	w.reload_time = 2.6
+	w.fire_interval = 1.0   # under reload_time: the reload sets the pace
+	w.magazine = 1
+	w.reload_time = 1.5
 	w.max_range = 300.0
 	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.5
-	w.structure_damage = 2.5
+	w.headshot_multiplier = 1.0   # a body shot already kills (a headshot still counts as one)
+	w.structure_damage = 1.0   # 200 to every piece on the line: breaks most walls, cracks the toughest
 	w.crosshair = "dot"
 	w.kick = 3.0
 	w.knockback = 12.0

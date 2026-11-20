@@ -476,13 +476,14 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var log := []
 	var vias := []     # per pellet: where it went into and came out of portals (Portals.path_bends)
 	var portals: Portals = Net.arena.get("portals")   # (a test's stand-in arena may have none)
+	var mask := 0 if weapon.pierce else 1   # layer 1: level only (the railgun's slug goes through it all)
 	for i in directions.size():
 		var direction := directions[i].normalized()
 		# Its path: to where it hits the level, through any portals on the way (each
 		# leg after a portal starts out of the other one, turned to match).
-		var legs: Array = portals.shot_path(space, origin, direction, weapon.max_range, 1) if portals \
+		var legs: Array = portals.shot_path(space, origin, direction, weapon.max_range, mask) if portals \
 			else [{"a": origin, "b": origin + direction * weapon.max_range, "dir": direction,
-				"hit": space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * weapon.max_range, 1))}]   # layer 1: level only
+				"hit": space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * weapon.max_range, mask)) if mask else {}}]
 		var last: Dictionary = legs[legs.size() - 1]
 		var world_hit: Dictionary = last.hit
 		var end: Vector3 = last.b
@@ -491,7 +492,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		if world_hit and breaks:
 			wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
 		var travelled := 0.0   # along the legs before this one (damage falls off with the whole way)
-		if weapon.pierce:   # the railgun: everyone along the line
+		if weapon.pierce:   # the railgun: everyone and everything along the line, its whole range
 			for leg in legs:
 				var dir: Vector3 = leg.dir
 				for bb in bodies:
@@ -507,9 +508,10 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					dirs[bb[0]] = dir
 					if DevArgs.sync_log:
 						log.append("hit %d at %.2f m%s" % [bb[0], hit.height, " head" if hit.head else ""])
+				if breaks:   # every breakable piece of wall and floor it goes through
+					for into in breaks.cells_along(leg.a, leg.b):
+						breaks.damage(into[0], weapon.damage_at(travelled + float(into[1])) * weapon.structure_damage)
 				travelled += (leg.a as Vector3).distance_to(leg.b)
-			if wall_cell >= 0:
-				breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
 			ends.append(end)
 			continue
 		# The nearest opponent the pellet passes through, leg by leg.
