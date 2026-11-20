@@ -28,7 +28,7 @@ enum Kind { HITSCAN, MELEE, PROJECTILE, BLAST }
 ## The weapons in groups, as the pickers show them (and the number keys pick them while
 ## you wait to respawn: 1 for sidearms, 2 for shotguns... pressing again goes through the group).
 const GROUPS := [
-	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo"]],
+	["Sidearms", ["pistol", "revolver", "dual_revolver", "machine_pistol", "dual_machine_pistol", "akimbo"]],
 	["Shotguns", ["shotgun", "break_action", "air_cannon"]],
 	["Rifles", ["rifle", "burst_rifle", "lmg", "minigun", "battle_rifle"]],
 	["Marksman", ["lever_action", "railgun", "crossbow", "anti_materiel"]],
@@ -36,14 +36,14 @@ const GROUPS := [
 	["Melee", ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]],
 ]
 ## Every weapon a player can pick, in the order the pickers show them.
-const IDS := ["pistol", "revolver", "machine_pistol", "akimbo",
+const IDS := ["pistol", "revolver", "dual_revolver", "machine_pistol", "dual_machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
 	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
 	"lever_action", "railgun", "crossbow", "anti_materiel",
 	"rocket_launcher", "grenade_launcher",
 	"sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
 const MELEE := ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
-const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo",
+const GUNS := ["pistol", "revolver", "dual_revolver", "machine_pistol", "dual_machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
 	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
 	"lever_action", "railgun", "crossbow", "anti_materiel",
@@ -58,7 +58,7 @@ const HIDDEN := ["golden_gun"]
 ## pistol's poses, with their own reload and firing clips.
 const SIDEARMS := ["pistol", "revolver", "machine_pistol", "golden_gun"]
 ## Guns whose slide snaps back on every shot, in the hands (the revolver's hammer does not).
-const SLIDE_KICK := ["pistol", "akimbo"]
+const SLIDE_KICK := ["pistol", "akimbo", "dual_machine_pistol"]
 
 @export var id := "pistol"
 @export var display_name := "Pistol"
@@ -364,6 +364,52 @@ static func akimbo() -> WeaponData:
 	w.knockback = 1.6
 	w.move_bonus = 1.03
 	w.alt = "tilt"
+	return w
+
+
+## A revolver in each hand, firing in turn. Each shot hits a little softer than the
+## revolver's (40: three to the body still kill, a headshot and a body shot too) and they
+## come about 1.7 times as fast, but it kicks harder, strays wider and is slower on its
+## feet, and reloading twelve rounds with no free hand takes longer.
+static func dual_revolver() -> WeaponData:
+	var w := _gun("dual_revolver", "Dual Revolvers", "Dual Revolvers")
+	w.blurb = "A revolver in each hand: 40 a shot, firing in turn, nearly twice as fast as one. 12 rounds, kicks hard, slow to reload."
+	w.damage = 40.0
+	w.fire_interval = 0.25
+	w.magazine = 12
+	w.reload_time = 2.6
+	w.spread_degrees = 0.6
+	w.falloff_start = 25.0
+	w.falloff_end = 50.0
+	w.falloff_min = 0.65
+	w.headshot_multiplier = 1.6
+	w.muzzle_bone_left = "muzzle_dual_revolver_l"
+	w.kick = 2.6
+	w.knockback = 3.5
+	w.knockback_up = 0.5
+	w.move_bonus = 0.97
+	return w
+
+
+## A machine pistol in each hand, firing in turn: half as fast again (25 rounds a second,
+## a touch less damage each), 48 rounds, but a much wider spray that weakens sooner, and a
+## longer reload.
+static func dual_machine_pistol() -> WeaponData:
+	var w := _gun("dual_machine_pistol", "Dual Machine Pistols", "Dual Mach. Pistols")
+	w.blurb = "A machine pistol in each hand, 25 rounds a second. 48 rounds, a hose up close, all over the place past 9 m."
+	w.damage = 8.0
+	w.fire_interval = 0.04
+	w.automatic = true
+	w.magazine = 48
+	w.reload_time = 2.0
+	w.spread_degrees = 2.6
+	w.falloff_start = 9.0
+	w.falloff_end = 24.0
+	w.falloff_min = 0.4
+	w.muzzle_bone_left = "muzzle_dual_machine_pistol_l"
+	w.kick = 0.4
+	w.knockback = 0.5
+	w.move_bonus = 1.03
 	return w
 
 
@@ -698,6 +744,8 @@ static func _make(weapon_id: String) -> WeaponData:
 		"revolver": return revolver()
 		"golden_gun": return golden_gun()
 		"machine_pistol": return machine_pistol()
+		"dual_revolver": return dual_revolver()
+		"dual_machine_pistol": return dual_machine_pistol()
 		"akimbo": return akimbo()
 		"break_action": return break_action()
 		"burst_rifle": return burst_rifle()

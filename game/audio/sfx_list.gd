@@ -32,6 +32,9 @@ const VOLUME := {
 	"break_concrete": -4.0, "break_wood": -5.0, "break_glass": -6.0,
 	# The newer weapons
 	"fire_akimbo": -5.5, "far_akimbo": -9.5, "fire_akimbo_fp": -5.5, "equip_akimbo": -10.0,
+	"fire_dual_revolver": -4.0, "far_dual_revolver": -7.5, "fire_dual_revolver_fp": -4.0, "equip_dual_revolver": -10.0,
+	"fire_dual_machine_pistol": -7.0, "far_dual_machine_pistol": -10.5, "fire_dual_machine_pistol_fp": -7.0,
+	"equip_dual_machine_pistol": -10.0,
 	"fire_revolver": -3.5, "fire_machine_pistol": -6.5, "fire_break_action": -3.0,
 	"fire_burst_rifle": -6.0, "fire_lmg": -6.0, "fire_lever_action": -3.5,
 	"fire_railgun": -3.0, "fire_rocket_launcher": -3.0, "fire_grenade_launcher": -4.0,
@@ -85,6 +88,9 @@ const RELOAD_STEPS := {
 	"shotgun": [[0.25, "shell_in"]],   # one shell; repeats until the tube is full
 	"revolver": [[0.13, "cylinder_open"], [0.38, "empties_out"], [0.92, "speedloader"], [1.165, "cylinder_close"], [1.3, "gun_spin"]],
 	"akimbo": [[0.11, "mag_out"], [0.14, "mag_out"], [0.68, "mag_in"], [0.7, "mag_in"], [1, "gun_spin"], [1.515, "slide_fwd"]],
+	"dual_machine_pistol": [[0.11, "mag_out"], [0.14, "mag_out"], [0.68, "mag_in"], [0.7, "mag_in"], [1, "gun_spin"], [1.515, "slide_fwd"]],
+	"dual_revolver": [[0.13, "cylinder_open"], [0.145, "cylinder_open"], [0.38, "empties_out"], [1.03, "speedloader"],
+		[1.045, "speedloader"], [1.49, "cylinder_close"], [1.505, "cylinder_close"], [1.62, "gun_spin"]],
 	"machine_pistol": [[0.07, "mag_out"], [0.62, "mag_in"], [0.78, "gun_spin"], [1.115, "slide_fwd"]],
 	"break_action": [[0.12, "break_open"], [0.745, "shells_in"], [1.05, "break_close"]],
 	"burst_rifle": [[0.59, "mag_out_rifle"], [0.82, "mag_in_rifle"], [1.175, "charge_back"], [1.29, "charge_fwd"]],

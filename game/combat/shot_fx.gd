@@ -11,6 +11,7 @@ static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits:
 	weapon = WeaponData.look_of(weapon)
 	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "break_action": 0.24, "revolver": 0.16,
 		"lever_action": 0.16, "railgun": 0.26, "lmg": 0.13, "machine_pistol": 0.08, "akimbo": 0.1,
+		"dual_revolver": 0.15, "dual_machine_pistol": 0.08,
 		"air_cannon": 0.05, "minigun": 0.12, "battle_rifle": 0.14,
 		"anti_materiel": 0.32}.get(weapon, 0.12)
 	var width: float = {"shotgun": 0.009, "break_action": 0.009,

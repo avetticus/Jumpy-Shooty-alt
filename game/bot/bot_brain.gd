@@ -54,7 +54,8 @@ const ENGAGE_RANGE := 45.0
 ## up further), and let go once in reach and facing you.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
 	"sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3],
-	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "akimbo": [4.0, 11.0, 40.0], "break_action": [2.0, 6.0, 16.0],
+	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "akimbo": [4.0, 11.0, 40.0],
+	"dual_revolver": [6.0, 16.0, 999.0], "dual_machine_pistol": [2.5, 8.0, 26.0], "break_action": [2.0, 6.0, 16.0],
 	"burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
 	"lever_action": [10.0, 26.0, 999.0], "railgun": [14.0, 34.0, 999.0],
 	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],

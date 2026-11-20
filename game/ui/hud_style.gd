@@ -247,6 +247,16 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"machine_pistol":
 			shapes = [[Vector2(0, 0), Vector2(21, 0), Vector2(21, 4), Vector2(9, 4), Vector2(8, 15), Vector2(5, 15),
 				Vector2(5, 4), Vector2(0, 4)], [Vector2(15, 4), Vector2(17, 4), Vector2(17, 8), Vector2(15, 8)]]
+		"dual_revolver":   # two revolvers, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 1) + off, Vector2(26, 1) + off, Vector2(26, 3.5) + off, Vector2(11, 3.5) + off,
+					Vector2(10, 5) + off, Vector2(5, 10) + off, Vector2(1, 10) + off, Vector2(3, 4) + off, Vector2(0, 4) + off])
+				shapes.append([Vector2(6, 0) + off, Vector2(12, 0) + off, Vector2(12, 5) + off, Vector2(6, 5) + off])
+		"dual_machine_pistol":   # two machine pistols, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 0) + off, Vector2(21, 0) + off, Vector2(21, 4) + off, Vector2(9, 4) + off, Vector2(8, 15) + off,
+					Vector2(5, 15) + off, Vector2(5, 4) + off, Vector2(0, 4) + off])
+				shapes.append([Vector2(15, 4) + off, Vector2(17, 4) + off, Vector2(17, 8) + off, Vector2(15, 8) + off])
 		"akimbo":   # two pistols, one behind and above the other
 			for off in [Vector2(6, -5), Vector2(0, 0)]:
 				shapes.append([Vector2(0, 0) + off, Vector2(18, 0) + off, Vector2(18, 4) + off, Vector2(9.5, 4) + off,
@@ -336,7 +346,8 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 static func weapon_width(id: String) -> float:
 	id = WeaponData.look_of(id)
 	return {"shotgun": 40.0, "rifle": 38.0, "sword": 40.0, "hammer": 32.0,
-		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "burst_rifle": 38.0, "lmg": 46.0,
+		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "dual_revolver": 32.0, "dual_machine_pistol": 27.0,
+		"break_action": 40.0, "burst_rifle": 38.0, "lmg": 46.0,
 		"lever_action": 42.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
 		"brass_knuckles": 18.0, "spear": 54.0, "bat": 38.0,
 		"air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "crossbow": 40.0,

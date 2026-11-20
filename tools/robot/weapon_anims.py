@@ -553,7 +553,7 @@ def sidearm_reload(gun, fp):
 # plain clips the game falls back to hold one gun in two hands, never two.
 
 # Reload lengths match WeaponData.
-DUAL_RELOAD = {"akimbo": 2.0}
+DUAL_RELOAD = {"akimbo": 2.0, "dual_revolver": 2.6, "dual_machine_pistol": 2.0}
 
 
 def _mirror_arm(arm):

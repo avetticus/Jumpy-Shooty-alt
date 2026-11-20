@@ -807,7 +807,8 @@ it straight away. To put it in the menus, add a line to `LIST` in `game/arena/ma
 To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
 MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
 least 8 pickups of 10 or more different weapons, each over a floor with room to stand,
-and that all the Deathmatch maps together offer every weapon.
+and that all the Deathmatch maps together offer every weapon (but those in its
+`NO_PICKUPS_YET`: the Dual Revolvers and Dual Machine Pistols have no pads yet).
 
 The scripts behind this:
 
@@ -1684,7 +1685,9 @@ shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for ev
 are in `game/combat/weapon_data.gd`. A model made in Blender later can replace the .glb
 files as long as it keeps the same bone and clip names.
 
-**Two-gun weapons.** The Dual Pistols (id `akimbo`) hold a gun in each hand. In the game
+**Two-gun weapons.** The Dual Pistols (id `akimbo`), Dual Revolvers and Dual Machine
+Pistols hold a gun in each hand (the single pistol, revolver and machine pistol stay as
+they are). In the game
 any weapon with a left muzzle (`WeaponData.muzzle_bone_left`, so `is_akimbo()`) is two
 guns: the shots alternate between `muzzle_<id>` and `muzzle_<id>_l`, `fire(left)` kicks
 only the arm that fired, the left hand closes on its own grip, both guns break off as
@@ -1692,7 +1695,9 @@ gibs and both reload (`ReloadFx` "both"), and the killcam replays which gun each
 left. Whether a slide snaps back on a shot is `WeaponData.SLIDE_KICK` (not a revolver's
 hammer). In the tools a two-gun weapon is one line in `rig.DUALS` (the weapon and the
 sidearm it is a pair of): `weapons.dual()` builds that sidearm twice, once on each hand's
-bones (its per-hand builder in `weapons.ONE`, e.g. `_pistol_one(mesh, gun, side)`), the left
+bones (its per-hand builder in `weapons.ONE`: `_pistol_one`, `_revolver_one`,
+`_machine_pistol_one`, each `(mesh, gun, side)`; the single guns are the same builders on
+the right hand), the left
 gun riding on its own bones in the left fist (`pistol_l`, `pistol_l_slide`, `pistol_l_mag`,
 `pistol_l_vent`; pose specs move them with `pistol_l`, `slide_l`, `mag_l` / `mag_rot_l`
 and `vent_l` / `vent_pos_l`), and `rig` adds its left muzzle bone. **The clip rule:** every
@@ -1700,7 +1705,14 @@ two-gun weapon gets its own clips, named like any gun's (`aim_<id>`, `reload_<id
 `fp_idle_`, `fp_sprint_`, `fp_one_hand_`, `fp_wall_r_`, `fp_dive_`, `fp_raise_`,
 `fp_reload_<id>`), built by `weapon_anims.dual_body_clips(id)` / `dual_arms_clips(id)` from
 the shared two-gun rest pose (`dual_rest`) and its own reload
-(`sidearm_anims.DUAL_RELOADS`, `weapon_anims.DUAL_RELOAD` for its length). The game's
+(`sidearm_anims.DUAL_RELOADS`, `weapon_anims.DUAL_RELOAD` for its length). With both hands
+full every two-gun reload crosses the arms low to the far hips; the left arm crosses
+under and behind the right, and `Pair.left_keys` adds keys where the arms pass each other
+so the left gun dips clear (`DUAL_PASS`, per reload `CELL_PASSES`,
+`DUAL_REVOLVER_PASSES`; the machine pistols' long cells also need `CELL_WAIT`). A new pair
+also needs its `ReloadFx.GUNS` entry (`"both": true`), its `SfxList.RELOAD_STEPS`, its
+sounds in `make_sfx.py` (`GUNS`, `equip()`, `EQUIP_ORDER`), an icon in
+`HudStyle.weapon_icon` and its bot ranges. The game's
 fallback to the plain clip is never right for one: those hold one gun in both hands, and
 the left gun would hang in the air. The first-person clips it has no version of (sliding,
 wall-running on the left, tucking, mantling) are ones where the left arm is off doing

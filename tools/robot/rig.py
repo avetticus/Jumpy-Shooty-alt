@@ -149,13 +149,15 @@ MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565),
            # The third batch
            "air_cannon": (0.0, 0.075, -0.62),
            "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72),
-           "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12)}
+           "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12),
+           # Two-gun weapons: their sidearm's
+           "dual_revolver": (0.0, 0.066, -0.285), "dual_machine_pistol": (0.0, 0.064, -0.235)}
 
 
 # The weapons with a gun in each hand, and the sidearm each is a pair of: the left gun is
 # the same gun on the left fist's own bones ("pistol_l"...), and its shots leave from
 # "muzzle_<weapon>_l". Each has its own clips (weapon_anims.dual_body_clips).
-DUALS = {"akimbo": "pistol"}
+DUALS = {"akimbo": "pistol", "dual_revolver": "revolver", "dual_machine_pistol": "machine_pistol"}
 
 
 def _with_muzzles(skel_spec):

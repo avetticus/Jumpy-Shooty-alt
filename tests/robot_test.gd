@@ -230,6 +230,8 @@ func _check_dual(gun: String) -> void:
 	var kick_r := robot.marker(data.muzzle_bone).y - right.y
 	_expect("a left-hand shot kicks the left gun, not the right", kick_l > 0.01 and absf(kick_r) < kick_l * 0.3, "%.3f vs %.3f" % [kick_l, kick_r])
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+	right = robot.marker(data.muzzle_bone)   # (from where the idle has them now)
+	left = robot.marker(data.muzzle_bone_left)
 	animator.fire(false)
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 2.0 / 60.0)
 	kick_l = robot.marker(data.muzzle_bone_left).y - left.y

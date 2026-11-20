@@ -48,6 +48,10 @@ const GUNS := {
 	"rocket_launcher": {"hide": [0.0, 0.2], "seat": 0.96},
 	"grenade_launcher": {"seat": 0.3},
 	"akimbo": {"eject": 0.14, "hide": [0.155, 0.58], "seat": 0.71, "throw": Vector3(0.3, -2.8, 0.5), "spin": Vector3(10.0, 3.0, 16.0), "both": true},
+	"dual_machine_pistol": {"eject": 0.14, "hide": [0.155, 0.58], "seat": 0.71, "throw": Vector3(0.3, -1.8, 0.5),
+		"spin": Vector3(5.0, 1.0, 3.0), "lift": 0.0, "both": true},
+	"dual_revolver": {"eject": 0.38, "seat": 1.05, "shells": 6, "throw": Vector3(-1.3, 0.3, 0.7), "spin": Vector3(9.0, 4.0, 12.0), "lift": 0.9,
+		"both": true},
 }
 const GUN_REST := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))   ## gun space to the grip bone's (rig.py: GUN_REST)
 const GRIP := Vector3(0.215, 0.835, 0.0)   ## where the gun bones are in a model file (rig.py: the right fist's grip)

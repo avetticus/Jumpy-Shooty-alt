@@ -1,5 +1,6 @@
 extends SceneTree
-## Headless checks on the third batch of weapons (WeaponData.BATCH_3): there are 14,
+## Headless checks on the third batch of weapons (WeaponData.BATCH_3) and the two-gun
+## sidearms (_check_duals): there are 14,
 ## each is distinct from every other weapon and is in the pickers, the bots, the
 ## sounds, the HUD's icons and the robots' models; and their new ways of playing work:
 ## the minigun spins up, the laser rifle refills itself and overheats, the darts (nails, bolts) hurt only who they hit, and Gun Game climbs through them.
@@ -16,7 +17,7 @@ func _init() -> void:
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
 	_check(batch.size() == 6, "6 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 24 and WeaponData.IDS[-1] == "energy_sword", "24 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
+	_check(WeaponData.IDS.size() == 26 and WeaponData.IDS[-1] == "energy_sword", "26 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
@@ -51,6 +52,8 @@ func _init() -> void:
 			tris += (part[0] as Mesh).get_faces().size()
 		_check(not all_parts.has(tris), "%s: a model of its own" % id)
 		all_parts[tris] = id
+
+	_check_duals(bot_src, ladder)
 
 	# The minigun: slow until spun up, then 20 rounds a second.
 	var mini := WeaponData.by_id("minigun")
@@ -88,6 +91,38 @@ func _init() -> void:
 	_check(ladder[-1] == "brass_knuckles", "gun game: ends with the knuckles")
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
 	_check(new_rungs >= 4, "gun game: climbs through the new guns too (%d)" % new_rungs)
+
+
+## A gun in each hand: the Dual Pistols (id "akimbo"), and the Dual Revolvers and Dual
+## Machine Pistols beside the single ones, each in the Sidearms right after its single
+## gun, with a left muzzle of its own, its own reload effects (both guns), reload sounds,
+## icon, bot ranges and sounds. Each pair fires faster than its single gun, a little
+## softer, wider, with twice the rounds and a longer reload. Not on the Gun Game ladder.
+func _check_duals(bot_src: String, ladder: Array) -> void:
+	var sidearms: Array = WeaponData.GROUPS[0][1]
+	var pairs := {"akimbo": "pistol", "dual_revolver": "revolver", "dual_machine_pistol": "machine_pistol"}
+	for id in pairs:
+		var w := WeaponData.by_id(id)
+		var one := WeaponData.by_id(pairs[id])
+		_check(WeaponData.has(id) and w.id == id and id in WeaponData.GUNS and id in sidearms, "%s: a sidearm in the pickers" % id)
+		_check(w.is_akimbo() and w.muzzle_bone_left == "muzzle_%s_l" % id and w.muzzle_bone == "muzzle_" + id,
+			"%s: a gun in each hand, shots from both muzzles" % id)
+		if id != "akimbo":
+			_check(sidearms.find(id) == sidearms.find(pairs[id]) + 1, "%s: right after the %s" % [id, one.display_name])
+			_check(w.alt == "", "%s: no alt fire" % id)
+			_check(not id in ladder, "%s: not on the Gun Game ladder" % id)
+		_check(w.automatic == one.automatic and w.damage < one.damage and w.fire_interval < one.fire_interval
+			and w.magazine == one.magazine * 2 and w.reload_time > one.reload_time and w.spread_degrees > one.spread_degrees,
+			"%s: faster than the %s, a little softer, wider, twice the rounds, a longer reload" % [id, one.display_name])
+		var dps_one := one.damage / one.fire_interval
+		var dps := w.damage / w.fire_interval
+		_check(dps > dps_one * 1.2 and dps < dps_one * 1.9, "%s: hits harder a second, but not twice as hard (%.0f vs %.0f)" % [id, dps, dps_one])
+		_check(ReloadFx.GUNS.has(id) and ReloadFx.GUNS[id].get("both", false), "%s: both guns reload" % id)
+		_check(SfxList.RELOAD_STEPS.has(id), "%s: reload sounds" % id)
+		_check(bot_src.contains('"%s": [' % id), "%s: the bots know what range to fight it at" % id)
+		_check(HudStyle.weapon_width(id) != 22.0 and HudStyle.weapon_width(id) != HudStyle.weapon_width(pairs[id]), "%s: an icon of its own" % id)
+		for sound in ["fire_" + id, "fire_%s_fp" % id, "far_" + id, "equip_" + id]:
+			_check(ResourceLoader.exists("res://game/audio/sfx/%s.wav" % sound) and SfxList.VOLUME.has(sound), "%s: sound %s" % [id, sound])
 
 
 ## (Once the tree is up: a bolt has to fly in the world.)

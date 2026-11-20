@@ -263,6 +263,14 @@ GUNS = {
     "akimbo": dict(crack=(1760, 0.72, 0.011), blast=(2480, 0.021, 0.97), boom=(0.065, 0.57),
                    thump=(134, 52, 0.048, 0.67), mech=([980, 1630, 2480], 0.01), slide_at=0.03,
                    tail=(0.72, 0.44, 2200), drive=2.6),
+    # Dual Revolvers: the revolver, a touch lighter (two of them, firing in turn)
+    "dual_revolver": dict(crack=(1550, 0.62, 0.015), blast=(2100, 0.032, 1.2), boom=(0.12, 0.72),
+                          thump=(118, 44, 0.075, 0.78), mech=([840, 1410, 2190], 0.012), slide_at=None,
+                          tail=(1.15, 0.53, 2050), drive=3.2),
+    # Dual Machine Pistols: the machine pistol, a touch snappier
+    "dual_machine_pistol": dict(crack=(2150, 0.8, 0.008), blast=(2850, 0.015, 0.88), boom=(0.042, 0.48),
+                                thump=(155, 62, 0.033, 0.52), mech=([1120, 1840, 2760], 0.008), slide_at=0.02,
+                                tail=(0.55, 0.34, 2300), drive=2.6),
     # The third batch
     "minigun": dict(crack=(2200, 0.8, 0.007), blast=(2900, 0.014, 0.85), boom=(0.04, 0.5),
                     thump=(150, 62, 0.03, 0.5), mech=([1200, 1900, 2900], 0.006), slide_at=None,
@@ -280,7 +288,7 @@ EQUIP_ORDER = ["pistol", "rifle", "shotgun", None, "revolver", "machine_pistol",
                "burst_rifle", "lmg", "lever_action", None, "railgun", "rocket_launcher", "grenade_launcher",
                "akimbo", None, None, None, "minigun", "battle_rifle", "anti_materiel",
                None, None, "air_cannon", None, None, "crossbow", None,
-               None, None]
+               None, None, "dual_revolver", "dual_machine_pistol"]
 
 
 def gun_dry(rng, g):
@@ -558,6 +566,12 @@ def equip(name):
                   (metal_slide(rng, 0.05, 2500, 1.5) * 0.7, 0.36), (metal_clack(rng, 0.95, 1.1, 1.0), 0.41)]
     elif name in ("revolver",):
         parts += [(metal_clack(rng, 1.4, 0.5, 0.2) * 0.8, 0.24), (metal_clack(rng, 1.1, 0.8, 0.5), 0.3)]
+    elif name == "dual_revolver":   # both hammers cocked, one after the other
+        parts += [(metal_clack(rng, 1.4, 0.5, 0.2) * 0.8, 0.22), (metal_clack(rng, 1.1, 0.8, 0.5), 0.27),
+                  (metal_clack(rng, 1.35, 0.5, 0.2) * 0.8, 0.36), (metal_clack(rng, 1.05, 0.8, 0.5), 0.41)]
+    elif name == "dual_machine_pistol":   # both slides racked, one after the other
+        parts += [(metal_slide(rng, 0.06, 2100, 1.6) * 0.7, 0.22), (metal_clack(rng, 0.85, 1.2, 1.2), 0.29),
+                  (metal_slide(rng, 0.06, 1950, 1.6) * 0.7, 0.36), (metal_clack(rng, 0.8, 1.3, 1.3), 0.43)]
     elif name in ("machine_pistol", "burst_rifle", "lmg", "battle_rifle"):
         parts += [(metal_slide(rng, 0.07, 2000, 1.6) * 0.7, 0.25), (metal_clack(rng, 0.8, 1.3, 1.3), 0.33)]
     elif name == "break_action":

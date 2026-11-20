@@ -33,7 +33,9 @@ IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action
        "burst_rifle", "lmg", "lever_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
        # The third batch
        "air_cannon", "minigun",
-       "battle_rifle", "crossbow", "anti_materiel")
+       "battle_rifle", "crossbow", "anti_materiel",
+       # Two-gun weapons (rig.DUALS)
+       "dual_revolver", "dual_machine_pistol")
 
 # Where the left fist holds each gun (gun space: the middle of the fist), and on which
 # bone: the shotgun's hand rides on the pump. Under a fore-end the hand is cupped, palm
@@ -328,64 +330,72 @@ def pistol(mesh):
     _pistol_one(mesh, "pistol")
 
 
-def revolver(mesh):
-    """A big six-shooter, about 34 cm: a slab-sided barrel with an armour panel and a lit
-    channel along it, a cylinder with a lit band that swings out to the left for reloads,
-    and a hammer that cocks back after every shot."""
-    g = "revolver"
-    _add(mesh, g, "grip", "pistol", box(0.038, 0.12, 0.05, 0.012).rot(pitch=-22).move(0, -0.04, 0.024))
-    _add(mesh, g, "plate", "pistol", box(0.044, 0.066, 0.028, 0.008).rot(pitch=-22).move(0, -0.046, 0.027))
-    _add(mesh, g, "detail", "pistol", box(0.042, 0.012, 0.054, 0.012).move(0, -0.062, 0).rot(pitch=-22).move(0, -0.04, 0.024))
+def _revolver_one(mesh, g, side=""):
+    frame_b, slide_b, mag_b, vent_b = _bones(side)
+    _add(mesh, g, "grip", frame_b, box(0.038, 0.12, 0.05, 0.012).rot(pitch=-22).move(0, -0.04, 0.024))
+    _add(mesh, g, "plate", frame_b, box(0.044, 0.066, 0.028, 0.008).rot(pitch=-22).move(0, -0.046, 0.027))
+    _add(mesh, g, "detail", frame_b, box(0.042, 0.012, 0.054, 0.012).move(0, -0.062, 0).rot(pitch=-22).move(0, -0.04, 0.024))
     frame = (_core([(-0.04, 0.012), (0.022, 0.012), (0.022, 0.084), (-0.012, 0.084), (-0.04, 0.052)], 0.038, 0.005)
              + _core([(0.0, 0.076), (0.116, 0.076), (0.116, 0.09), (0.0, 0.09)], 0.026, 0.003)
              + _core([(0.0, 0.006), (0.116, 0.006), (0.116, 0.019), (0.0, 0.019)], 0.022, 0.003))
     barrel = _core([(0.1, 0.036), (0.236, 0.036), (0.281, 0.054), (0.281, 0.086), (0.272, 0.092), (0.1, 0.092)], 0.03, 0.005)
-    _add(mesh, g, "dark", "pistol", frame + barrel + _guard(0.074))
-    _add(mesh, g, "plate", "pistol", _panels([(0.114, 0.056), (0.262, 0.056), (0.272, 0.062), (0.272, 0.084), (0.114, 0.084)], 0.0145, 0.004))
-    _add(mesh, g, "glow", "pistol", _panels([(0.114, 0.042), (0.238, 0.042), (0.252, 0.051), (0.114, 0.051)], 0.0148, 0.002, 0.0))
-    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.274, 0.287, 0.066, 8))
+    _add(mesh, g, "dark", frame_b, frame + barrel + _guard(0.074))
+    _add(mesh, g, "plate", frame_b, _panels([(0.114, 0.056), (0.262, 0.056), (0.272, 0.062), (0.272, 0.084), (0.114, 0.084)], 0.0145, 0.004))
+    _add(mesh, g, "glow", frame_b, _panels([(0.114, 0.042), (0.238, 0.042), (0.252, 0.051), (0.114, 0.051)], 0.0148, 0.002, 0.0))
+    _add(mesh, g, "steel", frame_b, _tube(0.012, 0.274, 0.287, 0.066, 8))
     vents = Part([])
     for f in (0.128, 0.162, 0.196, 0.23):
         vents = vents + box(0.016, 0.006, 0.02).move(0, 0.094, -f)
-    _vent(mesh, g, "detail", vents)
-    _add(mesh, g, "detail", "pistol", box(0.006, 0.012, 0.012).move(0, 0.097, -0.268))
+    _vent(mesh, g, "detail", vents, vent_b)
+    _add(mesh, g, "detail", frame_b, box(0.006, 0.012, 0.012).move(0, 0.097, -0.268))
     # The cylinder, on the magazine bone: it swings out to the side.
-    _add(mesh, g, "steel", "pistol_mag", _tube(0.031, 0.025, 0.098, 0.046, 6))
-    _add(mesh, g, "glow", "pistol_mag", _tube(0.0325, 0.052, 0.066, 0.046, 6))
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.0325, 0.084, 0.092, 0.046, 6))
-    _add(mesh, g, "dark", "pistol", _tube(0.008, 0.098, 0.105, 0.046, 6))   # the crane
+    _add(mesh, g, "steel", mag_b, _tube(0.031, 0.025, 0.098, 0.046, 6))
+    _add(mesh, g, "glow", mag_b, _tube(0.0325, 0.052, 0.066, 0.046, 6))
+    _add(mesh, g, "detail", mag_b, _tube(0.0325, 0.084, 0.092, 0.046, 6))
+    _add(mesh, g, "dark", frame_b, _tube(0.008, 0.098, 0.105, 0.046, 6))   # the crane
     # The hammer, on the slide bone: it rocks back after a shot.
-    _add(mesh, g, "detail", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.022))
+    _add(mesh, g, "detail", slide_b, box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.022))
+
+
+def _machine_pistol_one(mesh, g, side=""):
+    frame_b, slide_b, mag_b, vent_b = _bones(side)
+    _add(mesh, g, "grip", frame_b, _grip(-12, 0.036, 0.11, 0.05, -0.035, 0.018))
+    frame = _core([(-0.066, 0.05), (0.175, 0.05), (0.175, 0.024), (-0.03, 0.024), (-0.066, 0.036)], 0.036, 0.004)
+    stop = _core([(0.146, 0.026), (0.182, 0.026), (0.176, -0.014), (0.16, -0.014)], 0.024, 0.004)
+    _add(mesh, g, "dark", frame_b, frame + _guard(0.076))
+    _add(mesh, g, "detail", frame_b, stop)
+    _vent(mesh, g, "detail", _slats(0.086, 4, 0.014, 0.028, 0.046, 0.018, t=0.006, lean=0.004, thick=0.003), vent_b)
+    slide = _core([(-0.066, 0.052), (0.172, 0.052), (0.172, 0.084), (-0.05, 0.084), (-0.066, 0.074)], 0.04, 0.005)
+    _add(mesh, g, "dark", slide_b, slide)
+    _add(mesh, g, "plate", slide_b, _panels([(-0.024, 0.056), (0.164, 0.056), (0.164, 0.069), (0.062, 0.069), (0.048, 0.081),
+                                            (-0.024, 0.081)], 0.019, 0.005))
+    _add(mesh, g, "glow", slide_b, _panels([(0.067, 0.072), (0.164, 0.072), (0.164, 0.08), (0.058, 0.08)], 0.0195, 0.002, 0.0))
+    _add(mesh, g, "detail", slide_b, _slats(-0.06, 4, 0.008, 0.058, 0.08, 0.0195, t=0.004, lean=0.003, thick=0.003)
+         + box(0.02, 0.007, 0.012).move(0, 0.088, 0.05))
+    _add(mesh, g, "steel", frame_b, _tube(0.016, 0.172, 0.237, 0.064, 6))
+    _add(mesh, g, "detail", frame_b, _rings(0.0185, (0.184, 0.203, 0.222), 0.008, 0.064, 6))
+    cell = box(0.027, 0.21, 0.036, 0.005)
+    lit = box(0.031, 0.07, 0.012).move(0, -0.056, -0.014)
+    pad = box(0.032, 0.014, 0.041, 0.006).move(0, -0.1, 0)
+    for kind, part in (("detail", cell), ("glow", lit), ("accent", pad)):
+        _add(mesh, g, kind, mag_b, part.rot(pitch=-12).move(0, -0.08, 0.012))
+
+
+def revolver(mesh):
+    """A big six-shooter, about 34 cm: a slab-sided barrel with an armour panel and a lit
+    channel along it, a cylinder with a lit band that swings out to the left for reloads,
+    and a hammer that cocks back after every shot."""
+    _revolver_one(mesh, "revolver")
 
 
 def machine_pistol(mesh):
     """A boxy full-auto sidearm, about 27 cm: a long power cell with a lit window, a finned
     compensator and a hand stop under the muzzle."""
-    g = "machine_pistol"
-    _add(mesh, g, "grip", "pistol", _grip(-12, 0.036, 0.11, 0.05, -0.035, 0.018))
-    frame = _core([(-0.066, 0.05), (0.175, 0.05), (0.175, 0.024), (-0.03, 0.024), (-0.066, 0.036)], 0.036, 0.004)
-    stop = _core([(0.146, 0.026), (0.182, 0.026), (0.176, -0.014), (0.16, -0.014)], 0.024, 0.004)
-    _add(mesh, g, "dark", "pistol", frame + _guard(0.076))
-    _add(mesh, g, "detail", "pistol", stop)
-    _vent(mesh, g, "detail", _slats(0.086, 4, 0.014, 0.028, 0.046, 0.018, t=0.006, lean=0.004, thick=0.003))
-    slide = _core([(-0.066, 0.052), (0.172, 0.052), (0.172, 0.084), (-0.05, 0.084), (-0.066, 0.074)], 0.04, 0.005)
-    _add(mesh, g, "dark", "pistol_slide", slide)
-    _add(mesh, g, "plate", "pistol_slide", _panels([(-0.024, 0.056), (0.164, 0.056), (0.164, 0.069), (0.062, 0.069), (0.048, 0.081),
-                                                   (-0.024, 0.081)], 0.019, 0.005))
-    _add(mesh, g, "glow", "pistol_slide", _panels([(0.067, 0.072), (0.164, 0.072), (0.164, 0.08), (0.058, 0.08)], 0.0195, 0.002, 0.0))
-    _add(mesh, g, "detail", "pistol_slide", _slats(-0.06, 4, 0.008, 0.058, 0.08, 0.0195, t=0.004, lean=0.003, thick=0.003)
-         + box(0.02, 0.007, 0.012).move(0, 0.088, 0.05))
-    _add(mesh, g, "steel", "pistol", _tube(0.016, 0.172, 0.237, 0.064, 6))
-    _add(mesh, g, "detail", "pistol", _rings(0.0185, (0.184, 0.203, 0.222), 0.008, 0.064, 6))
-    cell = box(0.027, 0.21, 0.036, 0.005)
-    lit = box(0.031, 0.07, 0.012).move(0, -0.056, -0.014)
-    pad = box(0.032, 0.014, 0.041, 0.006).move(0, -0.1, 0)
-    for kind, part in (("detail", cell), ("glow", lit), ("accent", pad)):
-        _add(mesh, g, kind, "pistol_mag", part.rot(pitch=-12).move(0, -0.08, 0.012))
+    _machine_pistol_one(mesh, "machine_pistol")
 
 
 # The sidearms that can be built on either hand's bones (side "" or "_l").
-ONE = {"pistol": _pistol_one}
+ONE = {"pistol": _pistol_one, "revolver": _revolver_one, "machine_pistol": _machine_pistol_one}
 
 
 def dual(weapon):
