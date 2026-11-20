@@ -447,7 +447,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	# (In game time: the debug menu can speed the game up offline.)
 	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.shot_gap() * 0.7:
 		return
-	if weapon.is_melee() or weapon.is_projectile():
+	if weapon.is_melee() or weapon.is_projectile() or weapon.is_blast():
 		return
 	_last_shot_time[shooter] = now
 	var shooter_node: Player = Net.arena.get_player(shooter)
@@ -730,6 +730,63 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 @rpc("authority", "call_local", "reliable")
 func _projectile_boom(id: int, at: Vector3, weapon_id: String) -> void:
 	exploded.emit(id, at, weapon_id)
+
+
+# ---------------------------------------------------------------------------
+# Air blasts (WeaponData.Kind.BLAST: the air cannon; see AirBlast)
+
+## Called by the local player (or a bot) when it lets go of a charged blast: from the
+## eyes, toward where it aims, charged `charge` 0..1. Like a shot, it says when it was
+## seeing each opponent.
+func request_blast(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float, shooter: int = 0) -> void:
+	if Net.is_host():
+		_host_blast(shooter if shooter != 0 else Net.my_id(), origin, direction, view_times, charge)
+	else:
+		_blast_request.rpc_id(1, origin, direction, view_times, charge)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _blast_request(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
+	if Net.is_host():
+		_host_blast(multiplayer.get_remote_sender_id(), origin, direction, view_times, charge)
+
+
+## Shoves everyone in the cone it can see; hurts nobody (a crash or fall it causes is
+## the shooter's: see _host_shove). Everyone is shown it like a shot: its streaks of air.
+func _host_blast(shooter: int, origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
+	if not running or not is_alive(shooter) or not Net.arena or Race.active or not direction.is_finite() \
+			or direction.length_squared() < 0.0001:
+		return
+	var weapon := WeaponData.by_id(Net.player_weapon(shooter))
+	if not weapon.is_blast():
+		return
+	var now := Net.now()
+	var since: float = (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale
+	if since < weapon.fire_interval * 0.7:
+		return
+	var who: Player = Net.arena.get_player(shooter)
+	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
+		return
+	_last_shot_time[shooter] = now
+	# Nobody can have charged for longer than it has been since their last blast.
+	charge = clampf(charge, 0.0, weapon.charge_of(since)) if is_finite(charge) else 0.0
+	direction = direction.normalized()
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var clear := func(a: Vector3, b: Vector3) -> bool:
+		return space.intersect_ray(PhysicsRayQueryParameters3D.create(a, b, 1)).is_empty()   # layer 1: the level
+	var hits := AirBlast.hits(origin, direction, _rewound_bodies(shooter, view_times), weapon, charge, clear)
+	var ends := AirBlast.fan(space, origin, direction, weapon, charge)
+	var hit_mask := 0
+	for h in hits:
+		hit_mask |= 1 << ends.size()
+		ends.append(h.at)
+	if DevArgs.sync_log:
+		print("BLAST %d %s %d charge %.2f" % [shooter, weapon.id, hits.size(), charge])
+		print("SHOT %d %s" % [shooter, ("hit %d at blast" % hits[0].id) if not hits.is_empty() else "miss"])
+	_shot_effect.rpc(shooter, origin, ends, hit_mask, direction, [])
+	for h in hits:
+		if not is_dummy(h.id):   # (a target dummy stands its ground)
+			_host_shove(shooter, h.id, h.push, weapon.id)
 
 
 ## Everyone `attacker` could hit, each moved back to where `attacker` saw them:
@@ -1164,17 +1221,23 @@ func _host_slam(id: int, speed: float, where: Vector3) -> void:
 	_last_slam_time[id] = now
 	var amount := minf((minf(speed, 90.0) - SLAM_SPEED) * SLAM_DAMAGE, SLAM_MAX)
 	# Shoved into it? Then whoever shoved you gets the hit (and the kill).
-	var by := id
-	var with := ""   # what threw them into it (see death_fx)
-	var shove: Array = _last_shove.get(id, [])
-	if not shove.is_empty() and now - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
-		by = shove[0]
-		with = str(shove[2]) if shove.size() > 2 else ""
+	var shover := _shoved_by(id)
+	var by: int = shover[0] if shover[0] != 0 else id
+	var with: String = shover[1]   # what threw them into it (see death_fx)
 	_slam_effect.rpc(id, where, speed)
 	if DevArgs.sync_log:
 		print("SLAM %d %.1f m/s %.0f damage by %d" % [id, speed, amount, by])
 	if amount >= 1.0:
 		_host_damage(by, id, amount, false, "slam", {"with": with})
+
+
+## Who shoved `id` in the last SHOVE_CREDIT seconds, and with what: [their id, with]
+## ([0, ""] if nobody). A crash or a fall soon after is theirs.
+func _shoved_by(id: int) -> Array:
+	var shove: Array = _last_shove.get(id, [])
+	if not shove.is_empty() and Net.now() - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
+		return [int(shove[0]), str(shove[2]) if shove.size() > 2 else ""]
+	return [0, ""]
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -1301,7 +1364,10 @@ func _host_fell(id: int) -> void:
 		return   # in a race you go back to your checkpoint instead (see Race)
 	if running and is_alive(id):
 		health[id] = 0.0
-		_host_kill(id, 0, "fell")
+		# Shoved off (blasted, kicked, hit...)? Then whoever shoved you gets the kill, as for a crash.
+		var shover := _shoved_by(id)
+		var by: int = shover[0] if shover[0] != id else 0
+		_host_kill(id, by, "fell", false, _death_fx(by, id, "fell", false, 0.0, {"with": shover[1]}) if by != 0 else {})
 
 
 ## `fx`: see death_fx (from _death_fx; a death without one tells nothing more).

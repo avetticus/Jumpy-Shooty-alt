@@ -29,6 +29,8 @@ static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits:
 	var life: float = {"sniper": 0.16, "bolt_action": 0.14, "railgun": 0.45, "anti_materiel": 0.22, "laser_rifle": 0.06,
 		"air_cannon": 0.12}.get(weapon, 0.07)
 	_flash(parent, muzzle, Color(1.0, 0.8, 0.4), flash, 0.05)
+	if data.is_blast():
+		AirBlast.burst(parent, muzzle, ends, data)   # (its "pellets" are streaks of air)
 	for i in ends.size():
 		var hit: bool = hits[i] if i < hits.size() else false
 		_tracer(parent, muzzle, ends[i], width, color, life)

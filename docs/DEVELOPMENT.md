@@ -96,6 +96,10 @@ Quick checks:
   leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
+- the air cannon (`tests/air_cannon_test.gd`): no damage to anyone or anything, no ammo
+  or reload, full charge in 1.5 s, a charged blast shoves far harder than a tap (and a
+  tap never hurts anyone on a wall), and the cone takes in only who is in front, within
+  its angle and reach and in sight;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
   for exists;
 - the portrait banner (`tests/portrait_test.gd`, with `--fixed-fps 60`): the 3D is drawn

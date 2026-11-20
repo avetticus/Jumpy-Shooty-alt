@@ -96,6 +96,10 @@ var _slam_cool := 0.0             # local: seconds until you can ground slam aga
 var _slamming := false            # local: in a ground slam, on the way down
 var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
+var _blast_held := -1.0           # local, the air cannon: seconds the trigger has been held (charging), or -1
+var _blast_power := 0.0           # local: how charged the blast just let go is, 0..1
+var _seen_charge := -1.0          # seconds this player's air cannon has been seen charging, or -1
+var _charge_glow: MeshInstance3D  # the air cannon's glow at the muzzle while it charges (made when first needed)
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
 var _glide_fx: GlideFx            # the wind trail and speed streaks of a glide
@@ -385,6 +389,7 @@ func _process(delta: float) -> void:
 	var rope_at := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
 	_anim.set_hook(shot.look(rt, rope_at, rope_at, hook_anchor) if shot and alive else [])
 	_watch_swings(delta)
+	_watch_charge(delta)
 	_watch_kicks()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
@@ -538,6 +543,9 @@ func _update_weapon(delta: float) -> void:
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
+	if weapon.data.is_blast():
+		_update_blast(delta)
+		return
 	if weapon.data.spin_up > 0.0:   # the minigun: holding the trigger spins the barrels up
 		var spinning: bool = input.fire and Match.running and weapon.ammo > 0 and not weapon.is_reloading()
 		weapon.spin = clampf(weapon.spin + (delta if spinning else -2.0 * delta) / weapon.data.spin_up, 0.0, 1.0)
@@ -583,6 +591,9 @@ func _fire_round() -> void:
 	if weapon.data.is_projectile():
 		Match.request_projectile(eye, _aim_direction(eye), peer_id)
 		return
+	if weapon.data.is_blast():
+		_send_blast(eye)
+		return
 	var aim := _aim_direction(eye)
 	var dirs := shot_directions(aim, weapon.data, spread_scale())
 	# Show the shot straight away; the host decides whether it hit.
@@ -606,6 +617,72 @@ func _fire_round() -> void:
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
 	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id, aim)
+
+
+# ---------------------------------------------------------------------------
+# The air cannon (WeaponData.Kind.BLAST; see AirBlast)
+
+## Holding the trigger charges the blast (a glow swells at the muzzle and a hum rises:
+## see _watch_charge), letting go blasts. The longer the charge, up to the weapon's
+## charge_time, the harder it shoves. No ammo: only fire_interval between blasts.
+func _update_blast(delta: float) -> void:
+	if _blast_held >= 0.0:
+		_blast_held += delta
+		if not Match.running:
+			_blast_held = -1.0
+		elif not input.fire:
+			_blast_power = weapon.data.charge_of(_blast_held)
+			_blast_held = -1.0
+			weapon.fire()
+			_fire_round()
+		return
+	var wants := input.fire or _fire_buffer > 0.0
+	if not wants or not Match.running or not weapon.can_fire():
+		return
+	_fire_buffer = 0.0
+	_blast_held = 0.0
+	if DevArgs.sync_log:
+		print("ANIM CHARGE %d" % peer_id)
+
+
+## The blast leaves the gun (from _fire_round): its streaks of air are drawn straight
+## away, the view jolts with the charge, and the host is asked whom it shoved.
+func _send_blast(eye: Vector3) -> void:
+	var aim := _aim_direction(eye)
+	var ends := AirBlast.fan(get_world_3d().direct_space_state, eye, aim, weapon.data, _blast_power, [get_rid()])
+	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, [], weapon.data.id)   # (into the arena)
+	if rig:
+		rig.kick(lerpf(0.3, 1.0, _blast_power))
+		_punch += Vector2(0.0, -lerpf(0.01, 0.05, _blast_power))
+	var view_times := {}
+	for p in get_parent().get_children():
+		if p != self and p is Player and p.last_render_time >= 0.0:
+			view_times[p.peer_id] = p.last_render_time
+	Match.request_blast(eye, aim, view_times, _blast_power, peer_id)
+
+
+## How charged your air cannon is right now, 0..1, or -1 when it is not charging (the
+## HUD and the bots ask).
+func blast_charge() -> float:
+	return weapon.data.charge_of(_blast_held) if weapon != null and _blast_held >= 0.0 else -1.0
+
+
+## An air cannon charging (yours, or one seen in someone's snapshots): a glow swells at
+## the muzzle and a hum rises with it. For other players only "charging" travels (the
+## wind-up flag); how far is worked out from how long it has been seen, as for a swing.
+func _watch_charge(delta: float) -> void:
+	var data: WeaponData = WeaponData.by_id(robot.weapon) if robot and WeaponData.has(robot.weapon) else null
+	var on := alive and data != null and data.is_blast() \
+		and (_blast_held >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
+	_seen_charge = (_blast_held if is_local else maxf(_seen_charge, 0.0) + delta) if on else -1.0
+	var amount := data.charge_of(_seen_charge) if on else -1.0
+	sounds.charging(amount)
+	if amount >= 0.0 and _charge_glow == null:
+		_charge_glow = AirBlast.make_glow()
+		add_child(_charge_glow)
+	if _charge_glow:
+		var shown := amount >= 0.0 and (visual.visible or rig != null)
+		AirBlast.show_glow(_charge_glow, muzzle_position() if shown else Vector3.ZERO, amount if shown else -1.0, _first_person())
 
 
 # ---------------------------------------------------------------------------
@@ -1273,6 +1350,7 @@ func set_dead() -> void:
 	alive = false
 	_in_remains = false
 	_charge = -1.0
+	_blast_held = -1.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	_flame_t = 0.0
@@ -1390,6 +1468,8 @@ func change_weapon(gun: String) -> void:
 	_seen_wind = -1.0
 	_strike_left = -1.0
 	_charge = -1.0
+	_blast_held = -1.0
+	_seen_charge = -1.0
 	_burst_left = 0
 	_akimbo_shots = 0
 	_akimbo_left = false
@@ -1630,7 +1710,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side,
+		_kicks, _fly_kick > 0.0, motor.boosts, (_charge >= 0.0 or _blast_held >= 0.0) and alive, jetpack != null and jetpack.on and alive, _swing_side,
 		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3,
 		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side))
 
@@ -1974,6 +2054,8 @@ func _scripted_input(delta: float) -> void:
 				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
 				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a combo (Karate): a run of quick taps, then a full wind-up
 					input.fire = fmod(t, 0.42) < 0.1 if fmod(t, 4.0) < 3.0 else fmod(t, 4.0) < 3.8
+			elif weapon and weapon.data.is_blast():
+				input.fire = fmod(t, 2.0) < 1.6   # the air cannon: charge it right up, then let go
 			if fmod(t, 0.2) < delta and input.fire:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
