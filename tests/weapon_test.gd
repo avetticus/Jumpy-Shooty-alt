@@ -10,7 +10,7 @@ extends SceneTree
 ## reload can be cut short by firing. Melee weapons: never run dry, have reach and
 ## an arc; every swing is charged (a tap is weak and cannot slam anyone into a wall, a
 ## full wind-up hits harder and shoves far harder, but never kills outright: the
-## hammer and the bat kill by the wall they send you into); all but the dagger and
+## hammer and the bat kill by the wall they send you into); all but the energy sword and
 ## the knuckles are two-handed, and the left hand stays on the handle through the
 ## whole wind-up and swing; the swing always comes back to the ready pose.
 
@@ -19,7 +19,7 @@ const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## The blades held in one hand (the rest take both).
-const ONE_HANDED := ["dagger", "brass_knuckles", "energy_sword"]
+const ONE_HANDED := ["brass_knuckles", "energy_sword"]
 
 var _ok := true
 
@@ -142,8 +142,6 @@ func _init() -> void:
 	for id in WeaponData.MELEE:
 		if WeaponData.by_id(id).two_handed:
 			_check(WeaponData.by_id(id).charge_knockback > SLAM_SPEED, "%s: a full swing can slam someone into a wall" % id)
-	var dagger := WeaponData.by_id("dagger")
-	_check(dagger.backstab_multiplier > 1.0, "dagger: a stab in the back does more")
 	s = WeaponState.new(sword)
 	var swings := 0
 	for i in 200:
@@ -232,7 +230,7 @@ func _melee_animation() -> void:
 		_check(moves.heavy.wound != a.wound and moves.heavy.wound != b.wound, "%s: its heavy blow winds up its own way" % id)
 	# Brass knuckles: a weapon on each fist. The left hooks, then the right; the uppercut is the right's.
 	var fists := MeleeSwing.new("brass_knuckles")
-	_check(fists.both_fists and not MeleeSwing.new("dagger").both_fists, "brass knuckles: both fists strike (the dagger's free hand does not)")
+	_check(fists.both_fists and not MeleeSwing.new("energy_sword").both_fists, "brass knuckles: both fists strike (the energy sword's free hand does not)")
 	fists.swing(0.0, 0)
 	_check(fists.left_fist() and fists.travel().x > 0.5, "brass knuckles: the first tap is a left hook")
 	var struck := 0.0

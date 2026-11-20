@@ -28,10 +28,10 @@ import sidearm_anims
 import long_reloads
 from weapons import SUPPORT
 
-LONG = ("shotgun", "rifle", "break_action", "smg", "burst_rifle", "lmg", "lever_action",
+LONG = ("shotgun", "rifle", "break_action", "burst_rifle", "lmg", "lever_action",
         "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
-        "air_cannon", "minigun", "battle_rifle", "nail_gun",
-        "crossbow", "anti_materiel", "plasma_cannon")
+        "air_cannon", "minigun", "battle_rifle",
+        "crossbow", "anti_materiel")
 # Sidearms held like the pistol: they keep its poses but have their own reloads.
 SIDEARMS = ("revolver", "machine_pistol")
 
@@ -46,7 +46,6 @@ SPEC = {
     "shotgun": {"hold": "shotgun", "reload": "shell", "fire": "pump"},
     "rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.06, 0.07, -0.13)},
     "break_action": {"hold": "shotgun", "reload": "break"},
-    "smg": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.03, 0.07, -0.10), "mag_hold": (0.0, -0.10, -0.085)},
     "burst_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.034, 0.075, 0.02), "mag_hold": (0.0, -0.08, -0.10)},
     "lmg": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
     "lever_action": {"hold": "rifle", "reload": "gate", "fire": "lever"},
@@ -58,11 +57,9 @@ SPEC = {
     "air_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, 0.0, -0.16)},
     "minigun": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
     "battle_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.035, 0.07, -0.12)},
-    "nail_gun": {"hold": "rifle", "reload": "mag", "mag_hold": (0.0, -0.035, -0.17)},
     "crossbow": {"hold": "rifle", "reload": "top"},
     "anti_materiel": {"hold": "sniper", "reload": "mag", "handle": "bolt", "fire": "bolt", "bolt": (-0.092, 0.065, -0.02),
                       "mag_hold": (0.0, -0.03, -0.12)},
-    "plasma_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, -0.005, 0.11)},
 }
 
 # How a long gun is held: relaxed and low, the stock in beside the chest, not up at the
@@ -95,11 +92,11 @@ EYE_Y = A.EYE[1]
 REACH = 0.462    # how far from its shoulder the left wrist is at most (the arm is 0.52 long): the elbow stays bent
 
 # Reload lengths match WeaponData (the shotgun's is one shell; it loops).
-RELOAD = {"shotgun": 0.5, "rifle": 1.9, "break_action": 1.7, "smg": 1.6, "burst_rifle": 2.0,
+RELOAD = {"shotgun": 0.5, "rifle": 1.9, "break_action": 1.7, "burst_rifle": 2.0,
           "lmg": 3.6, "lever_action": 0.45, "bolt_action": 0.5, "railgun": 2.6, "rocket_launcher": 1.5,
           "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4,
-          "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "nail_gun": 2.0, "crossbow": 1.3,
-          "anti_materiel": 3.2, "plasma_cannon": 2.4}
+          "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "crossbow": 1.3,
+          "anti_materiel": 3.2}
 FIRE = {"shotgun": 0.6, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5,
         "anti_materiel": 1.8}
 LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher")   # a round at a time

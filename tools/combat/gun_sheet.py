@@ -20,11 +20,11 @@ FAMILIES = [
     ("Sidearms", [("pistol", "Pistol"), ("revolver", "Revolver"), ("golden_gun", "Golden Gun"), ("machine_pistol", "Machine Pistol"),
                   ("akimbo", "Akimbo Pistols")]),
     ("Shotguns", [("shotgun", "Shotgun"), ("break_action", "Break-Action Shotgun"), ("air_cannon", "Air Cannon")]),
-    ("Automatics", [("smg", "Submachine Gun"), ("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
-                    ("lmg", "Light Machine Gun"), ("minigun", "Minigun"), ("nail_gun", "Nail Gun")]),
+    ("Automatics", [("rifle", "Assault Rifle"), ("burst_rifle", "Burst Rifle"), ("battle_rifle", "Battle Rifle"),
+                    ("lmg", "Light Machine Gun"), ("minigun", "Minigun")]),
     ("Precision", [("lever_action", "Lever-Action Rifle"), ("bolt_action", "Bolt-Action Rifle"),
                    ("anti_materiel", "Anti-Materiel Rifle"), ("railgun", "Railgun"), ("crossbow", "Crossbow")]),
-    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher"), ("plasma_cannon", "Plasma Cannon")]),
+    ("Heavies", [("rocket_launcher", "Rocket Launcher"), ("grenade_launcher", "Grenade Launcher")]),
 ]
 CELL = (640, 280)
 HEAD = 64

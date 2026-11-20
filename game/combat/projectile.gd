@@ -1,6 +1,6 @@
 class_name Projectile
 extends Node3D
-## A rocket, grenade, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
+## A rocket, grenade or crossbow bolt in flight, as everyone sees it. The host follows its own copy
 ## of the same flight in Match and decides where it blows up; this one is the look:
 ## a body with a glowing tail and a trail of smoke (a bolt: a streak, BoltTrail), flying the same path (the same
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
@@ -63,10 +63,6 @@ func _build(color: Color) -> void:
 	match weapon.look():
 		"rocket":
 			_rocket(color)
-		"orb":
-			_glowing(0.16, Color(0.45, 0.7, 1.0), 4.0, Color(0.5, 0.75, 1.0), 2.0, 5.0)
-		"nail":
-			_dart(0.006, 0.16, color, 0.0)
 		"bolt":
 			_dart(0.012, 0.55, color, 0.07)
 		_:
@@ -143,14 +139,7 @@ func _shell(color: Color, radius: float) -> void:
 	_light_ball(radius * 0.7, color, 4.0)
 
 
-## A ball of plasma: all light, and it lights up what it passes.
-func _glowing(radius: float, color: Color, energy: float, light: Color, light_energy: float, reach: float) -> void:
-	_light_ball(radius, color, energy)
-	_light_ball(radius * 1.8, Color(color, 0.35), energy * 0.5)
-	_lamp(light, light_energy, reach)
-
-
-## A nail or a crossbow bolt: a thin shaft along -Z, fletched (a bolt) in the player's colour.
+## A crossbow bolt: a thin shaft along -Z, fletched in the player's colour.
 func _dart(radius: float, length: float, color: Color, fletch: float) -> void:
 	var body := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
@@ -192,7 +181,7 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(_trail):
 		_trail.follow(_tail(), delta)
 	_smoke_t -= delta
-	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless" and weapon.explosive and weapon.look() != "orb":
+	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless" and weapon.explosive:
 		_smoke_t = 0.025 if weapon.projectile_gravity <= 0.0 else 0.05
 		_puff()
 	if _t > weapon.fuse + 1.0:

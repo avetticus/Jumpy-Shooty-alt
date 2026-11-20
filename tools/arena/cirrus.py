@@ -1270,7 +1270,7 @@ def library(m, g, accent, roof_kind):
     m.spawn_in(sp, (8.0, 0, -6.5), (0.0, -16.0))             # the plaza, looking at the quad
     w = m.group("WeaponSpawns", g, grouped=False)
     m.weapon_in(w, (6.4, 0, 5.0), "sword")                  # a lane between the east stacks
-    m.weapon_in(w, (0, 0, ZT + 2.6), "smg")                  # the tip, where people land
+    m.weapon_in(w, (0, 0, ZT + 2.6), "rifle")                  # the tip, where people land
     m.weapon_in(w, (-8.0, F3, 11.4), "bolt_action")          # the top floor's back strip
 
 

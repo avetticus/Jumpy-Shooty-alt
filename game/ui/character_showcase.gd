@@ -20,7 +20,7 @@ const STANDARD_HEIGHT := 1.8   ## how tall the shots are written for (a robot); 
 ## [character id, the weapon in its hands]. Robots and whole creatures, in turn.
 const CAST := [
 	["templar", "shotgun"],
-	["custom:n=Goblin|l=goblin|t=goblin|h=goblin", "axe"],
+	["custom:n=Goblin|l=goblin|t=goblin|h=goblin", "hammer"],
 	["needle", "pistol"],
 	["custom:n=Frog|l=frog|t=frog|h=frog", "pistol"],
 	["vanguard", "rifle"],
@@ -32,9 +32,9 @@ const CAST := [
 	["rivet", "machine_pistol"],
 	["custom:n=Whiskers|l=cat|t=cat|h=cat", "revolver"],
 	["specter", "crossbow"],
-	["custom:n=Cosmo|l=astronaut|t=astronaut|h=astronaut", "plasma_cannon"],
+	["custom:n=Cosmo|l=astronaut|t=astronaut|h=astronaut", "minigun"],
 	["orbit", "akimbo"],
-	["custom:n=Ninja|l=ninja|t=ninja|h=ninja", "dagger"],
+	["custom:n=Ninja|l=ninja|t=ninja|h=ninja", "sword"],
 ]
 
 ## The camera moves. Heights are shares of the character's height; `dist` is metres

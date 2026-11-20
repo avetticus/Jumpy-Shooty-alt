@@ -15,8 +15,8 @@ func _init() -> void:
 	var gg_src := FileAccess.get_file_as_string("res://game/match/gun_game.gd")
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
-	_check(batch.size() == 8, "8 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 30 and WeaponData.IDS[-1] == "energy_sword", "30 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
+	_check(batch.size() == 6, "6 new weapons (%d)" % batch.size())
+	_check(WeaponData.IDS.size() == 25 and WeaponData.IDS[-1] == "energy_sword", "25 weapons in all, the Energy Sword the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
@@ -64,17 +64,16 @@ func _init() -> void:
 	var air := WeaponData.by_id("air_cannon")
 	_check(air.is_blast() and air.damage == 0.0 and air.blast_knockback(1.0, 0.0)[0] > 30.0, "air cannon: hurts nobody, a full charge shoves hard")
 	# Darts: no blast; the crossbow kills with a headshot.
-	for id in ["nail_gun", "crossbow"]:
+	for id in ["crossbow"]:
 		var w := WeaponData.by_id(id)
 		_check(w.is_projectile() and not w.explosive and w.self_damage == 0.0, "%s: a dart, no blast" % id)
 	var bow := WeaponData.by_id("crossbow")
 	_check(bow.damage < 100.0 and bow.damage * bow.headshot_multiplier >= 100.0, "crossbow: a headshot kills, a body shot does not")
-	_check(WeaponData.by_id("plasma_cannon").is_projectile() and WeaponData.by_id("plasma_cannon").explosive, "plasma cannon: flies and bursts")
 	var looks_of := {}
 	for id in WeaponData.GUNS:
 		if WeaponData.by_id(id).is_projectile():
 			looks_of[WeaponData.by_id(id).look()] = true
-	_check(looks_of.size() >= 5, "projectiles: five looks (%s)" % [looks_of.keys()])
+	_check(looks_of.size() >= 3, "projectiles: three looks (%s)" % [looks_of.keys()])
 	var amr := WeaponData.by_id("anti_materiel")
 	_check(amr.damage < 100.0 and amr.damage * amr.headshot_multiplier >= 100.0 and amr.structure_damage >= 5.0,
 		"anti-materiel: 95 to the body, a headshot kills, breaks walls")
@@ -88,7 +87,7 @@ func _init() -> void:
 		seen[id] = true
 	_check(ladder[-1] == "brass_knuckles", "gun game: ends with the knuckles")
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
-	_check(new_rungs >= 6, "gun game: climbs through the new guns too (%d)" % new_rungs)
+	_check(new_rungs >= 4, "gun game: climbs through the new guns too (%d)" % new_rungs)
 
 
 ## (Once the tree is up: a bolt has to fly in the world.)

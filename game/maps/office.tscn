@@ -14192,10 +14192,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.83, 10, 11.83)
 script = ExtResource("90_wpnsp")
 weapon = "grenade_launcher"
 
-[node name="Dagger8" type="Marker3D" parent="WeaponSpawns" unique_id=113031138]
+[node name="Sword" type="Marker3D" parent="WeaponSpawns" unique_id=113031138]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 5, 10.25)
 script = ExtResource("90_wpnsp")
-weapon = "dagger"
+weapon = "sword"
 
 [node name="BoltAction9" type="Marker3D" parent="WeaponSpawns" unique_id=729951187]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.67, 5, -11)

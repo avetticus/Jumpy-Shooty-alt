@@ -1611,7 +1611,7 @@ def pickups(m):
         ((-56.7, LOW + 15.6, -2), "grenade_launcher"),   # the six-high container stack
         ((28, 20, -54), "lmg"),                  # the perch high on the hangar's east wall
         ((-50.1, 0, 46), "shotgun"),             # a cryo pod aisle
-        ((48, 0, -61), "smg"), ((61, 0, 40), "revolver"), ((-61, 0, -40), "break_action"),   # the ring
+        ((48, 0, -61), "rifle"), ((61, 0, 40), "revolver"), ((-61, 0, -40), "break_action"),   # the ring
         ((-21, 0, -0.5), "rifle"), ((21, 0, 0.5), "burst_rifle"),                           # the west and east spokes
         ((-34.5, 0, 56.5), "sword"),             # the crew mess
         ((0, LOW, 14.5), "lever_action"),        # the round passage under the control room

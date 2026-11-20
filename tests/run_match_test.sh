@@ -85,7 +85,7 @@ print("by gun: " + ", ".join(f"{g} {h}/{n}" for g, (h, n) in sorted(per_gun.item
 # The automatic guns' wobble (and their long bursts while the target moves) makes
 # them miss more by design, so the rewind check looks at the other guns. Any pellet
 # counts for the shotgun.
-SPRAY = {"rifle", "burst_rifle", "smg", "lmg", "machine_pistol"}
+SPRAY = {"rifle", "burst_rifle", "lmg", "machine_pistol"}
 if per_gun:
     aimed = [v for g, v in per_gun.items() if g not in SPRAY]
     hits_aimed, shots_aimed = sum(h for h, _ in aimed), sum(n for _, n in aimed)

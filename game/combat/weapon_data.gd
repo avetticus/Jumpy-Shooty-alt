@@ -30,27 +30,27 @@ enum Kind { HITSCAN, MELEE, PROJECTILE, BLAST }
 const GROUPS := [
 	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo"]],
 	["Shotguns", ["shotgun", "break_action", "air_cannon"]],
-	["Rifles", ["smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "nail_gun"]],
+	["Rifles", ["rifle", "burst_rifle", "lmg", "minigun", "battle_rifle"]],
 	["Marksman", ["lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel"]],
-	["Explosives", ["rocket_launcher", "grenade_launcher", "plasma_cannon"]],
-	["Melee", ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat", "energy_sword"]],
+	["Explosives", ["rocket_launcher", "grenade_launcher"]],
+	["Melee", ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]],
 ]
 ## Every weapon a player can pick, in the order the pickers show them.
 const IDS := ["pistol", "revolver", "machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
-	"smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "nail_gun",
+	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
 	"lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel",
-	"rocket_launcher", "grenade_launcher", "plasma_cannon",
-	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat", "energy_sword"]
-const MELEE := ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat", "energy_sword"]
+	"rocket_launcher", "grenade_launcher",
+	"sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
+const MELEE := ["sword", "hammer", "brass_knuckles", "spear", "bat", "energy_sword"]
 const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo",
 	"shotgun", "break_action", "air_cannon",
-	"smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "nail_gun",
+	"rifle", "burst_rifle", "lmg", "minigun", "battle_rifle",
 	"lever_action", "bolt_action", "railgun", "crossbow", "anti_materiel",
-	"rocket_launcher", "grenade_launcher", "plasma_cannon"]
+	"rocket_launcher", "grenade_launcher"]
 ## The third batch of weapons: see the bottom of this file.
-const BATCH_3 := ["air_cannon", "minigun", "battle_rifle", "nail_gun", "crossbow", "anti_materiel",
-	"plasma_cannon", "energy_sword"]
+const BATCH_3 := ["air_cannon", "minigun", "battle_rifle", "crossbow", "anti_materiel",
+	"energy_sword"]
 ## Weapons nobody picks: a mode hands them out (the Golden Gun, see GoldenGun). Real
 ## weapons all the same (has(), by_id()), but never in IDS, so no picker shows them.
 const HIDDEN := ["golden_gun"]
@@ -120,9 +120,9 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "golden_gun"]
 @export var splash_inner := 1.0
 @export var self_damage := 0.4
 @export var fuse := 6.0               ## seconds before it blows up in mid-air anyway
-## How it looks in flight: rocket, grenade, orb, nail or bolt (see look()).
+## How it looks in flight: rocket, grenade or bolt (see look()).
 @export var projectile_look := ""
-## False for a dart (a nail, a bolt): it only hurts whoever it hits, with no blast.
+## False for a dart (a crossbow bolt): it only hurts whoever it hits, with no blast.
 @export var explosive := true
 @export_group("Melee")
 @export var windup := 0.0            ## the shortest wind-up: a tap still draws back this long before it swings
@@ -130,7 +130,7 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "golden_gun"]
 @export var charge_damage := 0.0     ## damage of a fully wound-up blow (`damage` is a tap's)
 @export var charge_knockback := 0.0  ## knockback of a fully wound-up blow (`knockback` is a tap's)
 @export var charge_knockback_up := 0.0
-@export var two_handed := false      ## both hands on the grip (everything but the dagger and the knuckles)
+@export var two_handed := false      ## both hands on the grip (everything but the knuckles and the energy sword)
 @export var arc_degrees := 0.0       ## hits anyone within this angle of where you look
 @export var lunge := 0.0             ## forward speed a fully wound-up swing gives you (a tap: 40% of it)
 @export var backstab_multiplier := 1.0  ## damage from behind
@@ -263,28 +263,6 @@ static func hammer() -> WeaponData:
 	return w
 
 
-## Quick slashes, and a wound-up stab in the back all but kills.
-static func dagger() -> WeaponData:
-	var w := _melee("dagger", "Dagger")
-	w.blurb = "One hand, quick to wind up, fastest on your feet. Triple damage in the back."
-	w.damage = 10.0
-	w.charge_damage = 30.0
-	w.fire_interval = 0.3
-	w.windup = 0.06
-	w.charge_time = 0.36
-	w.max_range = 2.4
-	w.arc_degrees = 40.0
-	w.lunge = 4.0
-	w.knockback = 2.0
-	w.knockback_up = 1.0
-	w.charge_knockback = 12.0
-	w.charge_knockback_up = 3.0
-	w.backstab_multiplier = 3.0
-	w.kick = 0.6
-	w.move_bonus = 1.15
-	return w
-
-
 # ---------------------------------------------------------------------------
 # The fifteen newer weapons
 
@@ -398,25 +376,6 @@ static func break_action() -> WeaponData:
 	w.kick = 3.0
 	w.knockback = 1.8
 	w.knockback_up = 0.35
-	return w
-
-
-## Small, fast and light: deadly up close, weak far away.
-static func smg() -> WeaponData:
-	var w := _gun("smg", "Submachine Gun", "SMG")
-	w.blurb = "Full-auto, 14 rounds a second. Deadly up close, fades past 15 m. Light to carry."
-	w.damage = 10.0
-	w.fire_interval = 0.07
-	w.automatic = true
-	w.magazine = 32
-	w.reload_time = 1.6
-	w.spread_degrees = 1.3
-	w.falloff_start = 15.0
-	w.falloff_end = 35.0
-	w.falloff_min = 0.55
-	w.kick = 0.4
-	w.knockback = 0.7
-	w.move_bonus = 1.06
 	return w
 
 
@@ -615,28 +574,6 @@ static func spear() -> WeaponData:
 	return w
 
 
-## The most damage, and it chops through walls.
-static func axe() -> WeaponData:
-	var w := _melee("axe", "Axe")
-	w.blurb = "Two-handed. The most damage of any blade, and it bites through walls."
-	w.two_handed = true
-	w.damage = 18.0
-	w.charge_damage = 58.0
-	w.structure_damage = 3.5
-	w.fire_interval = 0.8
-	w.windup = 0.12
-	w.charge_time = 0.8
-	w.max_range = 3.0
-	w.arc_degrees = 55.0
-	w.lunge = 3.5
-	w.knockback = 5.0
-	w.knockback_up = 2.0
-	w.charge_knockback = 25.0
-	w.charge_knockback_up = 5.5
-	w.kick = 1.6
-	return w
-
-
 ## A wide swing that sends people further than anything else.
 static func bat() -> WeaponData:
 	var w := _melee("bat", "Bat")
@@ -753,13 +690,11 @@ static func _make(weapon_id: String) -> WeaponData:
 		"rifle": return rifle()
 		"sword": return sword()
 		"hammer": return hammer()
-		"dagger": return dagger()
 		"revolver": return revolver()
 		"golden_gun": return golden_gun()
 		"machine_pistol": return machine_pistol()
 		"akimbo": return akimbo()
 		"break_action": return break_action()
-		"smg": return smg()
 		"burst_rifle": return burst_rifle()
 		"lmg": return lmg()
 		"lever_action": return lever_action()
@@ -769,15 +704,12 @@ static func _make(weapon_id: String) -> WeaponData:
 		"grenade_launcher": return grenade_launcher()
 		"brass_knuckles": return brass_knuckles()
 		"spear": return spear()
-		"axe": return axe()
 		"bat": return bat()
 		"air_cannon": return air_cannon()
 		"minigun": return minigun()
 		"battle_rifle": return battle_rifle()
-		"nail_gun": return nail_gun()
 		"crossbow": return crossbow()
 		"anti_materiel": return anti_materiel()
-		"plasma_cannon": return plasma_cannon()
 		"energy_sword": return energy_sword()
 	return pistol()
 
@@ -901,33 +833,6 @@ static func battle_rifle() -> WeaponData:
 	return w
 
 
-## A stream of heavy nails: fast, but they drop a little.
-static func nail_gun() -> WeaponData:
-	var w := _gun("nail_gun", "Nail Gun", "Nail Gun")
-	w.kind = Kind.PROJECTILE
-	w.projectile_look = "nail"
-	w.explosive = false
-	w.blurb = "Pins people with a stream of heavy nails. Each one flies fast and drops a little: lead your target. 40 nails."
-	w.damage = 16.0
-	w.fire_interval = 0.09
-	w.automatic = true
-	w.magazine = 40
-	w.reload_time = 2.0
-	w.max_range = 300.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.5
-	w.structure_damage = 0.6
-	w.projectile_speed = 70.0
-	w.projectile_gravity = 4.0
-	w.splash_radius = 0.3
-	w.splash_inner = 0.3
-	w.self_damage = 0.0
-	w.fuse = 2.5
-	w.kick = 0.4
-	w.knockback = 1.0
-	return w
-
-
 ## A heavy bolt that falls in an arc as it flies (aim above anyone far off), with a
 ## streak behind it (BoltTrail): a headshot kills. 70 m/s and 16 m/s² of drop: about
 ## 1.5 m low at 30 m, 4 m at 50 m and 10 m at 80 m, and still a 300 m lob at 45 degrees.
@@ -961,10 +866,10 @@ static func crossbow() -> WeaponData:
 ## The biggest rifle: 95 to the body, and one round breaks a wall.
 static func anti_materiel() -> WeaponData:
 	var w := _gun("anti_materiel", "Anti-Materiel Rifle", "Anti-Materiel")
-	w.blurb = "A huge .50 rifle: 95 to the body, a headshot kills, one round breaks a wall. Three rounds, slow, heavy to carry."
+	w.blurb = "A huge .50 rifle: 95 to the body, a headshot kills, one round breaks a wall. Five rounds, slow, heavy to carry."
 	w.damage = 95.0
 	w.fire_interval = 2.0
-	w.magazine = 3
+	w.magazine = 5
 	w.reload_time = 3.2
 	w.max_range = 400.0
 	w.spread_degrees = 0.0
@@ -975,35 +880,6 @@ static func anti_materiel() -> WeaponData:
 	w.knockback = 14.0
 	w.knockback_up = 3.0
 	w.move_bonus = 0.85
-	return w
-
-
-## Full-auto balls of plasma: slow enough to dodge, and each one bursts.
-static func plasma_cannon() -> WeaponData:
-	var w := _gun("plasma_cannon", "Plasma Cannon", "Plasma Cannon")
-	w.kind = Kind.PROJECTILE
-	w.projectile_look = "orb"
-	w.blurb = "Full-auto balls of plasma: slow enough to dodge, but each one bursts. Eight to a cell."
-	w.damage = 50.0
-	w.fire_interval = 0.4
-	w.automatic = true
-	w.magazine = 8
-	w.reload_time = 2.4
-	w.max_range = 300.0
-	w.spread_degrees = 0.0
-	w.headshot_multiplier = 1.0
-	w.structure_damage = 1.5
-	w.projectile_speed = 22.0
-	w.projectile_gravity = 0.0
-	w.splash_radius = 3.0
-	w.splash_inner = 0.8
-	w.self_damage = 0.3
-	w.fuse = 4.0
-	w.crosshair = "ring"
-	w.kick = 1.5
-	w.knockback = 9.0
-	w.knockback_up = 3.0
-	w.tracer_color = Color(0.45, 0.7, 1.0)
 	return w
 
 

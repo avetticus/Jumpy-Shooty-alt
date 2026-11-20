@@ -16239,10 +16239,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 6, -1.4)
 script = ExtResource("7_6pxm6")
 weapon = "railgun"
 
-[node name="Axe" type="Marker3D" parent="Islands/Terrace/WeaponSpawns" unique_id=66190761]
+[node name="Hammer" type="Marker3D" parent="Islands/Terrace/WeaponSpawns" unique_id=66190761]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 12)
 script = ExtResource("7_6pxm6")
-weapon = "axe"
+weapon = "hammer"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Terrace" unique_id=1585789776]
 
@@ -20391,15 +20391,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, 0.5)
 script = ExtResource("7_6pxm6")
 weapon = "shotgun"
 
-[node name="Smg" type="Marker3D" parent="Islands/Hearth/WeaponSpawns" unique_id=816622533]
+[node name="Rifle" type="Marker3D" parent="Islands/Hearth/WeaponSpawns" unique_id=816622533]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 12)
 script = ExtResource("7_6pxm6")
-weapon = "smg"
+weapon = "rifle"
 
-[node name="Dagger" type="Marker3D" parent="Islands/Hearth/WeaponSpawns" unique_id=1368340080]
+[node name="Sword" type="Marker3D" parent="Islands/Hearth/WeaponSpawns" unique_id=1368340080]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, -12)
 script = ExtResource("7_6pxm6")
-weapon = "dagger"
+weapon = "sword"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Hearth" unique_id=586620115]
 

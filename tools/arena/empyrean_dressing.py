@@ -829,11 +829,11 @@ def weapons(m):
     T = lambda i: TIER * i
     inside = [
         # Arcane Engine
-        (P(RS + 10.0, 75.0, T(0) + 0.1), "shotgun"), (P(rc(0) + 1.3, 250.0, T(0) + L1 + 0.1), "smg"), (P(RS + 4.0, 300.0, T(0) + L3 + 0.1), "revolver"),
+        (P(RS + 10.0, 75.0, T(0) + 0.1), "shotgun"), (P(rc(0) + 1.3, 250.0, T(0) + L1 + 0.1), "rifle"), (P(RS + 4.0, 300.0, T(0) + L3 + 0.1), "revolver"),
         # Grand Library
         (P(RS + 9.0, 75.0, T(1) + 0.1), "rifle"), (P(rc(1) + 2.4, 60.0, T(1) + L1 + 0.1), "burst_rifle"), (P(RS + 4.0, 190.0, T(1) + L3 + 0.1), "crossbow"),
         # Alchemy Labs
-        (P(RS + 11.5, 75.0, T(2) + 0.1), "break_action"), (P(rc(2) + 2.4, 20.0, T(2) + L2 + 0.1), "pistol"), (P(RS + 5.0, 352.0, T(2) + L1 + 0.1), "nail_gun"),
+        (P(RS + 11.5, 75.0, T(2) + 0.1), "break_action"), (P(rc(2) + 2.4, 20.0, T(2) + L2 + 0.1), "pistol"), (P(RS + 5.0, 352.0, T(2) + L1 + 0.1), "burst_rifle"),
         # Menagerie
         (P(RS + 5.6, 75.0, T(3) + 0.1), "lmg"), (P(rc(3) + 2.4, 128.0, T(3) + L2 + 0.1), "lever_action"), (P(RS + 4.0, 230.0, T(3) + L3 + 0.1), "machine_pistol"),
         # Summoning Chamber: nothing on or near the altar
@@ -861,7 +861,7 @@ def dress(m, folders):
     anchors(m)
     masts(m)
     drones(m)
-    # The plasma cannon on the starship's back. (No signs anywhere on this map: no floating label text.)
-    m.weapon_in("Exterior/DockingRing/Pad/Starship", (0, 5.0, 0.0), "plasma_cannon")
+    # The rocket launcher on the starship's back. (No signs anywhere on this map: no floating label text.)
+    m.weapon_in("Exterior/DockingRing/Pad/Starship", (0, 5.0, 0.0), "rocket_launcher")
     spawns(m, isles)
     weapons(m)

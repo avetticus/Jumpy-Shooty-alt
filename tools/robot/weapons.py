@@ -29,11 +29,11 @@ import numpy as np
 from kit import Part, loft, rect, box, prism, ball
 from rig import BODY, GUN_REST
 
-IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action", "smg",
+IDS = ("pistol", "shotgun", "rifle", "revolver", "machine_pistol", "break_action",
        "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo",
        # The third batch
        "air_cannon", "minigun",
-       "battle_rifle", "nail_gun", "crossbow", "anti_materiel", "plasma_cannon")
+       "battle_rifle", "crossbow", "anti_materiel")
 
 # Where the left fist holds each gun (gun space: the middle of the fist), and on which
 # bone: the shotgun's hand rides on the pump. Under a fore-end the hand is cupped, palm
@@ -44,7 +44,6 @@ SUPPORT = {
     "shotgun": {"grip": (0.0, 0.027, -0.30), "on": "pistol_slide"},
     "rifle": {"grip": (0.0, 0.047, -0.235)},
     "break_action": {"grip": (0.0, 0.025, -0.30), "on": "pistol_vent"},  # the fore-end swings down with the barrels
-    "smg": {"grip": (0.0, -0.045, -0.215), "upright": True},            # the vertical foregrip
     "burst_rifle": {"grip": (0.0, 0.044, -0.25)},
     "lmg": {"grip": (0.0, 0.025, -0.27)},
     "lever_action": {"grip": (0.0, 0.033, -0.28)},
@@ -55,10 +54,8 @@ SUPPORT = {
     "air_cannon": {"grip": (0.0, -0.045, -0.30), "upright": True},      # the front handle under the tank
     "minigun": {"grip": (0.0, -0.045, -0.30), "upright": True},         # the front handle under the barrels
     "battle_rifle": {"grip": (0.0, 0.043, -0.27)},
-    "nail_gun": {"grip": (0.0, -0.045, -0.22), "upright": True},        # the vertical foregrip
     "crossbow": {"grip": (0.0, 0.044, -0.25)},
     "anti_materiel": {"grip": (0.0, 0.030, -0.32)},
-    "plasma_cannon": {"grip": (0.0, 0.048, -0.30)},
 }
 
 
@@ -536,25 +533,6 @@ def _add_scope(mesh, g, f0, f1, y, r=0.019, bell=0.028):
     _add(mesh, g, "accent", "pistol", band)
 
 
-def smg(mesh):
-    """A compact submachine gun, about 55 cm: a boxy armoured receiver, a straight power
-    cell ahead of the grip, a vertical foregrip, a slotted barrel shroud and a skeleton stock."""
-    g = "smg"
-    _add(mesh, g, "grip", "pistol", _grip(-14) + box(0.032, 0.085, 0.038, 0.009).move(0, -0.035, -0.215))
-    receiver = _core([(-0.066, 0.02), (0.3, 0.02), (0.31, 0.034), (0.31, 0.076), (0.29, 0.088), (-0.04, 0.088), (-0.066, 0.07)], 0.046, 0.006)
-    _add(mesh, g, "dark", "pistol", receiver + _guard(0.078))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.158, 0.05), (0.174, 0.064), (0.296, 0.064), (0.296, 0.074), (0.284, 0.083),
-                                             (-0.03, 0.083), (-0.046, 0.072)], 0.0225, 0.005))
-    _add(mesh, g, "glow", "pistol", _panels([(0.168, 0.047), (0.298, 0.047), (0.298, 0.059), (0.182, 0.059)], 0.023, 0.002, 0.0))
-    _add(mesh, g, "detail", "pistol", _tube(0.024, 0.31, 0.42, 0.052, 8))
-    _vent(mesh, g, "dark", _rings(0.0255, (0.33, 0.355, 0.38), 0.011, 0.052, 8))
-    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.42, 0.472, 0.052, 6))
-    _stock(mesh, g, -0.235, 0.078, 0.086, -0.006, 0.036, open_frame=True)
-    _add_sight(mesh, g, 0.03, 0.088, 0.026, 0.028, 0.056)
-    _add_cell(mesh, g, 0.027, 0.17, 0.036, 0.0, -0.06, -0.085)
-    _add(mesh, g, "detail", "pistol_slide", _handle(-0.03, 0.07, -0.1, 0.016))
-
-
 def rifle(mesh):
     """Assault rifle, about 80 cm: an armoured receiver and handguard, a curved power
     cell with a lit front, a reflex sight, and a charging handle on the left side."""
@@ -697,26 +675,6 @@ def minigun(mesh):
     _add(mesh, g, "dark", "pistol_slide", box(0.07, 0.016, 0.14, 0.005).move(0, 0.1, -0.06))    # the top lid
     _add(mesh, g, "plate", "pistol_slide", box(0.05, 0.005, 0.1, 0.004).move(0, 0.1095, -0.06))
     _ammo_box(mesh, g, 0.072, 0.1, 0.13, -0.05, -0.12)
-
-
-def nail_gun(mesh):
-    """An industrial nail gun, about 60 cm: an armoured body with a pressure housing in the
-    player's colour on top, a short steel nose, a long strip of nails slanting under it,
-    and a vertical foregrip."""
-    g = "nail_gun"
-    _add(mesh, g, "grip", "pistol", _grip(-14, 0.038) + box(0.032, 0.085, 0.038, 0.009).move(0, -0.035, -0.22))
-    body = _core([(-0.066, 0.018), (0.3, 0.018), (0.31, 0.03), (0.31, 0.086), (0.29, 0.094), (-0.04, 0.094), (-0.066, 0.07)], 0.05, 0.007)
-    _add(mesh, g, "dark", "pistol", body + _guard(0.078))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.044, 0.03), (0.3, 0.03), (0.3, 0.058), (0.2, 0.058), (0.184, 0.072), (-0.044, 0.072)], 0.0245, 0.005))
-    _add(mesh, g, "glow", "pistol", _panels([(0.194, 0.063), (0.302, 0.063), (0.302, 0.075), (0.18, 0.075)], 0.025, 0.002, 0.0))
-    _vent(mesh, g, "detail", _slats(-0.02, 5, 0.03, 0.036, 0.066, 0.0295, t=0.009, lean=0.007, thick=0.003))
-    _add(mesh, g, "accent", "pistol", _tube(0.035, 0.0, 0.2, 0.112, 8))
-    _add(mesh, g, "detail", "pistol", _rings(0.0365, (-0.004, 0.09, 0.184), 0.02, 0.112, 8))
-    _add(mesh, g, "steel", "pistol", _run([_sec(0.034, 0.04, 0.3, 0.05, ch=0.01), _sec(0.022, 0.026, 0.5, 0.05, ch=0.007)]))
-    _add(mesh, g, "detail", "pistol", _run([_sec(0.03, 0.034, 0.47, 0.05, ch=0.009), _sec(0.03, 0.034, 0.488, 0.05, ch=0.009)]))
-    _stock(mesh, g, -0.22, 0.076, 0.085, -0.005, 0.036, open_frame=True)
-    _add(mesh, g, "detail", "pistol_mag", box(0.022, 0.03, 0.2, 0.004).rot(pitch=10).move(0, -0.03, -0.18))
-    _add(mesh, g, "glow", "pistol_mag", box(0.025, 0.012, 0.03).rot(pitch=10).move(0, -0.045, -0.27))
 
 
 # ---------------------------------------------------------------------------
@@ -935,33 +893,12 @@ def grenade_launcher(mesh):
     _add(mesh, g, "detail", "pistol_slide", box(0.03, 0.03, 0.02).move(0, 0.08, 0.03))   # the hammer
 
 
-def plasma_cannon(mesh):
-    """A plasma cannon, about 85 cm: a bulky armoured body round a lit chamber that bulges
-    out of both flanks, a lit conductor through emitter rings down the barrel and a power
-    cell behind the grip."""
-    g = "plasma_cannon"
-    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038))
-    body = _run([_sec(0.07, 0.09, -0.07, 0.06, ch=0.024), _sec(0.08, 0.1, 0.06, 0.065, ch=0.03),
-                 _sec(0.07, 0.09, 0.24, 0.065, ch=0.026)])
-    rings = _rings(0.042, (0.3, 0.38, 0.46, 0.54), 0.03, 0.07, 10)
-    _add(mesh, g, "dark", "pistol", body + rings + _tube(0.052, 0.574, 0.622, 0.07, 10) + _guard(0.08))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.056, 0.03), (0.07, 0.024), (0.07, 0.108), (-0.03, 0.106), (-0.056, 0.09)], 0.036, 0.006, 0.003)
-         + _panels([(0.168, 0.028), (0.234, 0.034), (0.234, 0.1), (0.168, 0.106)], 0.036, 0.006, 0.003))
-    _add(mesh, g, "glow", "pistol", ball(0.054).move(0.0, 0.068, -0.12) + _tube(0.016, 0.24, 0.6, 0.07, 8))
-    _vent(mesh, g, "detail", _slats(-0.04, 4, 0.026, 0.044, 0.094, 0.042, t=0.009, lean=0.007, thick=0.003))
-    _add(mesh, g, "detail", "pistol", _rings(0.045, (0.31, 0.39, 0.47, 0.55), 0.01, 0.07, 10))
-    _stock(mesh, g, -0.26, 0.092, 0.086, -0.03, 0.05)
-    _add(mesh, g, "detail", "pistol_mag", box(0.04, 0.07, 0.07, 0.008).move(0, -0.005, 0.11))
-    _add(mesh, g, "glow", "pistol_mag", box(0.043, 0.03, 0.05).move(0, -0.01, 0.11))
-
-
 BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "revolver": revolver,
-         "machine_pistol": machine_pistol, "break_action": break_action, "smg": smg, "burst_rifle": burst_rifle,
+         "machine_pistol": machine_pistol, "break_action": break_action, "burst_rifle": burst_rifle,
          "lmg": lmg, "lever_action": lever_action, "bolt_action": bolt_action, "railgun": railgun,
          "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher, "akimbo": akimbo,
          "air_cannon": air_cannon, "minigun": minigun, "battle_rifle": battle_rifle,
-         "nail_gun": nail_gun, "crossbow": crossbow, "anti_materiel": anti_materiel,
-         "plasma_cannon": plasma_cannon}
+         "crossbow": crossbow, "anti_materiel": anti_materiel}
 
 
 def add_all(mesh):

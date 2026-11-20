@@ -24,7 +24,7 @@ COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP")
 timeout 120 "$GODOT" --fixed-fps 60 --headless --path . -- --game-clock --bot=1 --bots=2 --allowed-weapons=bat --weapon=pistol \
   --bot-weapon=bolt_action --sync-log --map="$MAP" --quit-after=8 > "$OUT/lobby_bots.log" 2>&1 &
 # Online: the host saved the bolt-action, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=bolt_action --allowed-weapons=shotgun,railgun,smg --jetpack --mobility=grapple \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=bolt_action --allowed-weapons=shotgun,railgun,lmg --jetpack --mobility=grapple \
   --autostart=2 --rules=kills:30 --time-limit=60 --swap-on-death --quit-after=34 "${COMMON[@]}" > "$OUT/lobby_host.log" 2>&1 &
 sleep 1
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --mobility=grapple --swap-on-death --quit-after=32 "${COMMON[@]}" \
@@ -40,7 +40,7 @@ python3 - "$OUT" <<'PY' || fail=1
 import re, sys
 out = sys.argv[1]
 ok = True
-ALLOWED = {"shotgun", "railgun", "smg"}
+ALLOWED = {"shotgun", "railgun", "lmg"}
 
 
 def check(cond, what):
@@ -65,7 +65,7 @@ def loadouts(name):
 
 for name in ["host", "early", "late"]:
     told = [l for l in lines(name) if l.startswith("LOBBY_SETTINGS ")]
-    check(bool(told) and told[-1].endswith("weapons=shotgun,smg,railgun"), f"{name}: told the allowed weapons ({told[-1] if told else 'never'})")
+    check(bool(told) and told[-1].endswith("weapons=shotgun,lmg,railgun"), f"{name}: told the allowed weapons ({told[-1] if told else 'never'})")
     seen = loadouts(name)
     weapons = {w for l in seen for _, w in l}
     check(bool(seen) and weapons <= ALLOWED, f"{name}: only allowed weapons on record ({sorted(weapons)})")
