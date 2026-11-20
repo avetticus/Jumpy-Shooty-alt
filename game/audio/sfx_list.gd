@@ -21,7 +21,6 @@ const VOLUME := {
 	"wall_run": -12.0, "wall_jump": -10.0, "vault": -12.0, "ledge_climb": -11.0,
 	"crouch": -18.0, "stand": -18.0,
 	"grapple_fire": -10.0, "grapple_attach": -10.0, "grapple_release": -12.0, "grapple_miss": -12.0, "grapple_taut": -8.0,
-	"blink": -9.0,
 	"ui_hover": -20.0, "ui_click": -12.0, "ui_confirm": -10.0, "ui_back": -12.0,
 	"ui_toggle": -13.0, "ui_tick": -20.0, "ui_select": -12.0,
 	"ui_materialize": -21.0,   # (quiet: stepping through the robots plays it again and again)

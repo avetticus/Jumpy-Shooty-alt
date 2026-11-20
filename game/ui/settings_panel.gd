@@ -20,7 +20,7 @@ const HUD_TAB := 2
 const CHEAT_SHEET := [
 	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide: hold in mid-air (weakens the longer you hold)"], ["jump", "Jump; again in mid-air to flip; hold in mid-air: jetpack"],
 	["crouch", "Crouch; moving forward: dive, moving back: slide on your back"], ["dive", "Dive (keep holding to land in a belly slide)"],
-	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility: grappling hook or blink"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grappling hook"],
 	["interact", "Interact: press at a map terminal"],
 	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],

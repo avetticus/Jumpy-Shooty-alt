@@ -928,20 +928,7 @@ def grapple_taut():
                       metal_clack(rng, 0.8, 0.8, 0.9) * 0.45, (creak, 0.02), servo(rng, 0.12, 900, 380, 0.22)))
 
 
-def blink():
-    """Blink: a short teleport. A bright zip of air rushing up and away, a soft
-    electric snap at the start and a low thump as you arrive."""
-    rng = np.random.default_rng(9700)
-    zip_ = sweep_bp(noise(rng, 0.22), 600, 5200, 2.4, 0.6) * env(0.22, 0.07, 0.002) * 0.7
-    snap = hp(noise(rng, 0.03), 3000) * env(0.03, 0.005, 0.0003) * 0.5
-    shimmer = glide(0.2, 900, 2600, "sine") * bell_env(0.2, 0.2, 1.4) * 0.18
-    thump = sine_sweep(0.14, 150, 60, 0.02) * env(0.14, 0.03) * 0.6
-    return finish(mix(snap, zip_, shimmer, (thump, 0.12)))
-
-
-# ---------------------------------------------------------------------------
-# Menus and match flow
-
+# ---------------------------------------------------------------------------# Menus and match flow
 def tone(f, seconds, tau, partials=((1, 1.0), (2, 0.18), (3, 0.06))):
     t = tt(seconds)
     f *= 0.5   # recipes give the old, brighter pitches
@@ -1755,7 +1742,6 @@ def recipes():
     r["grapple_release"] = grapple_release
     r["grapple_miss"] = grapple_miss
     r["grapple_taut"] = grapple_taut
-    r["blink"] = blink
     for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select", "ui_materialize"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start

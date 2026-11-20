@@ -70,12 +70,11 @@ var style := "arcs"
 var grapple := GRAPPLE_NO_TARGET
 var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
 var tether := 0.0
-## The mobility tool (see Mobility), and for blink its charges (and how far the next
-## has come back). The jetpack's fuel (everyone's, on Space: 1 = full).
+## The mobility tool (see Mobility). The jetpack's fuel (on Space when the host turns
+## it on: 1 = full).
 var mobility := Mobility.GRAPPLE
-var blink_charges := 0
-var blink_refill := 1.0
 var jet_fuel := 1.0
+const JET_COLOR := Color(0.25, 0.7, 1.0)   ## the jetpack's fuel arc, when not low
 
 var _root: Control
 var _flash: ColorRect
@@ -253,10 +252,7 @@ func update_local(p: Player) -> void:
 	var g := p.motor.grapple
 	tether = g.length if g.attached else 0.0
 	mobility = p.mobility
-	if p.blink:
-		blink_charges = p.blink.charges
-		blink_refill = p.blink.recharge_progress()
-	jet_fuel = p.jetpack.fuel if p.jetpack else 1.0   # (none in a race)
+	jet_fuel = p.jetpack.fuel if p.jetpack else 1.0   # (none unless the host turned it on, and never in a race)
 	if not Mobility.is_grapple(mobility):
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
@@ -713,25 +709,16 @@ static func _points_color(part: Array, i: int) -> Color:
 	return HudStyle.YELLOW if gold else HudStyle.WHITE
 
 
-## Under the crosshair ring: blink's charges (short arcs, the next one filling up), and
-## the jetpack's fuel while it is not full (an arc further out, orange when low).
+## Under the crosshair ring: the jetpack's fuel while it is not full (an arc, orange
+## when low).
 func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
-	if mobility == Mobility.BLINK:
-		var each := 36.0
-		for i in Blink.CHARGES:
-			var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
-			HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
-			var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
-			if fill > 0.0:
-				var col := Color(Blink.COLOR, 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
-				HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
-	if jet_fuel < 0.999:   # (a full tank shows nothing)
+	if jet_fuel < 0.999:   # (a full tank, or no jetpack, shows nothing)
 		var span := 110.0
 		var from := 90.0 - span * 0.5
-		HudStyle.arc(ci, c, ring + 12.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
+		HudStyle.arc(ci, c, ring + 6.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
 		if jet_fuel > 0.01:
-			var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(Blink.COLOR, 0.95)
-			HudStyle.arc(ci, c, ring + 12.0, from, from + span * jet_fuel, col, 3.0)
+			var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(JET_COLOR, 0.95)
+			HudStyle.arc(ci, c, ring + 6.0, from, from + span * jet_fuel, col, 3.0)
 
 
 func _draw_cross() -> void:
@@ -1036,38 +1023,11 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	if Match.respawn_needs_press(Net.my_id()) and not _asked and not Teams.no_respawn():
 		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
-	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
 	if Net.is_deathmatch():
-		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
+		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
 			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	else:
-		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW))
-
-
-## Height of the death screen's mobility row (the weapons come below it).
-const MOBILITY_ROW := 58.0
-
-
-## While you wait to respawn: the mobility tool you come back with (the mobility
-## button, middle mouse, goes on to the next).
-func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
-	var mine := Net.pending_mobility()
-	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
-	var gap := 6.0
-	var total := DEATH_W
-	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
-	var x := at.x - total * 0.5
-	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
-	var hint := "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper() if ids.size() > 1 else "THE HOST'S RULE"
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), hint, 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
-	for i in ids.size():
-		var id: String = ids[i]
-		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)
-		var on := id == mine
-		HudStyle.plate(ci, r, 6.0, Color(HudStyle.CYAN, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
-		var col := Color(0.03, 0.06, 0.08) if on else Color(1, 1, 1, 0.78)
-		ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), Mobility.name_of(id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
-
+		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0))
 
 
 ## Deathmatch: your two weapon slots (keys 1 and 2), each with its weapon's name

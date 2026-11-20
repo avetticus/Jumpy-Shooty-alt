@@ -120,7 +120,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": Mobility.valid(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
 	players[1]["level"] = my_level()
 	is_online = false
@@ -138,7 +138,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": Mobility.valid(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
 	players[1]["level"] = my_level()
 	is_online = true
@@ -440,7 +440,7 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 ## they would like (see set_my_color), theirs if nobody has it.
 func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "", color: int = -1) -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": Mobility.valid(mobility)}
 	_take_color(id, color)
 	if in_match and Teams.active():
 		players[id]["team"] = Teams.smaller_team()   # joining a team match: onto the smaller team
@@ -562,7 +562,7 @@ func confirm_my_character() -> void:
 		set_my_character(_local_character)
 	if players.has(my_id()) and player_loadout_weapon(my_id()) != LobbySettings.fit_weapon(_local_weapon):
 		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
-	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
+	if players.has(my_id()) and player_loadout_mobility(my_id()) != Mobility.valid(_local_mobility):
 		set_my_mobility(_local_mobility)
 	if players.has(my_id()) and (player_card(my_id()) != Settings.calling_card or player_icon(my_id()) != Settings.icon):
 		set_my_card(Settings.calling_card, Settings.icon)
@@ -593,7 +593,7 @@ func pending_weapon() -> String:
 
 
 func pending_mobility() -> String:
-	return LobbySettings.fit_mobility(_local_mobility)
+	return Mobility.valid(_local_mobility)
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
@@ -806,7 +806,7 @@ func _apply_weapon(id: int, weapon: String) -> void:
 		players_changed.emit()
 
 
-## Pick the mobility tool (an id from Mobility): the grapple or blink.
+## Pick the mobility tool (an id from Mobility): the grappling hook, the only one.
 ## Same rules as the weapon: in the lobby, or during a fight while you are dead.
 func set_my_mobility(mobility: String) -> void:
 	_local_mobility = Mobility.valid(mobility)
@@ -823,7 +823,7 @@ func _choose_mobility(mobility: String) -> void:
 
 
 func _apply_mobility(id: int, mobility: String) -> void:
-	mobility = LobbySettings.fit_mobility(Mobility.valid(mobility))   # only what the lobby allows
+	mobility = Mobility.valid(mobility)
 	if not players.has(id) or players[id].get("mobility", "") == mobility:
 		return
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
@@ -868,7 +868,7 @@ func _sync_settings(settings: Dictionary) -> void:
 	match_settings = LobbySettings.clean(match_settings)
 	if DevArgs.sync_log:
 		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
-		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
+		print("LOBBY_JETPACK %d jetpack=%s" % [my_id(), LobbySettings.jetpack()])
 		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
 			",".join(LobbySettings.map_pool()), match_settings.song])
 		print("LOBBY_MOVEMENT %d movement=%s" % [my_id(), LobbySettings.movement()])
@@ -895,7 +895,7 @@ func host_fit_loadouts() -> void:
 			players[id]["weapon"] = w
 			changed = true
 		var wanted_mobility := _local_mobility if id == my_id() else str(players[id].get("mobility", ""))
-		var m := LobbySettings.fit_mobility(Mobility.valid(wanted_mobility))
+		var m := Mobility.valid(wanted_mobility)
 		if players[id].get("mobility", "") != m:
 			players[id]["mobility"] = m
 			changed = true
@@ -1061,7 +1061,6 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 	var index := id - BOT_ID_BASE
 	var character := player_character(my_id())
 	var guns := LobbySettings.allowed_weapons()
-	var tools := LobbySettings.allowed_mobility()
 	for i in index + 1:
 		character = Characters.next(character)
 	players[id] = {
@@ -1070,7 +1069,7 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 		"card": CallingCard.CARDS[randi() % CallingCard.CARDS.size()].id, "icon": CallingCard.ICONS[randi() % CallingCard.ICONS.size()].id,
 		"character": character,
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
-		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
+		"mobility": Mobility.valid(mobility),
 	}
 	if in_match and Teams.active():
 		players[id]["team"] = Teams.smaller_team()   # the debug menu adding one mid-match

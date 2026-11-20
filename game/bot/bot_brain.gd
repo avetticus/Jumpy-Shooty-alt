@@ -22,10 +22,9 @@ extends RefCounted
 ##    higher difficulties.
 ##  - Uses the movement set: sprints, slides and bunny-hops while chasing, dives to
 ##    close distance, flips to dodge when hit, grapples toward high ground.
-##  - Uses whatever is on its mobility button (see Mobility): the grapple as above, or
-##    blink to close in on you, to reach higher ground and to dodge when hit. Like
-##    everyone it has the jetpack (Space held in mid-air): short bursts up to higher
-##    ground, over cover as it closes in, and a hop out of the way when hit.
+##  - When the host turns the jetpack on (Space held in mid-air), it has it like
+##    everyone: short bursts up to higher ground, over cover as it closes in, and a
+##    hop out of the way when hit.
 ##  - Kicks anyone right in front of it, hooks you with the grapple to reel you in
 ##    and finishes with a flying kick, and fires its rocket boots to close in, to
 ##    dodge when hit and to whip round faster on a grapple swing.
@@ -167,7 +166,6 @@ var _answer: NavigationPathQueryResult3D
 var _open_map := -1              # 1: a map of islands over a drop (see _open()), 0: not, -1: not looked yet
 var _ground_map := -1            # 1: many moving parts, routes worked out part by part (see _by_ground()), 0: not, -1: not looked yet
 var _link_places := {}           # a crossing's instance id -> [the part it sets off from, the part it comes down on]
-var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
 var _jet_time := 0.0             # seconds left of a jetpack burst it is holding (Space, in mid-air)
 var _guarding := false           # team modes: inside the radius of the spot it is guarding
 var _wander := Vector3.INF       # ...and the spot near it it is strolling to
@@ -179,8 +177,7 @@ var _sense_every := 1            # it looks and listens on every this-many-th st
 
 ## Guns that wait for a clean shot (see _fire).
 const STEADY_GUNS := ["sniper", "bolt_action", "railgun"]
-## How often it thinks of using blink and the jetpack, a second (Easy to Expert).
-const BLINK_RATE := [0.15, 0.5, 1.0, 1.4]
+## How often it thinks of using the jetpack, a second (Easy to Expert).
 const JETPACK_RATE := [0.2, 0.5, 0.9, 1.2]
 
 
@@ -309,7 +306,6 @@ func update(delta: float) -> void:
 		_hop_time = 0.0
 		_dodge_time = 0.0
 		_boost_side = 0.0
-		_blink_side = 0.0
 		_jet_time = 0.0
 		input.jump_held = false
 		_link = null
@@ -318,8 +314,6 @@ func update(delta: float) -> void:
 		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal or a crossing
 	if _open() and not hold:
 		world_dir = _mind_the_edge(world_dir)
-	elif me.mobility == Mobility.BLINK:
-		_blink(delta, visible)
 	else:
 		_grapple(delta, visible)
 	if not hold:
@@ -368,7 +362,6 @@ func _reset() -> void:
 	_terminal = null
 	_link = null
 	_link_flying = false
-	_blink_side = 0.0
 	input.glide = false
 	_jet_time = 0.0
 	input.jump_held = false
@@ -1487,7 +1480,7 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 	if _light() and not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0 * _air()):
 		return   # low gravity: a dodge that way would float it off an edge
 	if _open():
-		# Islands over a drop: only dodge toward a side with floor under it (a boost or a blink goes far).
+		# Islands over a drop: only dodge toward a side with floor under it (a boost goes far).
 		if not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0):
 			side = -side
 			if not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0):
@@ -1503,9 +1496,6 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 		return
 	if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
 		_start_jet(0.35)   # hop up out of the line of fire
-	if me.blink and me.blink.ready() and _rng.randf() < d.dodge_chance * 0.7:
-		_blink_side = side   # a sideways blink
-		return
 	if _rng.randf() < d.dodge_chance * 0.5 and me.motor.boost_readiness() >= 1.0:
 		_boost_side = side   # a sideways rocket burst
 		return
@@ -1585,45 +1575,7 @@ func _grapple(delta: float, visible: bool) -> void:
 	_grapple_start = me.global_position
 
 
-## Blink: sideways when just hit, toward its target when it is out of range, or up
-## to higher ground it is heading for. Easy bots hardly use it.
-func _blink(delta: float, visible: bool) -> void:
-	input.grapple = false
-	var b := me.blink
-	if b == null or not b.ready():
-		return
-	var dir := Vector3.ZERO
-	if _blink_side != 0.0:
-		dir = Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * _blink_side
-		_blink_side = 0.0
-	else:
-		var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
-		if spot == Vector3.INF:
-			return
-		var rate: float = BLINK_RATE[d.level]
-		if _rng.randf() > delta * rate:
-			return
-		var to := spot - me.global_position
-		var flat := Vector3(to.x, 0.0, to.z)
-		var dist := flat.length()
-		var higher := to.y > 2.5 and dist < Blink.RANGE * 1.5
-		var close_in := dist > (FAR + 6.0 if not _melee else 4.0) and (visible or dist > 20.0)
-		if not (higher or close_in) or dist < 0.5:
-			return
-		dir = flat.normalized()
-		if higher:
-			dir = (dir + Vector3(0, clampf(to.y / maxf(dist, 1.0), 0.3, 1.2), 0)).normalized()
-		elif not _ground_ahead(dir, Blink.RANGE):
-			return   # nothing to land on that way
-		else:
-			dir = (dir + Vector3(0, 0.12, 0)).normalized()
-	if (_light() or _open()) and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), Blink.RANGE):
-		return
-	input.mobility_dir = dir
-	input.grapple_pressed = true
-
-
-## Jetpack (everyone has one: Space held in mid-air): short bursts to reach higher
+## Jetpack (when the host turns it on: Space held in mid-air): short bursts to reach higher
 ## ground, to hop over whatever is in the way as it closes in on someone far off, and to
 ## hop out of the way when hit. Like a player it jumps first if it is on the floor and
 ## keeps Space down: the jetpack lights a moment into the air (see

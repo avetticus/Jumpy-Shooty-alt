@@ -941,6 +941,8 @@ func _seen(clip: String) -> String:
 func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: float, delta: float) -> void:
 	var direction := -1.0 if _reverse else 1.0
 	_view_clip = false
+	if first_person and key in FLIPS:
+		key = "air"   # your own flip, seen from the eyes: just the plain jump (the others still see you flip)
 	match key:
 		"loco":
 			var wr := clampf(speed / RUN_SPEED, 0.0, 1.0)

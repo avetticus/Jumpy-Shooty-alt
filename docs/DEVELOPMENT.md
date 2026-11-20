@@ -194,12 +194,12 @@ Quick checks:
   from the new life, after a new robot or gun while waiting to see them back, and
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the mobility slot and the jetpack (`tests/mobility_test.gd`), in a real Practice match:
-  blink (range, a wall, its charge), picking a tool (refused while alive, taken while
-  dead; the grapple and blink, an old pick of a tool that is gone is the grapple), and
-  everyone's jetpack on Space (a tap is a plain jump and burns nothing, nor does holding
+  the grappling hook is the only tool (an old pick of one that is gone is the hook); no
+  jetpack by default (holding Space in mid-air is just a jump); with the lobby's jetpack
+  on, it is on Space (a tap is a plain jump and burns nothing, nor does holding
   it through the jump for less than `space_hold_time`; held on in mid-air it fires,
-  lifts you and burns fuel that refills; held in a fall it catches you); bots carry a
-  tool and the jetpack; a race has the grapple and no jetpack;
+  lifts you and burns fuel that refills; held in a fall it catches you); bots have it
+  while it is on; a race has the grapple and never the jetpack;
 - the game boots into practice mode on every map without script errors.
 
 - the railgun (`tests/railgun_test.gd`), in a real Practice match: through a wall a pistol
