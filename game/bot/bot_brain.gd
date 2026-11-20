@@ -1844,14 +1844,19 @@ func _aim(delta: float, perceived: Array, move_dir: Vector3) -> void:
 		var w: WeaponData = me.weapon.data if me.weapon else null
 		if w and w.is_projectile():
 			# Rockets and grenades: lead by the flight time, aim low (the blast does the rest), and lob grenades.
+			# A bolt has no blast: it aims at the body, high enough for its arc.
 			var flight := dist / w.projectile_speed
 			point += vel * flight * d.lead
-			point.y -= 0.7 if point.y - 0.7 > me.global_position.y - 1.0 else 0.0
+			if w.explosive:
+				point.y -= 0.7 if point.y - 0.7 > me.global_position.y - 1.0 else 0.0
 			if w.projectile_gravity > 0.0:
+				# The low arc through the point, above or below (out of reach: 45 degrees, as far as it goes).
+				var g := w.projectile_gravity
 				var s2 := w.projectile_speed * w.projectile_speed
 				var flat := Vector2(point.x - eye.x, point.z - eye.z).length()
-				var k := clampf(w.projectile_gravity * flat / s2, 0.0, 0.99)
-				point.y += flat * tan(0.5 * asin(k))
+				var under := s2 * s2 - g * (g * flat * flat + 2.0 * (point.y - eye.y) * s2)
+				if flat > 0.01:
+					point.y = eye.y + flat * ((s2 - sqrt(under)) / (g * flat) if under >= 0.0 else 1.0)
 			dist = eye.distance_to(point)
 			_lob = point
 		_error += Vector3(_rng.randfn(), _rng.randfn() * 0.6, _rng.randfn()) * delta * 2.0

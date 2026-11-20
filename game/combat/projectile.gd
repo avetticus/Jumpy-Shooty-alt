@@ -2,7 +2,7 @@ class_name Projectile
 extends Node3D
 ## A rocket, grenade, flare, mortar shell, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
 ## of the same flight in Match and decides where it blows up; this one is the look:
-## a body with a glowing tail and a trail of smoke, flying the same path (the same
+## a body with a glowing tail and a trail of smoke (a bolt: a streak, BoltTrail), flying the same path (the same
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
 
 const BLEND := 0.12   ## seconds to slide from the muzzle onto the real flight path
@@ -15,6 +15,8 @@ var _vel := Vector3.ZERO
 var _offset := Vector3.ZERO   # muzzle minus eyes, shrinking to nothing
 var _t := 0.0
 var _smoke_t := 0.0
+var _color := Color.WHITE
+var _trail: BoltTrail          # a bolt's streak (beside it, in the same parent, so it can outlast it)
 
 
 static func make(projectile_id: int, data: WeaponData, origin: Vector3, direction: Vector3, muzzle: Vector3, color: Color) -> Projectile:
@@ -25,8 +27,37 @@ static func make(projectile_id: int, data: WeaponData, origin: Vector3, directio
 	p._pos = origin
 	p._vel = direction.normalized() * data.projectile_speed
 	p._offset = muzzle - origin if muzzle != Vector3.INF else Vector3.ZERO
+	p._color = color
 	p._build(color)
 	return p
+
+
+func _ready() -> void:
+	if weapon.look() == "bolt":
+		_add_trail.call_deferred()   # (the parent may still be busy adding us)
+
+
+## A bolt's streak, made only once the bolt is in the world (so none is left behind
+## by a bolt that never was).
+func _add_trail() -> void:
+	var parent := get_parent()
+	if parent == null or not is_inside_tree() or is_queued_for_deletion():
+		return
+	var tint := weapon.tracer_color if weapon.tracer_color.a > 0.0 else _color
+	_trail = BoltTrail.new().setup(tint)
+	parent.add_child(_trail)
+	if _t > 0.0:   # (before its first step it is not where it flies yet)
+		_trail.follow(_tail(), 0.0)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_trail):
+		_trail.release()   # landed or gone: the streak fades out on its own
+
+
+## The back end of the body (the nose points along -Z).
+func _tail() -> Vector3:
+	return global_position + global_basis.z * 0.25
 
 
 func _build(color: Color) -> void:
@@ -186,12 +217,17 @@ func _physics_process(delta: float) -> void:
 		_pos = through[0]
 		_vel = through[1]
 		_offset = Vector3.ZERO   # (no more drawing it out of the muzzle)
+		if is_instance_valid(_trail):
+			_trail.cut()
 	else:
 		_pos = to
 	var k := clampf(1.0 - _t / BLEND, 0.0, 1.0)
 	global_position = _pos + _offset * k
 	if _vel.length_squared() > 0.01:
+		# Nose along the way it is going: a falling bolt tips nose down as it drops.
 		look_at(global_position + _vel, Vector3.UP if absf(_vel.normalized().y) < 0.99 else Vector3.RIGHT)
+	if is_instance_valid(_trail):
+		_trail.follow(_tail(), delta)
 	_smoke_t -= delta
 	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless" and weapon.explosive and weapon.look() != "orb":
 		_smoke_t = 0.025 if weapon.projectile_gravity <= 0.0 else 0.05

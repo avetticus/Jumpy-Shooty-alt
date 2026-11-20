@@ -118,8 +118,63 @@ func _init() -> void:
 	var new_rungs := ladder.filter(func(g): return g in batch).size()
 	_check(new_rungs >= 10, "gun game: climbs through the new guns too (%d)" % new_rungs)
 
+
+## (Once the tree is up: a bolt has to fly in the world.)
+func _initialize() -> void:
+	_finish.call_deferred()
+
+
+func _finish() -> void:
+	await process_frame
+	_crossbow_arc(WeaponData.by_id("crossbow"))
 	print("NEW WEAPONS TEST PASSED" if _ok else "NEW WEAPONS TEST FAILED")
 	quit(0 if _ok else 1)
+
+
+## The crossbow's bolt falls in a clear arc you aim above (but can still reach far
+## with), tips nose down as it drops, and leaves a streak along its curve that outlives
+## it and fades out after it lands.
+func _crossbow_arc(bow: WeaponData) -> void:
+	var drop := func(metres: float) -> float: return 0.5 * bow.projectile_gravity * pow(metres / bow.projectile_speed, 2.0)
+	_check(drop.call(30.0) > 1.0 and drop.call(50.0) > 2.5, "crossbow: a bolt drops clearly (%.1f m at 30 m, %.1f m at 50 m)" % [drop.call(30.0), drop.call(50.0)])
+	_check(drop.call(50.0) < 8.0 and pow(bow.projectile_speed, 2.0) / bow.projectile_gravity > 200.0,
+		"crossbow: and long shots are still on (a %.0f m lob at 45 degrees)" % (pow(bow.projectile_speed, 2.0) / bow.projectile_gravity))
+	_check(bow.fuse * bow.projectile_speed > 300.0, "crossbow: flies long enough for its arc to play out (%.1f s)" % bow.fuse)
+	var step := 1.0 / 120.0
+	var bolt := Projectile.make(1, bow, Vector3(0, 50, 0), Vector3(0, 0, -1), Vector3.INF, Color(0.9, 0.2, 0.2))
+	root.add_child(bolt)
+	bolt.set_physics_process(false)
+	bolt._add_trail()
+	var trail: BoltTrail = bolt._trail
+	_check(trail != null and trail.get_parent() == root, "crossbow: a bolt has a streak beside it (not under it)")
+	bolt._physics_process(step)
+	var first_nose := -bolt.global_basis.z
+	var t := step
+	while t < 50.0 / bow.projectile_speed:
+		bolt._physics_process(step)
+		t += step
+	var fell := 50.0 - bolt.global_position.y
+	_check(absf(fell - 0.5 * bow.projectile_gravity * t * t) < 0.15, "crossbow: it falls all the way from the start (%.2f m after %.2f s)" % [fell, t])
+	var nose := -bolt.global_basis.z
+	_check(first_nose.y > -0.01 and nose.y < -0.1 and nose.dot(bolt._vel.normalized()) > 0.999,
+		"crossbow: the bolt points along its flight, nose down as it drops (%.2f then %.2f)" % [first_nose.y, nose.y])
+	if trail == null:
+		bolt.free()
+		return
+	var pts: Array = trail._points
+	_check(pts.size() >= 10, "crossbow: the streak keeps a point a metre or so (%d)" % pts.size())
+	if pts.size() >= 3:
+		var a: Vector3 = pts[0][0]
+		var b: Vector3 = pts[-1][0]
+		var mid: Vector3 = pts[pts.size() / 2][0]
+		var chord := a.lerp(b, (mid.z - a.z) / (b.z - a.z))
+		_check(mid.y > chord.y + 0.05, "crossbow: the streak follows the curve, not a straight line (%.2f m off it)" % (mid.y - chord.y))
+	bolt.free()   # it lands
+	_check(is_instance_valid(trail) and trail.is_released() and trail.points() > 0, "crossbow: the streak outlives the bolt")
+	trail._process(BoltTrail.LIFE * 0.5)
+	_check(trail.points() > 0 and not trail.is_queued_for_deletion(), "crossbow: and fades out, not all at once")
+	trail._process(BoltTrail.LIFE)
+	_check(trail.points() == 0 and trail.is_queued_for_deletion(), "crossbow: then it is gone")
 
 
 ## Rounds fired holding the trigger for `seconds`, with the barrels spun up `spin`.
